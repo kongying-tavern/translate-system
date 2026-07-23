@@ -19,6 +19,7 @@ model User {
 
   projects       Project[]
   projectMembers ProjectMember[]
+  apiKeys        ApiKey[]
   refreshTokens  RefreshToken[]
 
   @@map("users")
