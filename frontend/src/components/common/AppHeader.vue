@@ -37,7 +37,7 @@
       <el-form-item label="名称"><el-input v-model="settingsForm.name" /></el-form-item>
       <el-form-item label="描述"><el-input v-model="settingsForm.description" type="textarea" :rows="3" /></el-form-item>
     </el-form>
-    <template #footer><el-button @click="settingsVisible=false">取消</el-button><el-button type="primary" @click="saveSettings" :loading="settingsSaving">保存</el-button></template>
+    <template #footer><el-button type="danger" @click="handleDeleteProject" style="float:left">删除项目</el-button><el-button @click="settingsVisible=false">取消</el-button><el-button type="primary" @click="saveSettings" :loading="settingsSaving">保存</el-button></template>
   </el-dialog>
 
   <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
@@ -54,9 +54,9 @@ import { ref, reactive, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowDown, Setting } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { getProject, getProjects, updateProject } from '@/api/project'
+import { getProject, getProjects, updateProject, deleteProject } from '@/api/project'
 import client from '@/api/client'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
@@ -112,6 +112,11 @@ function switchProject(p: any) {
   router.push('/projects/' + p.id + suffix)
 }
 function goCreateProject() { switcherVisible.value = false; router.push('/projects/new') }
+
+async function handleDeleteProject() {
+  try { await ElMessageBox.confirm('确定要删除项目「' + projectName.value + '」吗？该操作不可恢复。', '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' }) } catch { return }
+  try { await deleteProject(projectId.value!); settingsVisible.value = false; localStorage.removeItem('activeProjectId'); localStorage.removeItem('activeProjectName'); router.push('/'); ElMessage.success('项目已删除') } catch { ElMessage.error('删除失败') }
+}
 
 async function saveSettings() {
   if (!settingsForm.name.trim()) { ElMessage.warning('名称不能为空'); return }

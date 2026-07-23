@@ -5,7 +5,7 @@ export async function listProjects(userId: string, page: number, pageSize: numbe
   const ids = memberProjectIds.map(m => m.projectId)
   const where = { OR: [{ userId }, { id: { in: ids } }] }
   const [projects, total] = await Promise.all([
-    prisma.project.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.project.findMany({ where, orderBy: { createdAt: 'asc' }, skip: (page - 1) * pageSize, take: pageSize }),
     prisma.project.count({ where }),
   ])
   return { projects, total }
