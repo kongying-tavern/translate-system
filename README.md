@@ -57,7 +57,7 @@ docker compose up -d postgres
 cd backend
 cp .env.example .env
 # 编辑 backend/.env 中的 DATABASE_URL，指向本地映射的 PostgreSQL
-# DATABASE_URL=postgresql://translate:translate123@localhost:20432/translate_ai
+# DATABASE_URL=postgresql://translate:translate123@localhost:20432/kongying_translate
 ```
 
 > 根目录 `.env` 仅供 Docker 部署使用，本地开发只需配置 `backend/.env`。
