@@ -9,6 +9,8 @@ export interface AuthRequest extends Request {
 }
 
 export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction) {
+  // Skip JWT if already authenticated via API key
+  if (req.userId) return next()
   const header = req.headers.authorization
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ code: ErrCode.Unauthorized, message: 'missing or invalid authorization header', data: null })

@@ -21,7 +21,7 @@ $headers = @{
     "Content-Type" = "application/json"
 }
 
-$url = "$Server/api/v1/apikey/export/generate/$ProjectId"
+$url = "$Server/api/v1/apikey/projects/$ProjectId/exports/generate"
 Write-Host "Exporting from: $url" -ForegroundColor Cyan
 Write-Host "Languages: $($Languages -join ', ')" -ForegroundColor Cyan
 

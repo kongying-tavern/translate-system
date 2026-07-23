@@ -3,12 +3,14 @@
     <div class="page-header"><h2>API 接口说明</h2></div>
 
     <el-card header="导出翻译文件" style="margin-bottom:20px">
-      <p style="margin-bottom:12px">通过 API Key + Secret 鉴权，获取导出内容。</p>
+      <p style="margin-bottom:12px">通过 API Key + Secret 鉴权，代理所有业务接口。只需在原 API 路径前加 <code>/api/v1/apikey</code> 前缀。</p>
       <el-descriptions :column="1" border>
         <el-descriptions-item label="端点">
-          <code>POST /api/v1/apikey/export/generate/:projectId</code>
+          <code>POST /api/v1/apikey/projects/:projectId/exports/preview</code><br/>
+          <code>POST /api/v1/apikey/projects/:projectId/exports/generate</code>
         </el-descriptions-item>
         <el-descriptions-item label="鉴权方式">请求头 <code>x-api-key</code> + <code>x-api-secret</code></el-descriptions-item>
+        <el-descriptions-item label="可用接口"><code>/api/v1/apikey/projects/*</code>、<code>/api/v1/apikey/languages/*</code>（等同于内部接口去掉 <code>/apikey</code>）</el-descriptions-item>
       </el-descriptions>
 
       <h4 style="margin:16px 0 8px">请求头</h4>
@@ -36,14 +38,19 @@ const params = [
   { name: 'filterTags', type: 'string[]', required: '否', desc: '按标签过滤，只导出包含指定标签的行。如 ["urgent"]。不传则导出全部' },
 ]
 
-const curlExample = `curl -X POST http://localhost:8080/api/v1/apikey/export/generate/项目ID \\
-  -H "x-api-key: ak_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \\
-  -H "x-api-secret: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" \\
+const curlExample = `# 导出翻译
+curl -X POST http://localhost:8080/api/v1/apikey/projects/项目ID/exports/generate \\
+  -H "x-api-key: ak_xxx" \\
+  -H "x-api-secret: xxx" \\
   -H "Content-Type: application/json" \\
   -d '{"templateId":"模板ID","languageCodes":["zh-Hans"]}'
 
-# 响应
-{ "code": 0, "message": "success", "data": { "content": "{ ... }", "format": "json" } }`
+# 获取项目翻译列表
+curl http://localhost:8080/api/v1/apikey/projects/项目ID/translations \\
+  -H "x-api-key: ak_xxx" -H "x-api-secret: xxx"
+
+# 响应格式: { "code": 0, "data": {...} }`
+
 </script>
 
 <style scoped>
