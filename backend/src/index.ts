@@ -9,6 +9,7 @@ import { languageRoutes } from './routes/languages'
 import { translationRoutes } from './routes/translations'
 import { layoutRoutes } from './routes/layouts'
 import { exportRoutes } from './routes/exports'
+import { apiKeyRoutes } from './routes/apikeys'
 import { errorHandler } from './middleware/errorHandler'
 
 export const prisma = new PrismaClient()
@@ -23,6 +24,7 @@ app.use(express.json())
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // Routes
+app.use('/api/v1/apikey', apiKeyRoutes)
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/projects', projectRoutes)
 app.use('/api/v1/languages', languageRoutes)

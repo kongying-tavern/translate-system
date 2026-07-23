@@ -13,6 +13,7 @@
       <template #dropdown>
         <el-dropdown-menu>
           <el-dropdown-item command="pwd">修改密码</el-dropdown-item>
+          <el-dropdown-item command="apikey">API 密钥</el-dropdown-item>
           <el-dropdown-item command="logout">退出登录</el-dropdown-item>
         </el-dropdown-menu>
       </template>
@@ -38,6 +39,24 @@
       <el-form-item label="描述"><el-input v-model="settingsForm.description" type="textarea" :rows="3" /></el-form-item>
     </el-form>
     <template #footer><el-button type="danger" @click="handleDeleteProject" style="float:left">删除项目</el-button><el-button @click="settingsVisible=false">取消</el-button><el-button type="primary" @click="saveSettings" :loading="settingsSaving">保存</el-button></template>
+  </el-dialog>
+
+  <el-dialog v-model="apikeyVisible" title="API 密钥" width="650px">
+    <div style="margin-bottom:16px">
+      <el-form :inline="true"><el-form-item><el-input v-model="newKeyName" placeholder="密钥名称" style="width:200px" /></el-form-item><el-form-item><el-button type="primary" @click="createApiKey">生成新密钥</el-button></el-form-item></el-form>
+    </div>
+    <el-table :data="apiKeys" stripe>
+      <el-table-column prop="name" label="名称" width="120" />
+      <el-table-column prop="apiKey" label="API Key" min-width="180" />
+      <el-table-column label="状态" width="80"><template #default="{ row }"><el-tag :type="row.enabled ? 'success' : 'danger'" size="small">{{ row.enabled ? '启用' : '禁用' }}</el-tag></template></el-table-column>
+      <el-table-column label="最后使用" width="160"><template #default="{ row }">{{ row.lastUsed ? new Date(row.lastUsed).toLocaleString('zh-CN') : '-' }}</template></el-table-column>
+      <el-table-column label="操作" width="140"><template #default="{ row }"><el-button link size="small" @click="toggleApiKey(row)">{{ row.enabled ? '禁用' : '启用' }}</el-button><el-button link type="danger" size="small" @click="deleteApiKey(row)">删除</el-button></template></el-table-column>
+    </el-table>
+    <div v-if="newSecret" style="margin-top:16px;background:#f0f9eb;border:1px solid #b7eb8f;padding:12px;border-radius:6px">
+      <p style="color:#389e0d;font-weight:600;margin:0 0 4px">新密钥已生成！请立即复制 Secret，关闭后将无法再次查看：</p>
+      <code style="word-break:break-all;font-size:13px">{{ newSecret }}</code>
+    </div>
+    <p style="margin-top:12px;font-size:13px;color:#909399">使用方式：请求头 <code>x-api-key</code> 和 <code>x-api-secret</code></p>
   </el-dialog>
 
   <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
@@ -77,6 +96,7 @@ const settingsForm = reactive({ name: '', description: '' })
 function handleCommand(cmd: string) {
   if (cmd === 'logout') { auth.logout(); router.push('/auth/login') }
   if (cmd === 'pwd') { pwdForm.oldPassword = ''; pwdForm.newPassword = ''; pwdVisible.value = true }
+  if (cmd === 'apikey') { loadApiKeys(); apikeyVisible.value = true }
 }
 
 async function handlePwd() {
@@ -123,6 +143,24 @@ async function saveSettings() {
   settingsSaving.value = true
   try { await updateProject(projectId.value!, { name: settingsForm.name, description: settingsForm.description }); settingsVisible.value = false; projectName.value = settingsForm.name; auth.setActiveProject(projectId.value!, settingsForm.name); ElMessage.success('已保存') } catch { ElMessage.error('保存失败') }
   finally { settingsSaving.value = false }
+}
+
+// ── API Keys ──
+const apikeyVisible = ref(false)
+const apiKeys = ref<any[]>([])
+const newKeyName = ref('')
+const newSecret = ref('')
+
+async function loadApiKeys() { try { const { data: res } = await client.get('/apikey/me/keys'); apiKeys.value = res.data } catch {} }
+async function createApiKey() {
+  if (!newKeyName.value.trim()) { ElMessage.warning('请输入名称'); return }
+  try { const { data: res } = await client.post('/apikey/me/keys', { name: newKeyName.value.trim() }); apiKeys.value.unshift(res.data); newSecret.value = res.data.secret; newKeyName.value = '' } catch { ElMessage.error('创建失败') }
+}
+async function toggleApiKey(row: any) {
+  try { await client.put('/apikey/me/keys/' + row.id, { enabled: !row.enabled }); row.enabled = !row.enabled } catch { ElMessage.error('操作失败') }
+}
+async function deleteApiKey(row: any) {
+  try { await client.delete('/apikey/me/keys/' + row.id); apiKeys.value = apiKeys.value.filter(k => k.id !== row.id); ElMessage.success('已删除') } catch { ElMessage.error('删除失败') }
 }
 </script>
 

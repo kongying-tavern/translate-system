@@ -159,6 +159,21 @@ model ExportTemplate {
   @@map("export_templates")
 }
 
+model ApiKey {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  apiKey    String   @unique @map("api_key") @db.VarChar(64)
+  secret    String   @db.VarChar(255)
+  enabled   Boolean  @default(true)
+  lastUsed  DateTime? @map("last_used")
+  createdAt DateTime @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([apiKey])
+  @@map("api_keys")
+}
+
 model RefreshToken {
   id        String   @id @default(uuid()) @db.Uuid
   userId    String   @map("user_id") @db.Uuid

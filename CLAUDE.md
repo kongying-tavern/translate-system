@@ -85,6 +85,20 @@ layouts/AppLayout — 主界面布局
 - context 和 tags 是 key 级属性，不按语言缓存
 - 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在
 
+### API Key 鉴权
+
+外部自动化可通过 API Key + Secret 访问导出端点：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/apikey/export/generate/:projectId \
+  -H "x-api-key: ak_xxx" \
+  -H "x-api-secret: xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"templateId":"...","languageCodes":["zh-Hans"]}'
+```
+
+管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
+
 ### 导出模板 config 字段
 
 ```json
