@@ -1,31 +1,31 @@
-version: "3.9"
-
 services:
   postgres:
+    container_name: ${COMPOSE_PROJECT_NAME:-kytrans}-postgres
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: translate
-      POSTGRES_PASSWORD: translate123
-      POSTGRES_DB: translate_ai
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-20432}:5432"
     volumes:
-      - ./data/postgresql/data:/var/lib/postgresql/data
+      - ${DATA_ROOT:-./data}/postgresql/data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U translate -d translate_ai"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
+    container_name: ${COMPOSE_PROJECT_NAME:-kytrans}-backend
     build: ./backend
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-20080}:8080"
     environment:
-      DATABASE_URL: postgresql://translate:translate123@postgres:5432/translate_ai
-      JWT_SECRET: change-me-in-production
-      JWT_ACCESS_TTL: "900"
-      JWT_REFRESH_TTL: "604800"
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-604800}
       PORT: "8080"
     depends_on:
       postgres:
@@ -33,8 +33,9 @@ services:
     command: sh -c "sh ./startup.sh"
 
   frontend:
+    container_name: ${COMPOSE_PROJECT_NAME:-kytrans}-frontend
     build: ./frontend
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-20010}:80"
     depends_on:
       - backend
