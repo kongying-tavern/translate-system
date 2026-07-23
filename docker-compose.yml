@@ -30,8 +30,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: >
-      sh -c "npx prisma db push && npx tsx prisma/seed.ts && npx tsx src/index.ts"
+    command: sh -c "sh ./startup.sh"
 
   frontend:
     build: ./frontend
