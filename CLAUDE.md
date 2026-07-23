@@ -8,20 +8,24 @@
 
 ```bash
 # 后端 (localhost:8080)
-cd backend && npm run dev           # tsx watch 热重载
-npx prisma generate                 # 重新生成 Prisma Client
-npx prisma db push                  # 推送 schema 到 DB（保留数据）
+cd backend && pnpm dev           # tsx watch 热重载
+pnpm db:generate                 # 重新生成 Prisma Client
+pnpm db:push                     # 推送 schema 到 DB（保留数据）
+pnpm db:seed                     # 灌入基础语言数据
+pnpm db:migrate                  # 生成并执行迁移文件
 
 # 前端 (localhost:3000)
-cd frontend && npm run dev          # Vite HMR
-rm -rf node_modules/.vite           # 清除 Vite 缓存（模块找不到时）
+cd frontend && pnpm dev          # Vite HMR
+rm -rf node_modules/.vite        # 清除 Vite 缓存（模块找不到时）
 
-# 数据库 (本地 PostgreSQL)
-PGPASSWORD=translate123 psql -U translate -d translate_ai -c "..."
-npx tsx prisma/seed.ts             # 灌入基础语言数据
+# Docker
+docker compose up -d             # 启动全部服务
+docker compose up -d postgres    # 仅启动数据库（本地开发用）
+docker compose down              # 停止服务
+docker compose logs -f           # 查看日志
 
 # 导入翻译文件
-npx tsx src/scripts/import-json.ts <projectId> <file> <langCode>
+cd backend && pnpm tsx src/scripts/import-json.ts <projectId> <file> <langCode>
 ```
 
 ## 核心架构
@@ -78,20 +82,6 @@ layouts/AppLayout — 主界面布局
 /projects/:id/exports/preview|generate   — POST
 ```
 
-### API Key 鉴权
-
-外部自动化可通过 API Key + Secret 访问导出端点：
-
-```bash
-curl -X POST http://localhost:8080/api/v1/apikey/export/generate/:projectId \
-  -H "x-api-key: ak_xxx" \
-  -H "x-api-secret: xxx" \
-  -H "Content-Type: application/json" \
-  -d '{"templateId":"...","languageCodes":["zh-Hans"]}'
-```
-
-管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
-
 ### 翻译页面关键逻辑
 
 - 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText + context + tags + translations{}`
@@ -121,7 +111,7 @@ curl -X POST http://localhost:8080/api/v1/apikey/export/generate/:projectId \
 
 ### 常见问题
 
-1. **Vite 模块找不到** — `rm -rf node_modules/.vite && npm run dev`
+1. **Vite 模块找不到** — `rm -rf node_modules/.vite && pnpm dev`
 2. **Prisma 文件锁** — `rm -rf node_modules/.prisma && npx prisma generate`
 3. **`psql` 中文乱码** — 用 `npx tsx -e "import{PrismaClient}..."` 查数据
 4. **路由冲突** — `/:key/:langCode` 会吃掉 `/key/:oldKey`，必须把 literal 路由放前面
@@ -140,5 +130,5 @@ curl -X POST http://localhost:8080/api/v1/apikey/export/generate/:projectId \
 ### 改动翻译相关功能
 
 1. 先改 `services/translation.ts` → 再改 `routes/translations.ts` → 最后改前端
-2. 如果需要新字段，改 `prisma/schema.prisma` → `npx prisma db push` → 更新 service
+2. 如果需要新字段，改 `prisma/schema.prisma` → `pnpm db:push` 或 `pnpm db:migrate` → 更新 service
 3. 翻译列表分页在 `listGrouped` 中处理，导出不过滤在 `getForExport`
