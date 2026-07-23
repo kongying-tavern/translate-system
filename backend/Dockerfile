@@ -1,7 +1,7 @@
 FROM node:20-alpine
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 RUN chmod +x startup.sh
 RUN npx prisma generate
