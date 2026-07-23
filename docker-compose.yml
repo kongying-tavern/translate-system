@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: translate
+      POSTGRES_PASSWORD: translate123
+      POSTGRES_DB: translate_ai
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U translate -d translate_ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://translate:translate123@postgres:5432/translate_ai
+      JWT_SECRET: change-me-in-production
+      JWT_ACCESS_TTL: "900"
+      JWT_REFRESH_TTL: "604800"
+      PORT: "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma db push && npx tsx prisma/seed.ts && npx tsx src/index.ts"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

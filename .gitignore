@@ -10,7 +10,6 @@ dist/
 zh-Hans.json
 zh-Hans copy.json
 .claude/
-docker-compose.yml
 backend/.env
 backend/migrate-data.ts
 backend/test-export.ts
