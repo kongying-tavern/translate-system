@@ -18,6 +18,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'Dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
         { path: 'users', name: 'Users', component: () => import('@/views/auth/UserManageView.vue') },
+        { path: 'api-doc', name: 'ApiDoc', component: () => import('@/views/auth/ApiDocView.vue') },
         { path: 'projects/new', name: 'ProjectCreate', component: () => import('@/views/project/ProjectCreateView.vue') },
         {
           path: 'projects/:projectId', children: [

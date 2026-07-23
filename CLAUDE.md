@@ -78,6 +78,20 @@ layouts/AppLayout — 主界面布局
 /projects/:id/exports/preview|generate   — POST
 ```
 
+### API Key 鉴权
+
+外部自动化可通过 API Key + Secret 访问导出端点：
+
+```bash
+curl -X POST http://localhost:8080/api/v1/apikey/export/generate/:projectId \
+  -H "x-api-key: ak_xxx" \
+  -H "x-api-secret: xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"templateId":"...","languageCodes":["zh-Hans"]}'
+```
+
+管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
+
 ### 翻译页面关键逻辑
 
 - 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText + context + tags + translations{}`

@@ -13,7 +13,7 @@
       <template #dropdown>
         <el-dropdown-menu>
           <el-dropdown-item command="pwd">修改密码</el-dropdown-item>
-          <el-dropdown-item command="apikey">API 密钥</el-dropdown-item>
+          <el-dropdown-item command="apikey" v-if="auth.role !== 'member'">API 密钥</el-dropdown-item>
           <el-dropdown-item command="logout">退出登录</el-dropdown-item>
         </el-dropdown-menu>
       </template>
