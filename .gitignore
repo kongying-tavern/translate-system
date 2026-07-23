@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+.thumbs/
+.history/
+.vite/
+.prisma/
+zh-Hans.json
+zh-Hans copy.json
+.claude/
+docker-compose.yml
+backend/.env
+backend/migrate-data.ts
+backend/test-export.ts
