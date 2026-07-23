@@ -35,13 +35,27 @@ app.use('/api/v1/projects', translationRoutes)
 app.use('/api/v1/projects', layoutRoutes)
 app.use('/api/v1/projects', exportRoutes)
 
-// API Key proxy: /api/v1/apikey/* mirrors the original routes with API key auth
+// API Key proxy: whitelist of exposed routes
+const APIKEY_WHITELIST = [
+  { method: 'GET', path: /^\/projects\/[^/]+\/translations$/ },
+  { method: 'GET', path: /^\/projects\/[^/]+\/translations\/tags\/list$/ },
+  { method: 'GET', path: /^\/projects\/[^/]+\/languages$/ },
+  { method: 'POST', path: /^\/projects\/[^/]+\/exports\/preview$/ },
+  { method: 'POST', path: /^\/projects\/[^/]+\/exports\/generate$/ },
+]
+
 const apikeyProxy = express.Router()
 apikeyProxy.use(apiKeyAuth())
+// Whitelist guard
+apikeyProxy.use((req: any, res: any, next: any) => {
+  const allowed = APIKEY_WHITELIST.some(w =>
+    w.method === req.method && w.path.test(req.path)
+  )
+  if (!allowed) return res.status(403).json({ code: 1002, message: '接口不在白名单', data: null })
+  next()
+})
 apikeyProxy.use('/projects', projectRoutes)
-apikeyProxy.use('/languages', languageRoutes)
 apikeyProxy.use('/projects', translationRoutes)
-apikeyProxy.use('/projects', layoutRoutes)
 apikeyProxy.use('/projects', exportRoutes)
 app.use('/api/v1/apikey', apikeyProxy)
 
