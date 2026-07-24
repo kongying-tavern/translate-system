@@ -136,3 +136,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 1. 先改 `services/translation.ts` → 再改 `routes/translations.ts` → 最后改前端
 2. 如果需要新字段，改 `prisma/schema.prisma` → `pnpm db:push` 或 `pnpm db:migrate` → 更新 service
 3. 翻译列表分页在 `listGrouped` 中处理，导出不过滤在 `getForExport`
+
+### 脚本
+
+`scripts/` 下的工具脚本需同时提供 `.sh`（Linux）和 `.ps1`（Windows）两个版本。
