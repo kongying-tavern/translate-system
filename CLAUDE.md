@@ -58,21 +58,34 @@ layouts/AppLayout — 主界面布局
 
 ### 角色权限
 
-| 角色 | 新建项目 | 用户管理 | 翻译/导出 | 项目成员操作 |
-|------|:--:|:--:|:--:|:--:|
-| super_admin | ✅ | ✅ | ✅ | 全部 |
-| senior_admin | ❌ | ✅(不能管超管) | ✅ | 管理员及以下 |
-| admin | ❌ | ❌ | ✅ | 仅成员 |
-| member | ❌ | ❌ | 仅编辑译文 | ❌ |
+系统角色与项目角色分离。
 
-权限常量: `ROLE_LEVEL = { super_admin:4, senior_admin:3, admin:2, member:1 }`
+**系统角色** (`users.role`):
+
+| 角色 | 新建项目 | 用户管理 | 说明 |
+|------|:--:|:--:|------|
+| super_admin | ✅ | ✅ | 首位注册用户自动成为超管 |
+| admin | ❌ | ❌ | 可管理成员，不能创建/删除项目 |
+| member | ❌ | ❌ | 默认角色 |
+
+权限常量: `ROLE_LEVEL = { super_admin:3, admin:2, member:1 }`
+
+**项目角色** (`project_members.project_role`):
+
+| 角色 | 项目设置 | 项目成员 | 语言/导出 | 翻译 | 新增/删除Key |
+|------|:--:|:--:|:--:|:--:|:--:|
+| admin | ✅ | ✅ | ✅ | ✅ | ✅ |
+| maintainer | ❌ | ❌ | ❌ | ✅ | ✅ |
+| member | ❌ | ❌ | ❌ | 仅编辑译文 | ❌ |
+
+项目 owner 自动拥有项目 admin 权限。系统 super_admin 对所有项目拥有全部权限。
 
 ### API 路由
 
 所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。
 
 ```
-/auth/register|login|refresh|me        — 公开 (除了 me)
+/auth/register|login|refresh|me        — 公开 (除了 me)， login 支持用户名或邮箱
 /auth/users|users/:id/role|users/:id/password  — 需 auth + admin+
 /projects CRUD                          — 需 auth
 /projects/:id/translations              — 需 ownership
@@ -80,6 +93,9 @@ layouts/AppLayout — 主界面布局
 /projects/:id/translations/:key/:langCode — PUT 保存译文/标签/备注
 /projects/:id/translations/tags/list     — GET 标签列表
 /projects/:id/languages/:code/alias      — PUT 语言别名
+/projects/:id/languages/:code/sortOrder  — PUT 语言排序
+/projects/:id/members                    — GET/POST 项目成员管理
+/projects/:id/members/:id/role           — PUT 修改成员项目角色
 /projects/:id/exports/preview|generate   — POST
 ```
 
@@ -143,6 +159,24 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 1. 生成迁移文件：`cd backend && pnpm db:migrate`（绝对不能用 `db:push` 代替）
 2. 同步 `frontend/src/types/models.d.ts` — 新增或改动的字段必须加上，否则前端 TypeScript 编译报错
+
+### 改动代码后必须做的事
+
+- 修改代码后同步更新本文档（CLAUDE.md）和 README.md
+- 改 Prisma schema 后必须创建迁移文件（`pnpm db:migrate`），不能用 `db:push` 代替
+
+### 语言管理
+
+- 基础语言列表在 `frontend/src/data/languages.json`，静态加载，不依赖后端 API
+- 项目语言支持 `alias` 别名和 `sortOrder` 排序，导出时别名优先
+- 语言管理页支持拖拽排序（上下箭头），排序值通过 `PUT /languages/:code/sortOrder` 保存
+
+### 项目成员
+
+- 添加成员时需指定 `projectRole`（admin / maintainer / member）
+- 项目角色控制该成员在项目内的操作权限
+- API: `POST /projects/:id/members` 传 `{ email, projectRole }`
+- API: `PUT /projects/:id/members/:memberId/role` 传 `{ projectRole }`
 
 ### 脚本
 
