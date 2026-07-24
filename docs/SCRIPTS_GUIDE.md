@@ -25,7 +25,7 @@
 
 ### Shell 依赖
 
-`download_translations.sh` 需要安装 [jq](https://jqlang.github.io/jq/) 解析 JSON。
+`download_translations.sh` 需要安装 [Node.js](https://nodejs.org/) 解析 JSON。
 
 ---
 
