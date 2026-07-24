@@ -2,18 +2,26 @@ import { PrismaClient } from '@prisma/client'
 import * as fs from 'fs'
 
 const prisma = new PrismaClient()
-const [,, projectId, filePath, languageCode] = process.argv
+const [,, projectSlug, filePath, languageCode] = process.argv
 
-if (!projectId || !filePath || !languageCode) {
-  console.error('Usage: pnpm tsx src/scripts/import-json.ts <projectId> <filePath> <languageCode>')
-  console.error('Example: pnpm tsx src/scripts/import-json.ts <uuid> ../en-US.json en-US')
+if (!projectSlug || !filePath || !languageCode) {
+  console.error('Usage: pnpm tsx src/scripts/import-json.ts <projectId|projectCode> <filePath> <languageCode>')
   process.exit(1)
 }
 
 async function main() {
+  // Resolve project by code or id
+  let project = await prisma.project.findUnique({ where: { id: projectSlug } })
+  if (!project) project = await prisma.project.findUnique({ where: { code: projectSlug } })
+  if (!project) {
+    console.error('Project not found: ' + projectSlug)
+    process.exit(1)
+  }
+  const projectId = project.id
+
   const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
   const entries = Object.entries(data)
-  console.log('Importing ' + entries.length + ' entries -> project ' + projectId + ' [' + languageCode + ']')
+  console.log('Importing ' + entries.length + ' entries -> project ' + projectSlug + ' [' + languageCode + ']')
 
   let count = 0
   for (const [key, value] of entries) {
