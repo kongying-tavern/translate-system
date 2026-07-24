@@ -26,6 +26,7 @@ export interface ProjectLanguage {
   id: string
   projectId: string
   languageCode: string
+  alias: string
 }
 
 export interface Translation {
