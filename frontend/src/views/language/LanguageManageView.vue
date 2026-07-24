@@ -2,7 +2,7 @@
   <div>
     <div class="page-header"><h2>语言管理</h2><el-button type="primary" @click="showAddDialog = true">添加语言</el-button></div>
     <el-table :data="projectLanguages || []" stripe>
-      <el-table-column prop="languageCode" label="语言代码" min-width="120" />
+      <el-table-column prop="languageCode" label="语言代码" min-width="120" sortable />
       <el-table-column label="语言名称" min-width="200">
         <template #default="{ row }">{{ langStore.getBaseName(row.languageCode) }}</template>
       </el-table-column>
@@ -22,7 +22,7 @@
 
     <el-dialog v-model="showAddDialog" title="添加语言" width="500px">
       <el-select v-model="selectedLang" filterable placeholder="搜索语言..." style="width:100%">
-        <el-option v-for="l in baseLanguages" :key="l.languageCode" :label="l.englishName + ' (' + (l.nativeName || '') + ') - ' + l.languageCode" :value="l.languageCode" />
+        <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" :label="l.englishName + ' (' + (l.nativeName || '') + ') - ' + l.languageCode" :value="l.languageCode" />
       </el-select>
       <template #footer><el-button @click="showAddDialog = false">取消</el-button><el-button type="primary" @click="handleAdd" :disabled="!selectedLang">确认添加</el-button></template>
     </el-dialog>
@@ -51,6 +51,7 @@ watch(projectLanguages, (langs) => { if (langs) for (const l of langs) { if (!(l
 
 onMounted(() => loadLangs())
 watch(projectId, () => { if (projectId.value) loadLangs() })
+const sortedBaseLanguages = computed(() => [...baseLanguages.value].sort((a, b) => a.englishName.localeCompare(b.englishName)))
 const loadingStore = useLoadingStore()
 function loadLangs() { loadingStore.start(); langStore.fetchProjectLanguages(projectId.value).finally(() => loadingStore.stop()) }
 
