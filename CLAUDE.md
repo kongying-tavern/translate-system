@@ -181,3 +181,9 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 ### 脚本
 
 `scripts/` 下的工具脚本需同时提供 `.sh`（Linux）和 `.ps1`（Windows）两个版本。
+
+**命名规范**：脚本文件名使用下划线（snake_case），如 `sync_all.sh`、`backup_db.ps1`。`dev_` 前缀表示仅用于本地开发环境。
+
+**中文提示**：所有用户可见的提示信息（usage、错误、步骤、完成等）使用中文书写。
+
+**文档同步**：新增或修改脚本后，同步更新 `docs/SCRIPTS_GUIDE.md`，包括用法说明、依赖变更和示例。`dev_` 前缀的脚本归入「开发脚本」章节，与「扩展脚本」分开。
