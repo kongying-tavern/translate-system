@@ -52,7 +52,7 @@ watch(projectLanguages, (langs) => { for (const l of langs) { if (!(l.id in alia
 onMounted(() => loadLangs())
 watch(projectId, () => { if (projectId.value) loadLangs() })
 const loadingStore = useLoadingStore()
-function loadLangs() { loadingStore.start(); Promise.all([langStore.fetchProjectLanguages(projectId.value), langStore.fetchBaseLanguages()]).finally(() => loadingStore.stop()) }
+function loadLangs() { loadingStore.start(); langStore.fetchProjectLanguages(projectId.value).finally(() => loadingStore.stop()) }
 
 async function onAliasSave(row: any) {
   const alias = aliasCache[row.id]?.trim() ?? ''
