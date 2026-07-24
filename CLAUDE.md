@@ -120,6 +120,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 3. **`psql` 中文乱码** — 用 `npx tsx -e "import{PrismaClient}..."` 查数据
 4. **路由冲突** — `/:key/:langCode` 会吃掉 `/key/:oldKey`，必须把 literal 路由放前面
 5. **`cannot edit` 报错** — GateGuard hook，用 `ECC_GATEGUARD=off` 前缀或加到 `settings.json`
+6. **前端 TS 报错（`Property 'xxx' does not exist on type`）** — 改 schema 后未同步 `frontend/src/types/models.d.ts`，检查并添加对应字段
 
 ### 前端关键文件
 
@@ -136,6 +137,11 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 1. 先改 `services/translation.ts` → 再改 `routes/translations.ts` → 最后改前端
 2. 改 `prisma/schema.prisma` → `pnpm db:migrate` 生成迁移文件 → 更新 service。必须创建迁移文件（不要用 `db:push` 绕过），否则 Docker 部署时 `migrate deploy` 会遗漏变更
 3. 翻译列表分页在 `listGrouped` 中处理，导出不过滤在 `getForExport`
+
+### 改 Prisma Schema 后必须做的事
+
+1. 生成迁移文件：`cd backend && pnpm db:migrate`（绝对不能用 `db:push` 代替）
+2. 同步 `frontend/src/types/models.d.ts` — 新增或改动的字段必须加上，否则前端 TypeScript 编译报错
 
 ### 脚本
 
