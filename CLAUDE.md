@@ -182,8 +182,21 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 `scripts/` 下的工具脚本需同时提供 `.sh`（Linux）和 `.ps1`（Windows）两个版本。
 
-**命名规范**：脚本文件名使用下划线（snake_case），如 `sync_all.sh`、`backup_db.ps1`。`dev_` 前缀表示仅用于本地开发环境。
+**命名规范**：脚本文件名使用下划线（snake_case），如 `sync_all.sh`、`backup_db.ps1`。
 
 **中文提示**：所有用户可见的提示信息（usage、错误、步骤、完成等）使用中文书写。
 
-**文档同步**：新增或修改脚本后，同步更新 `docs/SCRIPTS_GUIDE.md`，包括用法说明、依赖变更和示例。`dev_` 前缀的脚本归入「开发脚本」章节，与「扩展脚本」分开。
+**文档同步**：新增或修改脚本后，同步更新 `docs/SCRIPTS_GUIDE.md`，包括用法说明、依赖变更和示例。
+
+#### 扩展脚本
+
+- 无特殊前缀
+- 基于已部署服务（Docker 接口、前端页面）的运维与集成操作
+- 在 `docs/SCRIPTS_GUIDE.md` 中归入「扩展脚本」章节
+
+#### 开发脚本
+
+- 以 `dev_` 前缀命名，仅用于本地开发环境
+- 基于本地项目代码和开发环境，在开发周期中使用（如数据导入、同步、本地调试等），依赖本地已安装的依赖和运行中的开发服务
+- 通过 `$(dirname "$0")`（sh）或 `$PSCommandPath`（ps1）自动定位项目子目录，在项目根目录下直接运行即可，无需先 `cd` 到对应子目录
+- 在 `docs/SCRIPTS_GUIDE.md` 中归入「开发脚本」章节
