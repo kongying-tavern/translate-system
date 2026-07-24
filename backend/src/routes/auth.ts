@@ -57,9 +57,10 @@ authRoutes.post('/register', async (req, res, next) => {
  */
 authRoutes.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body
-    if (!email || !password) return error(res, ErrCode.InvalidParams, 'missing email or password')
-    const result = await authService.login(email, password)
+    const { account, email, password } = req.body
+    const loginAccount = account || email
+    if (!loginAccount || !password) return error(res, ErrCode.InvalidParams, '请输入用户名/邮箱和密码')
+    const result = await authService.login(loginAccount, password)
     success(res, result)
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message || 'login failed') }
 })

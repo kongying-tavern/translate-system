@@ -62,6 +62,10 @@ projectRoutes.put('/:projectSlug/languages/:langCode/alias', requireOwnership, a
   try { success(res, await langService.updateLanguageAlias(req.params.langCode, req.body.alias)) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
 })
 
+projectRoutes.put('/:projectSlug/languages/:langCode/sortOrder', requireOwnership, async (req: any, res, next) => {
+  try { success(res, await langService.updateLanguageSortOrder(req.params.langCode, req.body.sortOrder)) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+})
+
 // ── Project Members ──
 projectRoutes.get('/:projectSlug/members', requireOwnership, async (req: any, res, next) => {
   try {

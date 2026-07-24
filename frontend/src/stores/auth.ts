@@ -18,8 +18,8 @@ export const useAuthStore = defineStore('auth', () => {
     } catch { /* token might be expired, refresh will handle it */ }
   }
 
-  async function login(email: string, password: string) {
-    const { data: res } = await authApi.login(email, password)
+  async function login(account: string, password: string) {
+    const { data: res } = await authApi.login(account, password)
     setTokens(res.data.accessToken, res.data.refreshToken, res.data.expiresIn)
     isAuthenticated.value = true
     await init()

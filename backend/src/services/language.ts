@@ -12,7 +12,7 @@ export async function searchBaseLanguages(q: string) {
 }
 
 export async function listProjectLanguages(projectId: string) {
-  return prisma.projectLanguage.findMany({ where: { projectId }, orderBy: { languageCode: 'asc' } })
+  return prisma.projectLanguage.findMany({ where: { projectId }, orderBy: [{ sortOrder: 'asc' }, { languageCode: 'asc' }] })
 }
 
 export async function addProjectLanguage(projectId: string, languageCode: string) {
@@ -29,9 +29,12 @@ export async function updateLanguageAlias(id: string, alias: string) {
   return prisma.projectLanguage.update({ where: { id }, data: { alias: alias || null } })
 }
 
-// Get display name map: languageCode → alias or code
+export async function updateLanguageSortOrder(id: string, sortOrder: number) {
+  return prisma.projectLanguage.update({ where: { id }, data: { sortOrder } })
+}
+
 export async function getLanguageDisplayMap(projectId: string): Promise<Record<string, string>> {
-  const langs = await prisma.projectLanguage.findMany({ where: { projectId } })
+  const langs = await prisma.projectLanguage.findMany({ where: { projectId }, orderBy: [{ sortOrder: 'asc' }, { languageCode: 'asc' }] })
   const map: Record<string, string> = {}
   for (const l of langs) map[l.languageCode] = l.alias || l.languageCode
   return map

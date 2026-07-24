@@ -5,8 +5,8 @@ import type { AuthResponse, User } from '@/types/models'
 export function register(username: string, email: string, password: string) {
   return client.post<ApiResponse<AuthResponse>>('/auth/register', { username, email, password })
 }
-export function login(email: string, password: string) {
-  return client.post<ApiResponse<AuthResponse>>('/auth/login', { email, password })
+export function login(account: string, password: string) {
+  return client.post<ApiResponse<AuthResponse>>('/auth/login', { account, password })
 }
 export function refresh(refreshToken: string) {
   return client.post<ApiResponse<AuthResponse>>('/auth/refresh', { refreshToken })

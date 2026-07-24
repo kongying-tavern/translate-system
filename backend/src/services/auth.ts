@@ -4,22 +4,25 @@ import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { config } from '../config'
 
+export async function login(account: string, password: string) {
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: account }, { username: account }] }
+  })
+  if (!user) throw { code: 1001, message: '用户名/邮箱或密码错误' }
+  const valid = await bcrypt.compare(password, user.passwordHash)
+  if (!valid) throw { code: 1001, message: '用户名/邮箱或密码错误' }
+  return generateTokens(user.id, user.role)
+}
+
 export async function register(username: string, email: string, password: string) {
-  const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) throw { code: 1004, message: 'email already registered' }
-  // First user is super admin
+  const existingEmail = await prisma.user.findUnique({ where: { email } })
+  if (existingEmail) throw { code: 1004, message: '邮箱已注册' }
+  const existingUsername = await prisma.user.findUnique({ where: { username } })
+  if (existingUsername) throw { code: 1004, message: '用户名已存在' }
   const userCount = await prisma.user.count()
   const role = userCount === 0 ? 'super_admin' : 'member'
   const passwordHash = await bcrypt.hash(password, 10)
   const user = await prisma.user.create({ data: { username, email, passwordHash, role } })
-  return generateTokens(user.id, user.role)
-}
-
-export async function login(email: string, password: string) {
-  const user = await prisma.user.findUnique({ where: { email } })
-  if (!user) throw { code: 1001, message: 'invalid email or password' }
-  const valid = await bcrypt.compare(password, user.passwordHash)
-  if (!valid) throw { code: 1001, message: 'invalid email or password' }
   return generateTokens(user.id, user.role)
 }
 
