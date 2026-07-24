@@ -48,6 +48,8 @@ json_field() {
   " "$input" "$1" || echo ""
 }
 
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+
 # ── 解析参数 ──
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,18 +63,18 @@ while [[ $# -gt 0 ]]; do
     -d|--delete)       DELETE=true; shift ;;
     -m|--delete-mode)  DELETE_MODE="$2"; shift 2 ;;
     -h|--help)         usage ;;
-    *) echo "未知参数: $1"; usage ;;
+    *) echo -e "${RED}未知参数: $1${NC}"; usage ;;
   esac
 done
 
 DELETE_MODE="${DELETE_MODE:-file}"
 
 for var in ENDPOINT PROJECT_SLUG API_KEY API_SECRET TEMPLATE_SLUG OUTPUT_DIR; do
-  if [[ -z "${!var:-}" ]]; then echo "缺少必填参数: $var"; usage; fi
+  if [[ -z "${!var:-}" ]]; then echo -e "${RED}缺少必填参数: $var${NC}"; usage; fi
 done
 
 if ! command -v node &>/dev/null; then
-  echo "错误: 需要 node 来解析 JSON 响应" >&2
+  echo -e "${RED}错误: 需要 node 来解析 JSON 响应${NC}" >&2
   exit 1
 fi
 
@@ -81,10 +83,10 @@ if [[ "${DELETE:-false}" = true ]]; then
   if [[ -d "$OUTPUT_DIR" ]]; then
     if [[ "$DELETE_MODE" = "folder" ]]; then
       rm -rf "$OUTPUT_DIR"
-      echo "已删除目录: $OUTPUT_DIR"
+      echo -e "${YELLOW}已删除目录: $OUTPUT_DIR${NC}"
     else
       rm -f "$OUTPUT_DIR"/*.json
-      echo "已删除 $OUTPUT_DIR 下所有 .json 文件"
+      echo -e "${YELLOW}已删除 $OUTPUT_DIR 下所有 .json 文件${NC}"
     fi
   fi
 fi
@@ -93,17 +95,17 @@ mkdir -p "$OUTPUT_DIR"
 
 # ── 获取项目语言列表 ──
 if [[ -z "${LANGUAGES:-}" ]]; then
-  echo "正在获取项目语言列表..."
+  echo -e "${CYAN}正在获取项目语言列表...${NC}"
   LANG_RESP=$(curl -s -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
     "$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/languages")
-  if [[ -z "$LANG_RESP" ]]; then echo "获取语言列表失败: API 返回空响应"; exit 1; fi
+  if [[ -z "$LANG_RESP" ]]; then echo -e "${RED}获取语言列表失败: API 返回空响应${NC}"; exit 1; fi
   if [[ "$(echo "$LANG_RESP" | json_field '.code')" != "0" ]]; then
-    echo "获取语言列表失败: $(echo "$LANG_RESP" | json_field '.message')"; exit 1
+    echo -e "${RED}获取语言列表失败: $(echo "$LANG_RESP" | json_field '.message')${NC}"; exit 1
   fi
   LANGUAGES=$(echo "$LANG_RESP" | json_field '.data[].languageCode' | tr '\n' ',')
   LANGUAGES="${LANGUAGES%,}"
-  if [[ -z "$LANGUAGES" ]]; then echo "项目没有配置任何语言"; exit 1; fi
-  echo "发现语言: $LANGUAGES"
+  if [[ -z "$LANGUAGES" ]]; then echo -e "${RED}项目没有配置任何语言${NC}"; exit 1; fi
+  echo -e "${CYAN}发现语言: $LANGUAGES${NC}"
 fi
 
 # ── 逐语言导出 ──
@@ -122,17 +124,21 @@ for LANG in "${LANG_ARRAY[@]}"; do
   BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$LANG\"],\"filterTags\":[]}"
   RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
     -H "Content-Type: application/json" -d "$BODY" "$EXPORT_URL")
-  [[ -z "$RESP" ]] && { echo " 错误: API 返回空响应"; ((FAILED++)); continue; }
+  [[ -z "$RESP" ]] && { echo -e "${RED} 错误: API 返回空响应${NC}"; ((FAILED++)); continue; }
 
   if [[ "$(echo "$RESP" | json_field '.code')" = "0" ]]; then
     echo "$RESP" | json_field '.data.content' > "$OUT_FILE"
-    echo " -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)"
+    echo -e "${GREEN} -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)${NC}"
     ((SUCCEEDED++))
   else
-    echo " 错误: $(echo "$RESP" | json_field '.message')"
+    echo -e "${RED} 错误: $(echo "$RESP" | json_field '.message')${NC}"
     ((FAILED++))
   fi
 done
 
 echo ""
-echo "完成: 成功 $SUCCEEDED, 失败 $FAILED"
+if [[ "$FAILED" -eq 0 ]]; then
+  echo -e "${GREEN}完成: 成功 $SUCCEEDED, 失败 $FAILED${NC}"
+else
+  echo -e "${YELLOW}完成: 成功 $SUCCEEDED, 失败 $FAILED${NC}"
+fi
