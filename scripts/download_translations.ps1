@@ -47,27 +47,25 @@ if ($Delete) {
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 # ── 获取项目语言列表 ──
-$headers = @{
-    "x-api-key"    = $ApiKey
-    "x-api-secret" = $ApiSecret
-    "Content-Type" = "application/json"
-}
-
 if ([string]::IsNullOrWhiteSpace($Languages)) {
     Write-Host "正在获取项目语言列表..." -ForegroundColor Cyan
     $langUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/languages"
     try {
-        $langRes = Invoke-RestMethod -Uri $langUrl -Method Get -Headers $headers
-        if ($langRes.code -ne 0) { throw $langRes.message }
-        $languages = $langRes.data | ForEach-Object { $_.languageCode }
-        if ($languages.Count -eq 0) { throw "项目没有配置任何语言" }
-        Write-Host "发现 $($languages.Count) 种语言: $($languages -join ', ')" -ForegroundColor Cyan
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add("x-api-key", $ApiKey)
+        $wc.Headers.Add("x-api-secret", $ApiSecret)
+        $rawJson = $wc.DownloadString($langUrl)
+        $langObj = $rawJson | ConvertFrom-Json
+        if ($langObj.code -ne 0) { throw $langObj.message }
+        $langCodes = $langObj.data | ForEach-Object { $_.languageCode }
+        if ($langCodes.Count -eq 0) { throw "项目没有配置任何语言" }
+        Write-Host "发现 $($langCodes.Count) 种语言: $($langCodes -join ', ')" -ForegroundColor Cyan
     } catch {
         Write-Host "获取语言列表失败: $_" -ForegroundColor Red
         exit 1
     }
 } else {
-    $languages = $Languages -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+    $langCodes = $Languages -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
 }
 
 # ── 逐语言导出 ──
@@ -75,7 +73,7 @@ $exportUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/exports/generate"
 $succeeded = 0
 $failed = 0
 
-foreach ($lang in $languages) {
+foreach ($lang in $langCodes) {
     $body = @{
         templateSlug  = $TemplateSlug
         languageCodes = @($lang)
@@ -86,15 +84,20 @@ foreach ($lang in $languages) {
     Write-Host "导出 $lang ..." -NoNewline
 
     try {
-        $response = Invoke-RestMethod -Uri $exportUrl -Method Post -Headers $headers -Body $body
+        $wc = New-Object System.Net.WebClient
+        $wc.Headers.Add("x-api-key", $ApiKey)
+        $wc.Headers.Add("x-api-secret", $ApiSecret)
+        $wc.Headers.Add("Content-Type", "application/json")
+        $rawJson = $wc.UploadString($exportUrl, "POST", $body)
+        $respObj = $rawJson | ConvertFrom-Json
 
-        if ($response.code -eq 0) {
-            $content = $response.data.content
+        if ($respObj.code -eq 0) {
+            $content = $respObj.data.content
             $content | Out-File -FilePath $outFile -Encoding utf8
             Write-Host " -> $outFile ($($content.Length) 字符)" -ForegroundColor Green
             $succeeded++
         } else {
-            Write-Host " 错误: $($response.message)" -ForegroundColor Red
+            Write-Host " 错误: $($respObj.message)" -ForegroundColor Red
             $failed++
         }
     } catch {
