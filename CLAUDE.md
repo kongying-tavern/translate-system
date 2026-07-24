@@ -93,15 +93,18 @@ layouts/AppLayout — 主界面布局
 
 外部自动化可通过 API Key + Secret 访问导出端点：
 
+所有接口 `/api/v1/*` 可通过 API Key 鉴权访问，将路径前缀改为 `/api/v1/apikey/`：
+
 ```bash
-curl -X POST http://localhost:8080/api/v1/apikey/export/generate/:projectId \
+# 导出翻译
+curl -X POST http://localhost:8080/api/v1/apikey/projects/:projectId/exports/generate \
   -H "x-api-key: ak_xxx" \
   -H "x-api-secret: xxx" \
   -H "Content-Type: application/json" \
   -d '{"templateId":"...","languageCodes":["zh-Hans"]}'
 ```
 
-管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
+白名单配置在 `backend/src/index.ts` 的 `APIKEY_WHITELIST` 数组。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
 
 ### 导出模板 config 字段
 
