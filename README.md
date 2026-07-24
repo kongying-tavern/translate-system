@@ -145,6 +145,37 @@ translation_keys              translation_values
 context 和 tags 为 Key 级别属性，跨语言共享，不冗余存储。
 ```
 
+## Slug 系统
+
+项目（Project）和导出模板（ExportTemplate）支持使用 `code` 作为人类可读的标识符。
+
+**创建时需指定 `code`：**
+
+```bash
+# 创建项目
+curl -X POST /api/v1/projects \
+  -H "Authorization: Bearer <token>" \
+  -d '{"name":"我的项目","code":"my-project"}'
+
+# 创建导出模板
+curl -X POST /api/v1/projects/my-project/exports/templates \
+  -H "Authorization: Bearer <token>" \
+  -d '{"name":"配置文件","code":"config-json","formatType":"json"}'
+```
+
+**访问时可用 `code` 替代 UUID：**
+
+```bash
+# 通过 code 访问项目
+curl /api/v1/projects/my-project
+
+# 导出时通过 code 引用模板
+curl -X POST /api/v1/projects/my-project/exports/generate \
+  -d '{"templateSlug":"config-json","languageCodes":["zh-Hans"]}'
+```
+
+> 项目中所有带 `:projectSlug` 和 `:templateSlug` 的路由参数均兼容 UUID 和 `code`，UUID 优先级更高。
+
 ## 角色权限
 
 | | 超管 | 高管 | 管理员 | 成员 |
