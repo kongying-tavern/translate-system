@@ -23,7 +23,29 @@ EOF
 }
 
 json_field() {
-  jq -r "$1" 2>/dev/null
+  local input; input=$(cat)
+  [[ -z "$input" ]] && { echo ""; return 1; }
+  node -e "
+    var d = JSON.parse(process.argv[1]);
+    var keys = process.argv[2].replace(/^\./, '').split('.');
+    var v = d;
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (k.endsWith('[]')) {
+        v = v[k.slice(0, -2)];
+        if (i + 1 < keys.length) {
+          var rest = keys.slice(i + 1).join('.');
+          v.forEach(function(x) { console.log(x[rest]); });
+          process.exit(0);
+        }
+        v.forEach(function(x) { console.log(x); });
+        process.exit(0);
+      }
+      v = v[k];
+    }
+    if (Array.isArray(v)) v.forEach(function(x) { console.log(x); });
+    else console.log(v);
+  " "$input" "$1" || echo ""
 }
 
 # ── 解析参数 ──
@@ -49,8 +71,8 @@ for var in ENDPOINT PROJECT_SLUG API_KEY API_SECRET TEMPLATE_SLUG OUTPUT_DIR; do
   if [[ -z "${!var:-}" ]]; then echo "缺少必填参数: $var"; usage; fi
 done
 
-if ! command -v jq &>/dev/null; then
-  echo "错误: 需要 jq 来解析 JSON 响应" >&2
+if ! command -v node &>/dev/null; then
+  echo "错误: 需要 node 来解析 JSON 响应" >&2
   exit 1
 fi
 
@@ -74,10 +96,11 @@ if [[ -z "${LANGUAGES:-}" ]]; then
   echo "正在获取项目语言列表..."
   LANG_RESP=$(curl -s -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
     "$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/languages")
-  if [[ "$(json_field '["code"]' <<< "$LANG_RESP")" != "0" ]]; then
-    echo "获取语言列表失败: $(json_field '["message"]' <<< "$LANG_RESP")"; exit 1
+  if [[ -z "$LANG_RESP" ]]; then echo "获取语言列表失败: API 返回空响应"; exit 1; fi
+  if [[ "$(echo "$LANG_RESP" | json_field '.code')" != "0" ]]; then
+    echo "获取语言列表失败: $(echo "$LANG_RESP" | json_field '.message')"; exit 1
   fi
-  LANGUAGES=$(json_field '.data[].languageCode' <<< "$LANG_RESP" | tr '\n' ',')
+  LANGUAGES=$(echo "$LANG_RESP" | json_field '.data[].languageCode' | tr '\n' ',')
   LANGUAGES="${LANGUAGES%,}"
   if [[ -z "$LANGUAGES" ]]; then echo "项目没有配置任何语言"; exit 1; fi
   echo "发现语言: $LANGUAGES"
@@ -99,13 +122,14 @@ for LANG in "${LANG_ARRAY[@]}"; do
   BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$LANG\"],\"filterTags\":[]}"
   RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
     -H "Content-Type: application/json" -d "$BODY" "$EXPORT_URL")
+  [[ -z "$RESP" ]] && { echo " 错误: API 返回空响应"; ((FAILED++)); continue; }
 
-  if [[ "$(json_field '["code"]' <<< "$RESP")" = "0" ]]; then
-    json_field '.data.content' <<< "$RESP" > "$OUT_FILE"
+  if [[ "$(echo "$RESP" | json_field '.code')" = "0" ]]; then
+    echo "$RESP" | json_field '.data.content' > "$OUT_FILE"
     echo " -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)"
     ((SUCCEEDED++))
   else
-    echo " 错误: $(json_field '["message"]' <<< "$RESP")"
+    echo " 错误: $(echo "$RESP" | json_field '.message')"
     ((FAILED++))
   fi
 done
