@@ -10,7 +10,7 @@ RUN if [ -n "$APT_MIRROR" ]; then \
     fi && \
     apt-get update -qq && apt-get install -y -qq openssl && rm -rf /var/lib/apt/lists/*
 COPY package.json pnpm-lock.yaml .npmrc .
-RUN corepack enable && pnpm install
+RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 RUN chmod +x startup.sh
 RUN npx prisma generate
