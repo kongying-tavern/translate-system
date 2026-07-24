@@ -10,13 +10,12 @@ if (!projectSlug || !filePath || !languageCode) {
 }
 
 async function main() {
-  // Resolve project by code or id
-  let project = await prisma.project.findUnique({ where: { id: projectSlug } })
+  // Resolve project: try UUID first, then code
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectSlug)
+  let project = null
+  if (isUUID) project = await prisma.project.findUnique({ where: { id: projectSlug } })
   if (!project) project = await prisma.project.findUnique({ where: { code: projectSlug } })
-  if (!project) {
-    console.error('Project not found: ' + projectSlug)
-    process.exit(1)
-  }
+  if (!project) { console.error('Project not found: ' + projectSlug); process.exit(1) }
   const projectId = project.id
 
   const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
