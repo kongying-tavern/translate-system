@@ -24,8 +24,8 @@ export function deleteProject(id: string) {
 export function getMembers(projectId: string) {
   return client.get<ApiResponse<any[]>>(`/projects/${projectId}/members`)
 }
-export function addMember(projectId: string, email: string) {
-  return client.post<ApiResponse<any>>(`/projects/${projectId}/members`, { email })
+export function addMember(projectId: string, email: string, projectRole = 'member') {
+  return client.post<ApiResponse<any>>(`/projects/${projectId}/members`, { email, projectRole })
 }
 export function removeMember(projectId: string, memberId: string) {
   return client.delete(`/projects/${projectId}/members/${memberId}`)

@@ -128,7 +128,7 @@ authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: any,
   try {
     const { username, email, password, role } = req.body
     if (!username || !email || !password) return error(res, ErrCode.InvalidParams, '缺少必填字段')
-    success(res, await authService.createUser(username, email, password, role || 'member'))
+    success(res, await authService.createUser(username, email, password, role || 'member', req.userRole))
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
 })
 

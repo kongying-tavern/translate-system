@@ -2,7 +2,7 @@
   <div class="sidebar">
     <div class="sidebar-logo">空荧酒馆译站</div>
     <el-menu :default-active="route.path" router background-color="#1d1e2c" text-color="#bfcbd9" active-text-color="#409eff" class="sidebar-menu">
-      <el-menu-item v-if="auth.role === 'super_admin' || auth.role === 'senior_admin'" index="/users"><el-icon><User /></el-icon><span>用户管理</span></el-menu-item>
+      <el-menu-item v-if="auth.role === 'super_admin'" index="/users"><el-icon><User /></el-icon><span>用户管理</span></el-menu-item>
       <template v-if="projectId">
         <el-sub-menu index="projects">
           <template #title><el-icon><Monitor /></el-icon><span>项目管理</span></template>

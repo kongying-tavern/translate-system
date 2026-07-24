@@ -49,15 +49,12 @@ export async function listUsers() {
   return prisma.user.findMany({ select: { id: true, username: true, email: true, role: true, createdAt: true }, orderBy: { createdAt: 'asc' } })
 }
 
-const ROLE_LEVEL: Record<string, number> = { super_admin: 4, senior_admin: 3, admin: 2, member: 1 }
+const ROLE_LEVEL: Record<string, number> = { super_admin: 3, admin: 2, member: 1 }
 
 function canManage(operator: string | undefined, target: string): boolean {
-  const opLevel = ROLE_LEVEL[operator || 'member'] || 0
-  const tgtLevel = ROLE_LEVEL[target] || 0
-  if (operator === 'senior_admin' && target === 'super_admin') return false
-  if (operator === 'admin' && tgtLevel >= 2) return false  // admin can only manage members
-  if (operator === 'member') return false
-  return true
+  if (operator === 'super_admin') return true
+  if (operator === 'admin') return target === 'member'
+  return false
 }
 
 export async function updateUserRole(operatorId: string, targetId: string, newRole: string) {
@@ -69,9 +66,10 @@ export async function updateUserRole(operatorId: string, targetId: string, newRo
   return prisma.user.update({ where: { id: targetId }, data: { role: newRole }, select: { id: true, username: true, role: true } })
 }
 
-export async function createUser(username: string, email: string, password: string, role: string) {
+export async function createUser(username: string, email: string, password: string, role: string, operatorRole?: string) {
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) throw { code: 1004, message: '邮箱已注册' }
+  if (operatorRole === 'admin' && role !== 'member') throw { code: 1002, message: '系统管理员只能创建成员' }
   const passwordHash = await bcrypt.hash(password, 10)
   return prisma.user.create({ data: { username, email, passwordHash, role }, select: { id: true, username: true, email: true, role: true, createdAt: true } })
 }

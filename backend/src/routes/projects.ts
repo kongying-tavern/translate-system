@@ -22,7 +22,7 @@ projectRoutes.get('/', async (req: any, res, next) => {
 
 projectRoutes.post('/', async (req: any, res, next) => {
   try {
-    if (req.userRole !== 'super_admin') return error(res, ErrCode.Forbidden, '只有超级管理员可以创建项目')
+    if (req.userRole !== 'super_admin') return error(res, ErrCode.Forbidden, '只有系统超管可以创建项目')
     if (!req.body.name) return error(res, ErrCode.InvalidParams, 'name is required')
     if (!req.body.code) return error(res, ErrCode.InvalidParams, 'code is required')
     success(res, await projectService.createProject(req.userId, req.body))
@@ -71,34 +71,35 @@ projectRoutes.get('/:projectSlug/members', requireOwnership, async (req: any, re
   try {
     const members = await prisma.projectMember.findMany({
       where: { projectId: req.params.projectSlug },
-      select: { id: true, userId: true, createdAt: true, user: { select: { username: true, email: true, role: true } } },
+      select: { id: true, userId: true, projectRole: true, createdAt: true, user: { select: { username: true, email: true, role: true } } },
       orderBy: { createdAt: 'asc' }
     })
-    success(res, members.map((m: any) => ({ id: m.id, userId: m.userId, username: m.user.username, email: m.user.email, role: m.user.role, createdAt: m.createdAt })))
+    success(res, members.map((m: any) => ({ id: m.id, userId: m.userId, username: m.user.username, email: m.user.email, role: m.user.role, projectRole: m.projectRole, createdAt: m.createdAt })))
   } catch (e: any) { error(res, ErrCode.Internal, e.message) }
 })
 
 projectRoutes.post('/:projectSlug/members', requireOwnership, async (req: any, res, next) => {
   try {
-    const { email } = req.body
+    const { email, projectRole } = req.body
+    const pRole = projectRole || 'member'
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user) return error(res, ErrCode.NotFound, '用户不存在')
     if (req.userRole === 'admin' && user.role !== 'member') return error(res, ErrCode.Forbidden, '管理员只能添加成员到项目')
-    if (req.userRole === 'senior_admin' && user.role === 'super_admin') return error(res, ErrCode.Forbidden, '高级管理员不能添加超级管理员')
     const existing = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: req.params.projectSlug, userId: user.id } } })
     if (existing) return error(res, ErrCode.Conflict, '该用户已是项目成员')
-    const m = await prisma.projectMember.create({ data: { projectId: req.params.projectSlug, userId: user.id } })
-    success(res, { id: m.id, userId: user.id, username: user.username, email: user.email, role: user.role, createdAt: m.createdAt })
+    const m = await prisma.projectMember.create({ data: { projectId: req.params.projectSlug, userId: user.id, projectRole: pRole } })
+    success(res, { id: m.id, userId: user.id, username: user.username, email: user.email, role: user.role, projectRole: m.projectRole, createdAt: m.createdAt })
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+})
+
+projectRoutes.put('/:projectSlug/members/:memberId/role', requireOwnership, async (req: any, res, next) => {
+  try {
+    await prisma.projectMember.update({ where: { id: req.params.memberId }, data: { projectRole: req.body.projectRole } }); success(res, null)
+  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
 })
 
 projectRoutes.delete('/:projectSlug/members/:memberId', requireOwnership, async (req: any, res, next) => {
   try {
-    if (req.userRole === 'admin' || req.userRole === 'senior_admin') {
-      const m = await prisma.projectMember.findUnique({ where: { id: req.params.memberId }, include: { user: { select: { role: true } } } })
-      if (req.userRole === 'admin' && m?.user.role !== 'member') return error(res, ErrCode.Forbidden, '管理员只能移除成员')
-      if (req.userRole === 'senior_admin' && m?.user.role === 'super_admin') return error(res, ErrCode.Forbidden, '高级管理员不能移除超级管理员')
-    }
     await prisma.projectMember.delete({ where: { id: req.params.memberId } }); success(res, null)
   } catch (e: any) { error(res, ErrCode.Internal, e.message) }
 })
