@@ -9,7 +9,7 @@
     </div>
 
     <template v-if="activeTab === 'templates'">
-      <el-button type="primary" @click="$router.push(`/projects/${projectId}/layouts/templates/new/edit`)" style="margin-bottom:16px">新建模板</el-button>
+      <el-button type="primary" @click="$router.push(`/projects/${projectSlug}/layouts/templates/new/edit`)" style="margin-bottom:16px">新建模板</el-button>
       <el-table :data="templates" stripe>
         <el-table-column prop="name" label="名称" />
         <el-table-column prop="description" label="描述" />
@@ -18,7 +18,7 @@
         </el-table-column>
         <el-table-column label="操作" width="160">
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/projects/${projectId}/layouts/templates/${row.id}/edit`)">编辑</el-button>
+            <el-button link type="primary" @click="$router.push(`/projects/${projectSlug}/layouts/templates/${row.id}/edit`)">编辑</el-button>
             <el-button link type="danger" @click="handleDeleteTemplate(row.id)">删除</el-button>
           </template>
         </el-table-column>
@@ -26,7 +26,7 @@
     </template>
 
     <template v-else>
-      <el-button type="primary" @click="$router.push(`/projects/${projectId}/layouts/configs/new/edit`)" style="margin-bottom:16px">新建配置</el-button>
+      <el-button type="primary" @click="$router.push(`/projects/${projectSlug}/layouts/configs/new/edit`)" style="margin-bottom:16px">新建配置</el-button>
       <el-table :data="configs" stripe>
         <el-table-column prop="name" label="名称" />
         <el-table-column label="引用模板">
@@ -34,7 +34,7 @@
         </el-table-column>
         <el-table-column label="操作" width="160">
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/projects/${projectId}/layouts/configs/${row.id}/edit`)">编辑</el-button>
+            <el-button link type="primary" @click="$router.push(`/projects/${projectSlug}/layouts/configs/${row.id}/edit`)">编辑</el-button>
             <el-button link type="danger" @click="handleDeleteConfig(row.id)">删除</el-button>
           </template>
         </el-table-column>
@@ -51,26 +51,26 @@ import type { LayoutTemplate, LayoutConfig } from '@/types/models'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const activeTab = ref('templates')
 const templates = ref<LayoutTemplate[]>([])
 const configs = ref<LayoutConfig[]>([])
 
 onMounted(() => loadLayouts())
-watch(projectId, () => { if (projectId.value) loadLayouts() })
+watch(projectSlug, () => { if (projectSlug.value) loadLayouts() })
 async function loadLayouts() {
-  const [tRes, cRes] = await Promise.all([getTemplates(projectId.value), getConfigs(projectId.value)])
+  const [tRes, cRes] = await Promise.all([getTemplates(projectSlug.value), getConfigs(projectSlug.value)])
   templates.value = tRes.data.data; configs.value = cRes.data.data
 }
 
 async function handleDeleteTemplate(id: string) {
-  await deleteTemplate(projectId.value, id)
+  await deleteTemplate(projectSlug.value, id)
   templates.value = templates.value.filter(t => t.id !== id)
   ElMessage.success('删除成功')
 }
 
 async function handleDeleteConfig(id: string) {
-  await deleteConfig(projectId.value, id)
+  await deleteConfig(projectSlug.value, id)
   configs.value = configs.value.filter(c => c.id !== id)
   ElMessage.success('删除成功')
 }

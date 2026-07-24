@@ -26,13 +26,13 @@ import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const projectLanguages = ref<any[]>([])
 const saving = ref(false)
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en' })
 
 onMounted(async () => {
-  const [pRes, lRes] = await Promise.all([getProject(projectId.value), getProjectLanguages(projectId.value)])
+  const [pRes, lRes] = await Promise.all([getProject(projectSlug.value), getProjectLanguages(projectSlug.value)])
   form.name = pRes.data.data.name
   form.code = pRes.data.data.code || ''
   form.description = pRes.data.data.description || ''
@@ -43,7 +43,7 @@ onMounted(async () => {
 async function handleSave() {
   if (!form.name.trim()) { ElMessage.warning('项目名称不能为空'); return }
   saving.value = true
-  try { await updateProject(projectId.value, { name: form.name, code: form.code, description: form.description, sourceLanguage: form.sourceLanguage }); ElMessage.success('保存成功'); router.back() } catch { ElMessage.error('保存失败') }
+  try { await updateProject(projectSlug.value, { name: form.name, code: form.code, description: form.description, sourceLanguage: form.sourceLanguage }); ElMessage.success('保存成功'); router.back() } catch { ElMessage.error('保存失败') }
   finally { saving.value = false }
 }
 </script>

@@ -3,13 +3,13 @@
     <div class="sidebar-logo">空荧酒馆译站</div>
     <el-menu :default-active="route.path" router background-color="#1d1e2c" text-color="#bfcbd9" active-text-color="#409eff" class="sidebar-menu">
       <el-menu-item v-if="auth.role === 'super_admin'" index="/users"><el-icon><User /></el-icon><span>用户管理</span></el-menu-item>
-      <template v-if="projectId">
+      <template v-if="projectSlug">
         <el-sub-menu index="projects">
           <template #title><el-icon><Monitor /></el-icon><span>项目管理</span></template>
-          <el-menu-item :index="`/projects/${projectId}/translations`"><el-icon><Document /></el-icon><span>翻译管理</span></el-menu-item>
-          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectId}/members`"><el-icon><Avatar /></el-icon><span>项目成员</span></el-menu-item>
-          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectId}/languages`"><el-icon><Collection /></el-icon><span>语言管理</span></el-menu-item>
-          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectId}/exports`"><el-icon><Download /></el-icon><span>导出模板</span></el-menu-item>
+          <el-menu-item :index="`/projects/${projectSlug}/translations`"><el-icon><Document /></el-icon><span>翻译管理</span></el-menu-item>
+          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/members`"><el-icon><Avatar /></el-icon><span>项目成员</span></el-menu-item>
+          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/languages`"><el-icon><Collection /></el-icon><span>语言管理</span></el-menu-item>
+          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/exports`"><el-icon><Download /></el-icon><span>导出模板</span></el-menu-item>
         </el-sub-menu>
       </template>
     </el-menu>
@@ -29,7 +29,7 @@ import { User, Monitor, Avatar, Document, Collection, Download } from '@element-
 
 const route = useRoute()
 const auth = useAuthStore()
-const projectId = computed(() => (route.params.projectId as string) || auth.activeProjectId || undefined)
+const projectSlug = computed(() => (route.params.projectSlug as string) || auth.activeProjectSlug || undefined)
 </script>
 
 <style scoped>

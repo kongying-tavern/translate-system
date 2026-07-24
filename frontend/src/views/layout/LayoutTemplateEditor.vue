@@ -25,7 +25,7 @@ import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
@@ -35,7 +35,7 @@ const configStr = ref('{}')
 
 onMounted(async () => {
   if (isEdit.value) {
-    const { data: res } = await getTemplate(projectId.value, templateId.value)
+    const { data: res } = await getTemplate(projectSlug.value, templateId.value)
     const t = res.data
     form.name = t.name
     form.description = t.description || ''
@@ -53,9 +53,9 @@ async function handleSave() {
 
     const data = { ...form, config }
     if (isEdit.value) {
-      await updateTemplate(projectId.value, templateId.value, data)
+      await updateTemplate(projectSlug.value, templateId.value, data)
     } else {
-      await createTemplate(projectId.value, data)
+      await createTemplate(projectSlug.value, data)
     }
     ElMessage.success('保存成功')
     router.back()

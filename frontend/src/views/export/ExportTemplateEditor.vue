@@ -38,7 +38,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
-const projectId = computed(() => route.params.projectSlug as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
@@ -54,7 +54,7 @@ const rules: FormRules = {
 
 onMounted(async () => {
   if (isEdit.value) {
-    const { data: res } = await getExportTemplate(projectId.value, templateId.value)
+    const { data: res } = await getExportTemplate(projectSlug.value, templateId.value)
     form.name = res.data.name
     form.code = res.data.code || ''
     form.description = res.data.description || ''
@@ -71,9 +71,9 @@ async function handleSave() {
     const config = { ...configForm }
     const data = { ...form, config }
     if (isEdit.value) {
-      await updateExportTemplate(projectId.value, templateId.value, data)
+      await updateExportTemplate(projectSlug.value, templateId.value, data)
     } else {
-      await createExportTemplate(projectId.value, data)
+      await createExportTemplate(projectSlug.value, data)
     }
     ElMessage.success('保存成功')
     router.back()

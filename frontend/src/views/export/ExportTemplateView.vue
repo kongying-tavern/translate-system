@@ -2,14 +2,14 @@
   <div>
     <div class="page-header">
       <h2>导出</h2>
-      <el-button type="primary" @click="$router.push(`/projects/${projectId}/exports/new/edit`)">新建模板</el-button>
+      <el-button type="primary" @click="$router.push(`/projects/${projectSlug}/exports/new/edit`)">新建模板</el-button>
     </div>
 
     <template v-if="templates.length">
       <el-form :inline="true" class="export-bar">
         <el-form-item label="选择模板">
           <el-select v-model="selectedTemplate" placeholder="选择导出模板" style="width:220px">
-            <el-option v-for="t in templates" :key="t.id" :label="t.name + ' (' + t.formatType + ')'" :value="t.id" />
+            <el-option v-for="t in templates" :key="t.id" :label="t.name + (t.code ? ' [' + t.code + ']' : '') + ' (' + t.formatType + ')'" :value="t.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="导出语言">
@@ -30,11 +30,12 @@
 
       <el-table :data="templates" stripe style="margin-top:16px">
         <el-table-column prop="name" label="模板名称" />
+        <el-table-column label="标识" width="140"><template #default="{ row }">{{ row.code || '-' }}</template></el-table-column>
         <el-table-column prop="formatType" label="格式" width="150" />
         <el-table-column prop="description" label="描述" />
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/projects/${projectId}/exports/${row.id}/edit`)">编辑</el-button>
+            <el-button link type="primary" @click="$router.push(`/projects/${projectSlug}/exports/${row.id}/edit`)">编辑</el-button>
             <el-button link type="danger" @click="handleDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
@@ -59,7 +60,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const templates = ref<ExportTemplate[]>([])
 const projectLanguages = ref<any[]>([])
 const selectedTemplate = ref('')
@@ -69,12 +70,12 @@ const previewVisible = ref(false)
 const previewContent = ref('')
 
 onMounted(() => loadExports())
-watch(projectId, () => { if (projectId.value) loadExports() })
+watch(projectSlug, () => { if (projectSlug.value) loadExports() })
 async function loadExports() {
   const [tRes, lRes, tagRes] = await Promise.all([
-    getExportTemplates(projectId.value),
-    getProjectLanguages(projectId.value),
-    getTags(projectId.value).catch(() => ({ data: { data: [] } })),
+    getExportTemplates(projectSlug.value),
+    getProjectLanguages(projectSlug.value),
+    getTags(projectSlug.value).catch(() => ({ data: { data: [] } })),
   ])
   templates.value = tRes.data.data; projectLanguages.value = lRes.data.data; allTags.value = tagRes.data.data
   if (templates.value.length) selectedTemplate.value = templates.value[0].id
@@ -86,7 +87,7 @@ async function doPreview() {
     ElMessage.warning('请选择模板和语言')
     return
   }
-  const { data: res } = await generateExport(projectId.value, selectedTemplate.value, selectedLangs.value, exportFilterTags.value.length ? exportFilterTags.value : undefined)
+  const { data: res } = await generateExport(projectSlug.value, selectedTemplate.value, selectedLangs.value, exportFilterTags.value.length ? exportFilterTags.value : undefined)
   previewContent.value = res.data.content
   previewVisible.value = true
 }
@@ -96,7 +97,7 @@ function doDownload() {
     ElMessage.warning('请选择模板和语言')
     return
   }
-  generateExport(projectId.value, selectedTemplate.value, selectedLangs.value, exportFilterTags.value.length ? exportFilterTags.value : undefined).then(({ data: res }) => {
+  generateExport(projectSlug.value, selectedTemplate.value, selectedLangs.value, exportFilterTags.value.length ? exportFilterTags.value : undefined).then(({ data: res }) => {
     const ext = res.data.format === 'csv' ? 'csv' : res.data.format === 'xml' ? 'xml' : 'json'
     const blob = new Blob([res.data.content], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -109,7 +110,7 @@ function doDownload() {
 }
 
 async function handleDelete(id: string) {
-  await deleteExportTemplate(projectId.value, id)
+  await deleteExportTemplate(projectSlug.value, id)
   templates.value = templates.value.filter(t => t.id !== id)
   if (selectedTemplate.value === id) selectedTemplate.value = templates.value[0]?.id || ''
   ElMessage.success('删除成功')

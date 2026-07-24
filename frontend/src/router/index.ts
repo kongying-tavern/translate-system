@@ -21,8 +21,8 @@ const router = createRouter({
         { path: 'api-doc', name: 'ApiDoc', component: () => import('@/views/auth/ApiDocView.vue') },
         { path: 'projects/new', name: 'ProjectCreate', component: () => import('@/views/project/ProjectCreateView.vue') },
         {
-          path: 'projects/:projectId', children: [
-            { path: '', redirect: (to: any) => '/projects/' + to.params.projectId + '/translations' },
+          path: 'projects/:projectSlug', children: [
+            { path: '', redirect: (to: any) => '/projects/' + to.params.projectSlug + '/translations' },
             { path: 'translations', name: 'Translations', component: () => import('@/views/translation/TranslationListView.vue') },
             { path: 'languages', name: 'Languages', component: () => import('@/views/language/LanguageManageView.vue') },
             { path: 'members', name: 'Members', component: () => import('@/views/project/ProjectMembersView.vue') },

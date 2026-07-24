@@ -23,10 +23,10 @@ onMounted(async () => {
   await store.fetchProjects()
   loading.value = false
   if (store.projects.length > 0) {
-    router.replace('/projects/' + store.projects[0].id)
+    const p = store.projects[0]; router.replace('/projects/' + (p.code || p.id))
   } else {
     noProject.value = true
-    localStorage.removeItem('activeProjectId')
+    localStorage.removeItem('activeProjectSlug')
     localStorage.removeItem('activeProjectName')
   }
 })

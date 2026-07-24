@@ -45,7 +45,7 @@ import { ElMessage } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 
 const route = useRoute()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const langStore = useLanguageStore()
 const { projectLanguages, baseLanguages } = storeToRefs(langStore)
 const showAddDialog = ref(false)
@@ -55,23 +55,23 @@ const aliasCache = reactive<Record<string, string>>({})
 watch(projectLanguages, (langs) => { if (langs) for (const l of langs) { if (!(l.id in aliasCache)) aliasCache[l.id] = l.alias || '' } }, { immediate: true, deep: true })
 
 onMounted(() => loadLangs())
-watch(projectId, () => { if (projectId.value) loadLangs() })
+watch(projectSlug, () => { if (projectSlug.value) loadLangs() })
 const sortedBaseLanguages = computed(() => [...baseLanguages.value].sort((a, b) => a.englishName.localeCompare(b.englishName)))
 const loadingStore = useLoadingStore()
-function loadLangs() { loadingStore.start(); langStore.fetchProjectLanguages(projectId.value).finally(() => loadingStore.stop()) }
+function loadLangs() { loadingStore.start(); langStore.fetchProjectLanguages(projectSlug.value).finally(() => loadingStore.stop()) }
 
 async function onAliasSave(row: any) {
   const alias = aliasCache[row.id]?.trim() ?? ''
   if (alias === (row.alias || '')) return
-  try { await client.put('/projects/' + projectId.value + '/languages/' + row.id + '/alias', { alias }); row.alias = alias || null; ElMessage.success('已更新') } catch { ElMessage.error('更新失败') }
+  try { await client.put('/projects/' + projectSlug.value + '/languages/' + row.id + '/alias', { alias }); row.alias = alias || null; ElMessage.success('已更新') } catch { ElMessage.error('更新失败') }
 }
 
 async function handleAdd() {
-  try { await langStore.addLanguage(projectId.value, selectedLang.value); ElMessage.success('添加成功'); showAddDialog.value = false; selectedLang.value = '' } catch { ElMessage.error('添加失败') }
+  try { await langStore.addLanguage(projectSlug.value, selectedLang.value); ElMessage.success('添加成功'); showAddDialog.value = false; selectedLang.value = '' } catch { ElMessage.error('添加失败') }
 }
 
 async function handleRemove(code: string) {
-  try { await langStore.removeLanguage(projectId.value, code); ElMessage.success('删除成功') } catch { ElMessage.error('删除失败') }
+  try { await langStore.removeLanguage(projectSlug.value, code); ElMessage.success('删除成功') } catch { ElMessage.error('删除失败') }
 }
 
 async function moveUp(index: number) {
@@ -95,7 +95,7 @@ async function moveDown(index: number) {
 }
 
 async function saveOrder(row: any) {
-  await client.put('/projects/' + projectId.value + '/languages/' + row.id + '/sortOrder', { sortOrder: row.sortOrder }).catch(() => {})
+  await client.put('/projects/' + projectSlug.value + '/languages/' + row.id + '/sortOrder', { sortOrder: row.sortOrder }).catch(() => {})
 }
 </script>
 

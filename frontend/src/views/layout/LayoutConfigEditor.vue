@@ -28,7 +28,7 @@ import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const configId = computed(() => route.params.configId as string)
 const isEdit = computed(() => configId.value && configId.value !== 'new')
 const saving = ref(false)
@@ -38,10 +38,10 @@ const form = reactive({ name: '', templateId: '' as string | null })
 const overrideStr = ref('{}')
 
 onMounted(async () => {
-  const { data: tRes } = await getTemplates(projectId.value)
+  const { data: tRes } = await getTemplates(projectSlug.value)
   templates.value = tRes.data
   if (isEdit.value) {
-    const { data: res } = await getConfig(projectId.value, configId.value)
+    const { data: res } = await getConfig(projectSlug.value, configId.value)
     form.name = res.data.name
     form.templateId = res.data.templateId
     overrideStr.value = JSON.stringify(res.data.overrideConfig, null, 2)
@@ -56,9 +56,9 @@ async function handleSave() {
 
     const data = { name: form.name, templateId: form.templateId || undefined, overrideConfig: override }
     if (isEdit.value) {
-      await updateConfig(projectId.value, configId.value, data)
+      await updateConfig(projectSlug.value, configId.value, data)
     } else {
-      await createConfig(projectId.value, data)
+      await createConfig(projectSlug.value, data)
     }
     ElMessage.success('保存成功')
     router.back()

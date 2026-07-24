@@ -45,14 +45,14 @@ import { ElMessage } from 'element-plus'
 
 const auth = useAuthStore()
 const route = useRoute()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const members = ref<any[]>([])
 const selectedUserId = ref(''), newMemberRole = ref('member')
 const userOptions = ref<any[]>([]), searching = ref(false)
 
 function roleLabel(r:string){ return { super_admin:'超管', admin:'管理员', member:'成员' }[r] || r }
 
-onMounted(async ()=>{ const {data:res}=await getMembers(projectId.value); members.value = res.data })
+onMounted(async ()=>{ const {data:res}=await getMembers(projectSlug.value); members.value = res.data })
 
 async function searchUsers(q:string){
   if(!q){ userOptions.value = []; return }
@@ -65,15 +65,15 @@ async function handleAdd(userId:string){
   if(!userId) return
   const u = userOptions.value.find(o=>o.id===userId)
   if(!u) return
-  try { const {data:res}=await addMember(projectId.value, u.email, newMemberRole.value); members.value.push(res.data); selectedUserId.value = ''; userOptions.value = []; ElMessage.success('已添加') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { const {data:res}=await addMember(projectSlug.value, u.email, newMemberRole.value); members.value.push(res.data); selectedUserId.value = ''; userOptions.value = []; ElMessage.success('已添加') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
 }
 
 async function handleRemove(row:any){
-  try { await removeMember(projectId.value, row.id); members.value = members.value.filter(m=>m.id!==row.id); ElMessage.success('已移除') } catch { ElMessage.error('失败') }
+  try { await removeMember(projectSlug.value, row.id); members.value = members.value.filter(m=>m.id!==row.id); ElMessage.success('已移除') } catch { ElMessage.error('失败') }
 }
 
 async function changeProjectRole(row:any, newRole:string){
-  try { await client.put('/projects/'+projectId.value+'/members/'+row.id+'/role', { projectRole:newRole }); row.projectRole = newRole; ElMessage.success('已更新') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { await client.put('/projects/'+projectSlug.value+'/members/'+row.id+'/role', { projectRole:newRole }); row.projectRole = newRole; ElMessage.success('已更新') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
 }
 </script>
 

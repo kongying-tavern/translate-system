@@ -39,13 +39,14 @@ export const useAuthStore = defineStore('auth', () => {
     role.value = 'member'
   }
 
-  const activeProjectId = ref(localStorage.getItem('activeProjectId') || '')
+  const activeProjectSlug = ref(localStorage.getItem('activeProjectSlug') || '')
   const activeProjectName = ref(localStorage.getItem('activeProjectName') || '')
 
-  function setActiveProject(id: string, name: string) {
-    activeProjectId.value = id; activeProjectName.value = name
-    localStorage.setItem('activeProjectId', id); localStorage.setItem('activeProjectName', name)
+  function setActiveProject(id: string, name: string, code?: string) {
+    const slug = code || id
+    activeProjectSlug.value = slug; activeProjectName.value = name
+    localStorage.setItem('activeProjectSlug', slug); localStorage.setItem('activeProjectName', name)
   }
 
-  return { user, isAuthenticated, role, activeProjectId, activeProjectName, setActiveProject, init, login, register, logout }
+  return { user, isAuthenticated, role, activeProjectSlug, activeProjectName, setActiveProject, init, login, register, logout }
 })

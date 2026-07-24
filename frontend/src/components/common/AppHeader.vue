@@ -1,6 +1,6 @@
 <template>
   <div class="header-left">
-    <template v-if="isProjectRoute && projectId">
+    <template v-if="isProjectRoute && projectSlug">
       <el-button link type="primary" @click="switcherVisible = true" style="font-size:16px;font-weight:600;padding:0">
         {{ auth.activeProjectName || projectName }} <el-icon style="margin-left:4px"><ArrowDown /></el-icon>
       </el-button>
@@ -24,7 +24,7 @@
     <el-input v-model="searchProject" placeholder="搜索项目..." style="margin-bottom:12px" />
     <div class="project-list">
       <div v-for="p in filteredProjects" :key="p.id" class="project-item" @click="switchProject(p)">
-        <span class="project-name">{{ p.name }}</span><span class="project-lang">{{ p.description }}</span>
+        <span class="project-name">{{ p.name }}</span><span class="project-code" v-if="p.code">[{{ p.code }}]</span><span class="project-lang">{{ p.description }}</span>
       </div>
     </div>
     <EmptyState v-if="!filteredProjects.length" description="暂无项目" />
@@ -82,7 +82,7 @@ import EmptyState from './EmptyState.vue'
 const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
-const projectId = computed(() => route.params.projectId as string | undefined)
+const projectSlug = computed(() => route.params.projectSlug as string | undefined)
 const isProjectRoute = computed(() => route.path.startsWith('/projects/'))
 const projectName = ref('')
 const pwdVisible = ref(false)
@@ -111,8 +111,8 @@ const filteredProjects = computed(() => {
   return allProjects.value.filter((p: any) => p.name.toLowerCase().includes(q))
 })
 
-watch(projectId, async (id) => {
-  if (id) { try { const { data: res } = await getProject(id); projectName.value = res.data.name; auth.setActiveProject(id, res.data.name) } catch { projectName.value = id } }
+watch(projectSlug, async (slug) => {
+  if (slug) { try { const { data: res } = await getProject(slug); projectName.value = res.data.name; auth.setActiveProject(res.data.id, res.data.name, res.data.code) } catch { projectName.value = slug } }
   else { projectName.value = '' }
 }, { immediate: true })
 
@@ -121,28 +121,28 @@ watch(switcherVisible, async (v) => {
 })
 
 watch(settingsVisible, async (v) => {
-  if (v && projectId.value) {
-    try { const { data: res } = await getProject(projectId.value); Object.assign(settingsForm, { name: res.data.name, code: res.data.code || '', description: res.data.description || '' }) } catch {}
+  if (v && projectSlug.value) {
+    try { const { data: res } = await getProject(projectSlug.value); Object.assign(settingsForm, { name: res.data.name, code: res.data.code || '', description: res.data.description || '' }) } catch {}
   }
 })
 
 function switchProject(p: any) {
   switcherVisible.value = false
-  // Keep current sub-page
-  const suffix = projectId.value ? route.path.split(projectId.value)[1] || '/translations' : ''
-  router.push('/projects/' + p.id + suffix)
+  const slug = p.code || p.id
+  const suffix = projectSlug.value ? route.path.split(projectSlug.value)[1] || '/translations' : ''
+  router.push('/projects/' + slug + suffix)
 }
 function goCreateProject() { switcherVisible.value = false; router.push('/projects/new') }
 
 async function handleDeleteProject() {
   try { await ElMessageBox.confirm('确定要删除项目「' + projectName.value + '」吗？该操作不可恢复。', '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' }) } catch { return }
-  try { await deleteProject(projectId.value!); settingsVisible.value = false; localStorage.removeItem('activeProjectId'); localStorage.removeItem('activeProjectName'); router.push('/'); ElMessage.success('项目已删除') } catch { ElMessage.error('删除失败') }
+  try { await deleteProject(projectSlug.value!); settingsVisible.value = false; localStorage.removeItem('activeProjectSlug'); localStorage.removeItem('activeProjectName'); router.push('/'); ElMessage.success('项目已删除') } catch { ElMessage.error('删除失败') }
 }
 
 async function saveSettings() {
   if (!settingsForm.name.trim()) { ElMessage.warning('名称不能为空'); return }
   settingsSaving.value = true
-  try { await updateProject(projectId.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description }); settingsVisible.value = false; projectName.value = settingsForm.name; auth.setActiveProject(projectId.value!, settingsForm.name); ElMessage.success('已保存') } catch { ElMessage.error('保存失败') }
+  try { await updateProject(projectSlug.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description }); settingsVisible.value = false; projectName.value = settingsForm.name; auth.setActiveProject(projectSlug.value!, settingsForm.name, settingsForm.code); ElMessage.success('已保存') } catch { ElMessage.error('保存失败') }
   finally { settingsSaving.value = false }
 }
 
@@ -170,8 +170,9 @@ async function deleteApiKey(row: any) {
 .header-right { display: flex; align-items: center; }
 .user-info { cursor: pointer; display: flex; align-items: center; gap: 4px; }
 .project-list { max-height: 350px; overflow-y: auto; }
-.project-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 6px; cursor: pointer; }
+.project-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 6px; cursor: pointer; gap: 8px; }
 .project-item:hover { background: #f5f7fa; }
 .project-name { font-weight: 500; }
-.project-lang { font-size: 12px; color: #909399; }
+.project-code { font-size: 12px; color: #409eff; font-family: monospace; }
+.project-lang { font-size: 12px; color: #909399; margin-left: auto; }
 </style>

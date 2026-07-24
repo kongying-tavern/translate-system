@@ -51,7 +51,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 const auth = useAuthStore()
 const loadingStore = useLoadingStore()
 const route = useRoute()
-const projectId = computed(() => route.params.projectId as string)
+const projectSlug = computed(() => route.params.projectSlug as string)
 const transStore = useTranslationStore()
 const langStore = useLanguageStore()
 const { rows, total, loading } = storeToRefs(transStore)
@@ -67,11 +67,11 @@ const editKey = ref<Map<string, string>>(new Map())
 const editSource = ref<Map<string, string>>(new Map())
 
 function buildCache() { for (const row of rows.value) { for (const [lang, t] of Object.entries(row.translations)) { const ck = row.translationKey + '|' + lang; if (!(ck in transCache)) transCache[ck] = t.translatedText } } }
-async function loadTags() { try { const { data: res } = await getTags(projectId.value); allTags.value = res.data } catch {} }
+async function loadTags() { try { const { data: res } = await getTags(projectSlug.value); allTags.value = res.data } catch {} }
 onMounted(() => { init() })
-watch(projectId, () => { if (projectId.value) init() })
+watch(projectSlug, () => { if (projectSlug.value) init() })
 
-function init() { langStore.fetchProjectLanguages(projectId.value); loadTags(); load() }
+function init() { langStore.fetchProjectLanguages(projectSlug.value); loadTags(); load() }
 watch(projectLanguages, (langs) => { if (langs.length && !globalLang.value) { globalLang.value = langs[0].languageCode; load() } })
 function syncRowLangs() { rowLangs.value = rows.value.map(() => globalLang.value || projectLanguages.value[0]?.languageCode || '') }
 
@@ -79,7 +79,7 @@ async function load() {
   loadingStore.start()
   try {
     const lang = globalLang.value || projectLanguages.value[0]?.languageCode
-    await transStore.fetchTranslations(projectId.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: filters.search })
+    await transStore.fetchTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: filters.search })
     buildCache(); syncRowLangs(); tableKey.value++
   } finally { loadingStore.stop() }
 }
@@ -90,33 +90,33 @@ function onRowLangChange(index: number, lang: string) { rowLangs.value[index] = 
 async function onSave(row: any, langCode: string) {
   const ck = row.translationKey + '|' + langCode; const text = transCache[ck] ?? ''; const prev = row.translations[langCode]?.translatedText ?? ''
   if (text === prev) return
-  try { await saveTranslation(projectId.value, row.translationKey, langCode, { translatedText: text }); if (row.translations[langCode]) row.translations[langCode].translatedText = text; else row.translations[langCode] = { id: '', translatedText: text }; console.log('[翻译]', { key: row.translationKey, lang: langCode, prev: prev || '(空)', new: text }); ElMessage.success(langCode + ': 译文已保存') } catch { ElMessage.error('保存失败') }
+  try { await saveTranslation(projectSlug.value, row.translationKey, langCode, { translatedText: text }); if (row.translations[langCode]) row.translations[langCode].translatedText = text; else row.translations[langCode] = { id: '', translatedText: text }; console.log('[翻译]', { key: row.translationKey, lang: langCode, prev: prev || '(空)', new: text }); ElMessage.success(langCode + ': 译文已保存') } catch { ElMessage.error('保存失败') }
 }
 
-async function onCtxSave(row: any, text: string) { const prev = row.context; if (text === prev) return; try { await saveTranslation(projectId.value, row.translationKey, '', { context: text }); row.context = text; console.log('[备注]', { key: row.translationKey, prev, new: text }); ElMessage.success('备注已保存') } catch { ElMessage.error('保存失败') } }
+async function onCtxSave(row: any, text: string) { const prev = row.context; if (text === prev) return; try { await saveTranslation(projectSlug.value, row.translationKey, '', { context: text }); row.context = text; console.log('[备注]', { key: row.translationKey, prev, new: text }); ElMessage.success('备注已保存') } catch { ElMessage.error('保存失败') } }
 
 async function onKeySave(row: any) {
   const oldKey = row.translationKey; const ek = editKey.value; const newKey = ek.get(oldKey)
   if (newKey === undefined || newKey === oldKey) return
   if (!newKey.trim()) { ElMessage.warning('Key 不能为空'); ek.delete(oldKey); return }
-  try { await updateKey(projectId.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText); ek.delete(oldKey); editSource.value.delete(oldKey); for (const lang of Object.keys(row.translations)) { const oc = oldKey + '|' + lang; const nc = newKey + '|' + lang; if (oc in transCache) { transCache[nc] = transCache[oc]; delete transCache[oc] } }; row.translationKey = newKey.trim(); ElMessage.success('Key 已更新') } catch (e: any) { ElMessage.error(e.response?.data?.message || 'Key 更新失败'); ek.delete(oldKey) }
+  try { await updateKey(projectSlug.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText); ek.delete(oldKey); editSource.value.delete(oldKey); for (const lang of Object.keys(row.translations)) { const oc = oldKey + '|' + lang; const nc = newKey + '|' + lang; if (oc in transCache) { transCache[nc] = transCache[oc]; delete transCache[oc] } }; row.translationKey = newKey.trim(); ElMessage.success('Key 已更新') } catch (e: any) { ElMessage.error(e.response?.data?.message || 'Key 更新失败'); ek.delete(oldKey) }
 }
 
-async function onSourceSave(row: any) { const oldKey = row.translationKey; const es = editSource.value; const newSrc = es.get(oldKey); if (newSrc === undefined || newSrc === row.sourceText) return; try { await updateKey(projectId.value, oldKey, oldKey, newSrc); es.delete(oldKey); row.sourceText = newSrc; ElMessage.success('原文已更新') } catch (e: any) { ElMessage.error(e.response?.data?.message || '原文更新失败'); es.delete(oldKey) } }
+async function onSourceSave(row: any) { const oldKey = row.translationKey; const es = editSource.value; const newSrc = es.get(oldKey); if (newSrc === undefined || newSrc === row.sourceText) return; try { await updateKey(projectSlug.value, oldKey, oldKey, newSrc); es.delete(oldKey); row.sourceText = newSrc; ElMessage.success('原文已更新') } catch (e: any) { ElMessage.error(e.response?.data?.message || '原文更新失败'); es.delete(oldKey) } }
 
-async function onTagsChange(row: any, tags: string[]) { try { await saveTranslation(projectId.value, row.translationKey, '', { tags }); row.tags = tags; loadTags() } catch { ElMessage.error('保存失败') } }
+async function onTagsChange(row: any, tags: string[]) { try { await saveTranslation(projectSlug.value, row.translationKey, '', { tags }); row.tags = tags; loadTags() } catch { ElMessage.error('保存失败') } }
 function openCreate() { Object.assign(form, { translationKey: '', sourceText: '', tags: [] }); showCreateDialog.value = true }
 
 async function handleCreate() {
   if (!form.translationKey.trim() || !form.sourceText.trim()) { ElMessage.warning('Key 和原文为必填'); return }
   saving.value = true
-  try { await transStore.create(projectId.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, sourceText: form.sourceText.trim(), translatedText: '', tags: form.tags }); ElMessage.success('创建成功'); showCreateDialog.value = false; loadTags(); load() } catch { ElMessage.error('创建失败') }
+  try { await transStore.create(projectSlug.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, sourceText: form.sourceText.trim(), translatedText: '', tags: form.tags }); ElMessage.success('创建成功'); showCreateDialog.value = false; loadTags(); load() } catch { ElMessage.error('创建失败') }
   finally { saving.value = false }
 }
 
 async function handleDelete(row: any) {
   try { await ElMessageBox.confirm('确定要删除 Key ' + row.translationKey + ' 的所有翻译吗？', '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
-  try { await transStore.remove(projectId.value, row.keyId); ElMessage.success('删除成功'); loadTags(); load() } catch { ElMessage.error('删除失败') }
+  try { await transStore.remove(projectSlug.value, row.keyId); ElMessage.success('删除成功'); loadTags(); load() } catch { ElMessage.error('删除失败') }
 }
 </script>
 
