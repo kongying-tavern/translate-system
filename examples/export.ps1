@@ -3,14 +3,14 @@ param(
     [string]$ApiKey = "ak_d2e22b73781083f56fd08efb881ef5aa",
     [string]$ApiSecret = "0a192b22e6458c7ccfe7f9d467c95a4b721893b72730b74d",
     [string]$Server = "http://localhost:8080",
-    [string]$TemplateId = "0f9909e8-9458-4749-88cf-5afdd3d22444",
+    [string]$TemplateSlug = "0f9909e8-9458-4749-88cf-5afdd3d22444",
     [string[]]$Languages = @("zh-Hans"),
     [string[]]$Tags = @(),
     [string]$OutputFile = "translations.json"
 )
 
 $body = @{
-    templateId     = $TemplateId
+    templateSlug   = $TemplateSlug
     languageCodes  = $Languages
 }
 if ($Tags.Count -gt 0) { $body.filterTags = $Tags }

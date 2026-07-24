@@ -84,7 +84,7 @@ export const swaggerSpec = swaggerJsdoc({
             id: { type: 'string' },
             projectId: { type: 'string' },
             name: { type: 'string' },
-            templateId: { type: 'string', nullable: true },
+            templateSlug: { type: 'string', nullable: true },
             overrideConfig: { type: 'object' },
           },
         },

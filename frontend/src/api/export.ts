@@ -17,9 +17,9 @@ export function updateExportTemplate(projectId: string, id: string, data: any) {
 export function deleteExportTemplate(projectId: string, id: string) {
   return client.delete<ApiResponse<null>>(`/projects/${projectId}/exports/templates/${id}`)
 }
-export function previewExport(projectId: string, templateId: string, languageCodes: string[], filterTags?: string[]) {
-  return client.post<ApiResponse<{ content: string; format: string }>>(`/projects/${projectId}/exports/preview`, { templateId, languageCodes, filterTags })
+export function previewExport(projectSlug: string, templateSlug: string, languageCodes: string[], filterTags?: string[]) {
+  return client.post<ApiResponse<{ content: string; format: string }>>(`/projects/${projectSlug}/exports/preview`, { templateSlug, languageCodes, filterTags })
 }
-export function generateExport(projectId: string, templateId: string, languageCodes: string[], filterTags?: string[]) {
-  return client.post<ApiResponse<{ content: string; format: string }>>(`/projects/${projectId}/exports/generate`, { templateId, languageCodes, filterTags })
+export function generateExport(projectSlug: string, templateSlug: string, languageCodes: string[], filterTags?: string[]) {
+  return client.post<ApiResponse<{ content: string; format: string }>>(`/projects/${projectSlug}/exports/generate`, { templateSlug, languageCodes, filterTags })
 }

@@ -3,17 +3,32 @@ import { prisma } from '../index'
 export async function listTemplates(projectId: string) {
   return prisma.exportTemplate.findMany({ where: { projectId }, orderBy: { createdAt: 'desc' } })
 }
-export async function getTemplate(id: string) {
-  const t = await prisma.exportTemplate.findUnique({ where: { id } })
+
+export async function getTemplate(id: string, projectId?: string) {
+  let t = await prisma.exportTemplate.findUnique({ where: { id } })
+  if (!t && projectId) t = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId, code: id } } })
   if (!t) throw { code: 1003, message: 'template not found' }
   return t
 }
+
 export async function createTemplate(projectId: string, data: any) {
+  if (!data.code) throw { code: 1001, message: 'code is required' }
+  const existing = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId, code: data.code } } })
+  if (existing) throw { code: 1004, message: 'code already exists' }
   return prisma.exportTemplate.create({ data: { projectId, ...data, config: data.config || {} } })
 }
+
 export async function updateTemplate(id: string, data: any) {
+  if (data.code) {
+    const t = await prisma.exportTemplate.findUnique({ where: { id } })
+    if (t && data.code !== t.code) {
+      const existing = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId: t.projectId, code: data.code } } })
+      if (existing) throw { code: 1004, message: 'code already exists' }
+    }
+  }
   return prisma.exportTemplate.update({ where: { id }, data })
 }
+
 export async function deleteTemplate(id: string) {
   return prisma.exportTemplate.delete({ where: { id } })
 }
