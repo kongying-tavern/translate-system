@@ -1,9 +1,9 @@
 <template>
   <div>
     <div class="page-header"><h2>{{ isEdit ? '编辑导出模板' : '新建导出模板' }}</h2></div>
-    <el-form :model="form" label-width="100px" style="max-width:700px">
-      <el-form-item label="名称"><el-input v-model="form.name" /></el-form-item>
-      <el-form-item label="模板标识"><el-input v-model="form.code" placeholder="英文标识，如 config-json" /></el-form-item>
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:700px">
+      <el-form-item label="名称" prop="name"><el-input v-model="form.name" /></el-form-item>
+      <el-form-item label="模板标识" prop="code"><el-input v-model="form.code" placeholder="英文标识，如 config-json" /></el-form-item>
       <el-form-item label="描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
       <el-form-item label="输出格式">
         <el-select v-model="form.formatType" style="width:100%">
@@ -34,16 +34,23 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
 import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
-const projectId = computed(() => route.params.projectId as string)
+const projectId = computed(() => route.params.projectSlug as string)
 const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
+const formRef = ref<FormInstance>()
 
 const form = reactive({ name: '', code: '', description: '', formatType: 'json' })
 const configForm = reactive({ skipIdentical: false, skipEmpty: false, useCodeKey: false })
+
+const rules: FormRules = {
+  name: [{ required: true, message: '名称不能为空', trigger: 'blur' }],
+  code: [{ required: true, message: '标识不能为空', trigger: 'blur' }],
+}
 
 onMounted(async () => {
   if (isEdit.value) {
@@ -57,6 +64,8 @@ onMounted(async () => {
 })
 
 async function handleSave() {
+  if (!formRef.value) return
+  try { await formRef.value.validate() } catch { return }
   saving.value = true
   try {
     const config = { ...configForm }
