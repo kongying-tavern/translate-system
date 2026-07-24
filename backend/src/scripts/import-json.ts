@@ -5,8 +5,8 @@ const prisma = new PrismaClient()
 const [,, projectId, filePath, languageCode] = process.argv
 
 if (!projectId || !filePath || !languageCode) {
-  console.error('Usage: npx tsx src/scripts/import-json.ts <projectId> <filePath> <languageCode>')
-  console.error('Example: npx tsx src/scripts/import-json.ts <uuid> ../en-US.json en-US')
+  console.error('Usage: pnpm tsx src/scripts/import-json.ts <projectId> <filePath> <languageCode>')
+  console.error('Example: pnpm tsx src/scripts/import-json.ts <uuid> ../en-US.json en-US')
   process.exit(1)
 }
 

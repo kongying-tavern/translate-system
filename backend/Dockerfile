@@ -13,6 +13,6 @@ COPY package.json pnpm-lock.yaml .npmrc .
 RUN corepack enable && pnpm install --frozen-lockfile
 COPY . .
 RUN chmod +x startup.sh
-RUN npx prisma generate
+RUN pnpm prisma generate
 EXPOSE 8080
-CMD ["npx", "tsx", "src/index.ts"]
+CMD ["pnpm", "tsx", "src/index.ts"]
