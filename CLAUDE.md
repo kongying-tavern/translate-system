@@ -10,8 +10,9 @@
 # 后端 (localhost:8080)
 cd backend && pnpm dev           # tsx watch 热重载
 pnpm db:generate                 # 重新生成 Prisma Client
-pnpm db:push                     # 推送 schema 到 DB（保留数据）
-pnpm db:migrate                  # 生成并执行迁移文件
+pnpm db:push                     # 推送 schema 到 DB（仅本地快速原型用，不产生迁移文件）
+pnpm db:migrate                  # 交互式：创建新迁移文件 + 应用到 DB（用于改 schema 后）
+pnpm prisma migrate deploy       # 非交互式：将已有迁移应用到 DB（本地初始化/Docker 启动时自动执行）
 
 # 前端 (localhost:3000)
 cd frontend && pnpm dev          # Vite HMR
