@@ -8,7 +8,7 @@
           <el-button link size="small" :disabled="$index === (projectLanguages||[]).length - 1" @click="moveDown($index)"><el-icon><ArrowDown /></el-icon></el-button>
         </template>
       </el-table-column>
-      <el-table-column prop="languageCode" label="语言代码" min-width="120" sortable />
+      <el-table-column prop="languageCode" label="语言代码" min-width="120" />
       <el-table-column label="语言名称" min-width="200">
         <template #default="{ row }">{{ langStore.getBaseName(row.languageCode) }}</template>
       </el-table-column>
