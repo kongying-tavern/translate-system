@@ -11,7 +11,6 @@
 cd backend && pnpm dev           # tsx watch 热重载
 pnpm db:generate                 # 重新生成 Prisma Client
 pnpm db:push                     # 推送 schema 到 DB（保留数据）
-pnpm db:seed                     # 灌入基础语言数据
 pnpm db:migrate                  # 生成并执行迁移文件
 
 # 前端 (localhost:3000)

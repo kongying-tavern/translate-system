@@ -21,8 +21,5 @@ else
   fi
 fi
 
-echo "Running seed..."
-npx tsx prisma/seed.ts
-
 echo "Starting server..."
 exec npx tsx src/index.ts

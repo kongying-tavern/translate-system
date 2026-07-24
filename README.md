@@ -71,7 +71,6 @@ cd backend
 pnpm install
 pnpm db:generate
 pnpm db:push         # 或用 pnpm db:migrate 走迁移文件
-pnpm db:seed         # 导入基础语言数据
 ```
 
 #### 4. 启动
@@ -104,7 +103,6 @@ translate-system/
 │   ├── prisma/
 │   │   ├── schema.prisma          # 数据模型
 │   │   ├── migrations/            # 数据库迁移文件
-│   │   └── seed.ts                # 语言种子数据
 │   └── src/
 │       ├── index.ts               # Express 入口
 │       ├── config.ts              # 环境配置
