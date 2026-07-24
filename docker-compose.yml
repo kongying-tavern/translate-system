@@ -18,7 +18,11 @@ services:
 
   backend:
     container_name: ${COMPOSE_PROJECT_NAME:-kytrans}-backend
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+        APT_MIRROR: ${APT_MIRROR:-mirrors.tuna.tsinghua.edu.cn}
     ports:
       - "${BACKEND_PORT:-20080}:8080"
     environment:
@@ -34,7 +38,10 @@ services:
 
   frontend:
     container_name: ${COMPOSE_PROJECT_NAME:-kytrans}-frontend
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
     ports:
       - "${FRONTEND_PORT:-20010}:80"
     depends_on:
