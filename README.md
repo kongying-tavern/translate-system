@@ -188,3 +188,7 @@ curl -X POST /api/v1/projects/my-project/exports/generate \
 | 项目成员 | 全部 | 管理员及以下 | 仅成员 | ❌ |
 
 首位注册用户自动成为超级管理员，后续注册默认为成员。
+
+## 命令行脚本
+
+详见 [docs/SCRIPTS_GUIDE.md](docs/SCRIPTS_GUIDE.md)。
