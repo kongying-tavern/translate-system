@@ -18,8 +18,9 @@ pnpm db:migrate                  # 生成并执行迁移文件
 cd frontend && pnpm dev          # Vite HMR
 rm -rf node_modules/.vite        # 清除 Vite 缓存（模块找不到时）
 
-# Docker
-docker compose up -d             # 启动全部服务
+# Docker（端口在 .env 中配置，默认 21080/21010/21432）
+docker compose up -d             # 启动全部服务（首次或改 Dockerfile 后加 --build）
+docker compose up -d --build     # 重新构建镜像并启动
 docker compose up -d postgres    # 仅启动数据库（本地开发用）
 docker compose down              # 停止服务
 docker compose logs -f           # 查看日志
@@ -97,11 +98,11 @@ layouts/AppLayout — 主界面布局
 
 ```bash
 # 导出翻译
-curl -X POST http://localhost:8080/api/v1/apikey/projects/:projectId/exports/generate \
+curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/generate \
   -H "x-api-key: ak_xxx" \
   -H "x-api-secret: xxx" \
   -H "Content-Type: application/json" \
-  -d '{"templateId":"...","languageCodes":["zh-Hans"]}'
+  -d '{"templateSlug":"...","languageCodes":["zh-Hans"]}'
 ```
 
 白名单配置在 `backend/src/index.ts` 的 `APIKEY_WHITELIST` 数组。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）

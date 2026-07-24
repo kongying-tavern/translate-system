@@ -43,7 +43,7 @@ docker compose up -d
 
 #### 环境要求
 
-- Node.js >= 18
+- Node.js >= 20
 - Docker & Docker Compose
 
 #### 1. 启动数据库
