@@ -1,15 +1,19 @@
 <template>
   <div>
     <div class="page-header"><h2>语言管理</h2><el-button type="primary" @click="showAddDialog = true">添加语言</el-button></div>
-    <el-table :data="projectLanguages || []" stripe>
+    <el-table :data="projectLanguages || []" stripe row-key="id">
+      <el-table-column label="排序" width="80" align="center">
+        <template #default="{ row, $index }">
+          <el-button link size="small" :disabled="$index === 0" @click="moveUp($index)"><el-icon><ArrowUp /></el-icon></el-button>
+          <el-button link size="small" :disabled="$index === (projectLanguages||[]).length - 1" @click="moveDown($index)"><el-icon><ArrowDown /></el-icon></el-button>
+        </template>
+      </el-table-column>
       <el-table-column prop="languageCode" label="语言代码" min-width="120" sortable />
       <el-table-column label="语言名称" min-width="200">
         <template #default="{ row }">{{ langStore.getBaseName(row.languageCode) }}</template>
       </el-table-column>
-      <el-table-column label="别名" min-width="180">
-        <template #default="{ row }">
-          <el-input v-model="aliasCache[row.id]" @blur="onAliasSave(row)" size="small" placeholder="输入别名..." />
-        </template>
+      <el-table-column label="别名" min-width="160">
+        <template #default="{ row }"><el-input v-model="aliasCache[row.id]" @blur="onAliasSave(row)" size="small" placeholder="输入别名..." /></template>
       </el-table-column>
       <el-table-column label="显示名" min-width="120">
         <template #default="{ row }">{{ row.alias || row.languageCode }}</template>
@@ -38,6 +42,7 @@ import { storeToRefs } from 'pinia'
 import client from '@/api/client'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { ElMessage } from 'element-plus'
+import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const projectId = computed(() => route.params.projectId as string)
@@ -67,6 +72,30 @@ async function handleAdd() {
 
 async function handleRemove(code: string) {
   try { await langStore.removeLanguage(projectId.value, code); ElMessage.success('删除成功') } catch { ElMessage.error('删除失败') }
+}
+
+async function moveUp(index: number) {
+  const list = projectLanguages.value || []
+  if (index <= 0 || !list.length) return
+  const cur = list[index], prev = list[index - 1]
+  const newOrder = prev.sortOrder ?? (index - 1)
+  cur.sortOrder = newOrder; prev.sortOrder = newOrder + 1
+  list.splice(index, 1); list.splice(index - 1, 0, cur)
+  await saveOrder(cur); await saveOrder(prev)
+}
+
+async function moveDown(index: number) {
+  const list = projectLanguages.value || []
+  if (index >= list.length - 1) return
+  const cur = list[index], next = list[index + 1]
+  const newOrder = next.sortOrder ?? (index + 1)
+  cur.sortOrder = newOrder; next.sortOrder = newOrder - 1
+  list.splice(index, 1); list.splice(index + 1, 0, cur)
+  await saveOrder(cur); await saveOrder(next)
+}
+
+async function saveOrder(row: any) {
+  await client.put('/projects/' + projectId.value + '/languages/' + row.id + '/sortOrder', { sortOrder: row.sortOrder }).catch(() => {})
 }
 </script>
 
