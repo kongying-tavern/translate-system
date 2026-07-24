@@ -33,6 +33,8 @@ cp .env.example .env
 docker compose up -d
 ```
 
+> 修改 `Dockerfile`、`startup.sh`、`pnpm-lock.yaml` 或后端源代码后，需加 `--build` 重新构建：`docker compose up -d --build`。
+
 启动后访问 `http://localhost:20010`。
 
 > 默认端口：前端 `20010`、后端 `20080`、数据库 `20432`，可在 `.env` 中修改。
