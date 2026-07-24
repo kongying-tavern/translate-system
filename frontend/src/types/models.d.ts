@@ -28,6 +28,7 @@ export interface ProjectLanguage {
   projectId: string
   languageCode: string
   alias: string
+  sortOrder: number
 }
 
 export interface Translation {
