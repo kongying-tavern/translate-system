@@ -35,3 +35,33 @@
 cd backend
 pnpm tsx src/scripts/import-json.ts <项目ID> <JSON文件路径> <语言代码>
 ```
+
+---
+
+## deploy.ps1 / deploy.sh
+
+SSH 部署脚本：连接服务器 → 拉取指定分支 → `docker compose up -d --build`。
+
+### 参数
+
+| PS1 参数 | Sh 参数 | 说明 |
+|----------|---------|------|
+| `-Host` | `-h` | 服务器地址 |
+| `-Port` | `-P` | SSH 端口，默认 `22` |
+| `-User` | `-u` | SSH 用户名 |
+| `-Dir` | `-d` | 服务器上项目部署路径 |
+| `-Branch` | `-b` | 发布分支 |
+
+### 示例
+
+```bash
+./scripts/deploy.sh -h 192.168.1.100 -P 22 -u root -d /opt/translate-system -b main
+
+# PowerShell
+./scripts/deploy.ps1 -Host 192.168.1.100 -Port 22 -User root -Dir /opt/translate-system -Branch main
+```
+
+### 前置条件
+
+- 服务器已安装 Docker + Docker Compose
+- 目标目录已 clone 项目并配置好 `.env`
