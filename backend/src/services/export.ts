@@ -5,7 +5,8 @@ export async function listTemplates(projectId: string) {
 }
 
 export async function getTemplate(id: string, projectId?: string) {
-  let t = await prisma.exportTemplate.findUnique({ where: { id } })
+  let t = null
+  try { t = await prisma.exportTemplate.findUnique({ where: { id } }) } catch {}
   if (!t && projectId) t = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId, code: id } } })
   if (!t) throw { code: 1003, message: 'template not found' }
   return t

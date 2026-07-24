@@ -6,7 +6,8 @@ import { ErrCode } from '../lib/errors'
 const PROJECT_ROLE_LEVEL: Record<string, number> = { admin: 3, maintainer: 2, member: 1 }
 
 async function resolveProject(identifier: string) {
-  let p = await prisma.project.findUnique({ where: { id: identifier } })
+  let p = null
+  try { p = await prisma.project.findUnique({ where: { id: identifier } }) } catch {}
   if (!p) p = await prisma.project.findUnique({ where: { code: identifier } })
   return p
 }
