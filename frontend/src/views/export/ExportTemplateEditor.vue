@@ -3,6 +3,7 @@
     <div class="page-header"><h2>{{ isEdit ? '编辑导出模板' : '新建导出模板' }}</h2></div>
     <el-form :model="form" label-width="100px" style="max-width:700px">
       <el-form-item label="名称"><el-input v-model="form.name" /></el-form-item>
+      <el-form-item label="模板标识"><el-input v-model="form.code" placeholder="英文标识，如 config-json" /></el-form-item>
       <el-form-item label="描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
       <el-form-item label="输出格式">
         <el-select v-model="form.formatType" style="width:100%">
@@ -41,13 +42,14 @@ const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
 
-const form = reactive({ name: '', description: '', formatType: 'json' })
+const form = reactive({ name: '', code: '', description: '', formatType: 'json' })
 const configForm = reactive({ skipIdentical: false, skipEmpty: false, useCodeKey: false })
 
 onMounted(async () => {
   if (isEdit.value) {
     const { data: res } = await getExportTemplate(projectId.value, templateId.value)
     form.name = res.data.name
+    form.code = res.data.code || ''
     form.description = res.data.description || ''
     form.formatType = res.data.formatType
     if (res.data.config) { configForm.skipIdentical = !!res.data.config.skipIdentical; configForm.skipEmpty = !!res.data.config.skipEmpty; configForm.useCodeKey = !!res.data.config.useCodeKey }

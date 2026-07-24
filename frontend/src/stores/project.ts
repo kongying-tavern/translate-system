@@ -17,13 +17,13 @@ export const useProjectStore = defineStore('project', () => {
     currentProject.value = res.data
   }
 
-  async function create(name: string, description: string, sourceLanguage: string): Promise<Project> {
-    const { data: res } = await projectApi.createProject({ name, description, sourceLanguage })
+  async function create(name: string, code: string, description: string, sourceLanguage: string): Promise<Project> {
+    const { data: res } = await projectApi.createProject({ name, code, description, sourceLanguage })
     projects.value.unshift(res.data)
     return res.data
   }
 
-  async function update(id: string, data: { name: string; description?: string; sourceLanguage?: string }) {
+  async function update(id: string, data: { name: string; code?: string; description?: string; sourceLanguage?: string }) {
     const { data: res } = await projectApi.updateProject(id, data)
     const idx = projects.value.findIndex(p => p.id === id)
     if (idx !== -1) projects.value[idx] = res.data

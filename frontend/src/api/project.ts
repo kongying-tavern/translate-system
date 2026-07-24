@@ -10,11 +10,11 @@ export function getProject(id: string) {
   return client.get<ApiResponse<Project>>(`/projects/${id}`)
 }
 
-export function createProject(data: { name: string; description?: string; sourceLanguage?: string }) {
+export function createProject(data: { name: string; code: string; description?: string; sourceLanguage?: string }) {
   return client.post<ApiResponse<Project>>('/projects', data)
 }
 
-export function updateProject(id: string, data: { name: string; description?: string; sourceLanguage?: string }) {
+export function updateProject(id: string, data: { name: string; code?: string; description?: string; sourceLanguage?: string }) {
   return client.put<ApiResponse<Project>>(`/projects/${id}`, data)
 }
 

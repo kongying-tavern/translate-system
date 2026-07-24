@@ -6,6 +6,7 @@ export interface Project {
   id: string
   userId: string
   name: string
+  code: string
   description: string
   sourceLanguage: string
   createdAt: string
@@ -66,6 +67,7 @@ export interface ExportTemplate {
   id: string
   projectId: string
   name: string
+  code: string
   description: string
   formatType: string
   config: any

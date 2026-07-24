@@ -36,6 +36,7 @@
   <el-dialog v-model="settingsVisible" title="项目设置" width="500px">
     <el-form :model="settingsForm" label-width="80px">
       <el-form-item label="名称"><el-input v-model="settingsForm.name" /></el-form-item>
+      <el-form-item label="标识"><el-input v-model="settingsForm.code" placeholder="英文标识，如 my-project" /></el-form-item>
       <el-form-item label="描述"><el-input v-model="settingsForm.description" type="textarea" :rows="3" /></el-form-item>
     </el-form>
     <template #footer><el-button type="danger" @click="handleDeleteProject" style="float:left">删除项目</el-button><el-button @click="settingsVisible=false">取消</el-button><el-button type="primary" @click="saveSettings" :loading="settingsSaving">保存</el-button></template>
@@ -91,7 +92,7 @@ const searchProject = ref('')
 const allProjects = ref<any[]>([])
 const settingsVisible = ref(false)
 const settingsSaving = ref(false)
-const settingsForm = reactive({ name: '', description: '' })
+const settingsForm = reactive({ name: '', code: '', description: '' })
 
 function handleCommand(cmd: string) {
   if (cmd === 'logout') { auth.logout(); router.push('/auth/login') }
@@ -121,7 +122,7 @@ watch(switcherVisible, async (v) => {
 
 watch(settingsVisible, async (v) => {
   if (v && projectId.value) {
-    try { const { data: res } = await getProject(projectId.value); Object.assign(settingsForm, { name: res.data.name, description: res.data.description || '' }) } catch {}
+    try { const { data: res } = await getProject(projectId.value); Object.assign(settingsForm, { name: res.data.name, code: res.data.code || '', description: res.data.description || '' }) } catch {}
   }
 })
 
@@ -141,7 +142,7 @@ async function handleDeleteProject() {
 async function saveSettings() {
   if (!settingsForm.name.trim()) { ElMessage.warning('名称不能为空'); return }
   settingsSaving.value = true
-  try { await updateProject(projectId.value!, { name: settingsForm.name, description: settingsForm.description }); settingsVisible.value = false; projectName.value = settingsForm.name; auth.setActiveProject(projectId.value!, settingsForm.name); ElMessage.success('已保存') } catch { ElMessage.error('保存失败') }
+  try { await updateProject(projectId.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description }); settingsVisible.value = false; projectName.value = settingsForm.name; auth.setActiveProject(projectId.value!, settingsForm.name); ElMessage.success('已保存') } catch { ElMessage.error('保存失败') }
   finally { settingsSaving.value = false }
 }
 
