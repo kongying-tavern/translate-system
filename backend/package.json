@@ -2,6 +2,7 @@
   "name": "translate-ai-backend",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
