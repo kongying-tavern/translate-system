@@ -134,7 +134,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 ### 改动翻译相关功能
 
 1. 先改 `services/translation.ts` → 再改 `routes/translations.ts` → 最后改前端
-2. 如果需要新字段，改 `prisma/schema.prisma` → `pnpm db:push` 或 `pnpm db:migrate` → 更新 service
+2. 改 `prisma/schema.prisma` → `pnpm db:migrate` 生成迁移文件 → 更新 service。必须创建迁移文件（不要用 `db:push` 绕过），否则 Docker 部署时 `migrate deploy` 会遗漏变更
 3. 翻译列表分页在 `listGrouped` 中处理，导出不过滤在 `getForExport`
 
 ### 脚本
