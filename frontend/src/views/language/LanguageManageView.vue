@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="page-header"><h2>语言管理</h2><el-button type="primary" @click="showAddDialog = true">添加语言</el-button></div>
-    <el-table :data="projectLanguages" stripe>
+    <el-table :data="projectLanguages || []" stripe>
       <el-table-column prop="languageCode" label="语言代码" min-width="120" />
       <el-table-column label="语言名称" min-width="200">
         <template #default="{ row }">{{ langStore.getBaseName(row.languageCode) }}</template>
@@ -18,7 +18,7 @@
         <template #default="{ row }"><el-button type="danger" link @click="handleRemove(row.languageCode)">删除</el-button></template>
       </el-table-column>
     </el-table>
-    <EmptyState v-if="!projectLanguages.length" description="暂无语言" />
+    <EmptyState v-if="!projectLanguages || !projectLanguages.length" description="暂无语言" />
 
     <el-dialog v-model="showAddDialog" title="添加语言" width="500px">
       <el-select v-model="selectedLang" filterable placeholder="搜索语言..." style="width:100%">
@@ -47,7 +47,7 @@ const showAddDialog = ref(false)
 const selectedLang = ref('')
 const aliasCache = reactive<Record<string, string>>({})
 
-watch(projectLanguages, (langs) => { for (const l of langs) { if (!(l.id in aliasCache)) aliasCache[l.id] = l.alias || '' } }, { immediate: true, deep: true })
+watch(projectLanguages, (langs) => { if (langs) for (const l of langs) { if (!(l.id in aliasCache)) aliasCache[l.id] = l.alias || '' } }, { immediate: true, deep: true })
 
 onMounted(() => loadLangs())
 watch(projectId, () => { if (projectId.value) loadLangs() })
