@@ -124,15 +124,15 @@ for LANG in "${LANG_ARRAY[@]}"; do
   BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$LANG\"],\"filterTags\":[]}"
   RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
     -H "Content-Type: application/json" -d "$BODY" "$EXPORT_URL")
-  [[ -z "$RESP" ]] && { echo -e "${RED} 错误: API 返回空响应${NC}"; ((FAILED++)); continue; }
+  [[ -z "$RESP" ]] && { echo -e "${RED} 错误: API 返回空响应${NC}"; ((++FAILED)); continue; }
 
   if [[ "$(echo "$RESP" | json_field '.code')" = "0" ]]; then
     echo "$RESP" | json_field '.data.content' > "$OUT_FILE"
     echo -e "${GREEN} -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)${NC}"
-    ((SUCCEEDED++))
+    ((++SUCCEEDED))
   else
     echo -e "${RED} 错误: $(echo "$RESP" | json_field '.message')${NC}"
-    ((FAILED++))
+    ((++FAILED))
   fi
 done
 
