@@ -115,8 +115,8 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 ### 常见问题
 
 1. **Vite 模块找不到** — `rm -rf node_modules/.vite && pnpm dev`
-2. **Prisma 文件锁** — `rm -rf node_modules/.prisma && npx prisma generate`
-3. **`psql` 中文乱码** — 用 `npx tsx -e "import{PrismaClient}..."` 查数据
+2. **Prisma 文件锁** — `rm -rf node_modules/.prisma && pnpm prisma generate`
+3. **`psql` 中文乱码** — 用 `pnpm tsx -e "import{PrismaClient}..."` 查数据
 4. **路由冲突** — `/:key/:langCode` 会吃掉 `/key/:oldKey`，必须把 literal 路由放前面
 5. **`cannot edit` 报错** — GateGuard hook，用 `ECC_GATEGUARD=off` 前缀或加到 `settings.json`
 6. **前端 TS 报错（`Property 'xxx' does not exist on type`）** — 改 schema 后未同步 `frontend/src/types/models.d.ts`，检查并添加对应字段
@@ -135,6 +135,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 1. 先改 `services/translation.ts` → 再改 `routes/translations.ts` → 最后改前端
 2. 改 `prisma/schema.prisma` → `pnpm db:migrate` 生成迁移文件 → 更新 service。必须创建迁移文件（不要用 `db:push` 绕过），否则 Docker 部署时 `migrate deploy` 会遗漏变更
+   - 注意：`db:push` 后的 DB 没有 `_prisma_migrations` 记录，直接用 `migrate deploy` 会因列已存在报错，需先用 `migrate resolve --applied` 手动标记已存在的迁移
 3. 翻译列表分页在 `listGrouped` 中处理，导出不过滤在 `getForExport`
 
 ### 改 Prisma Schema 后必须做的事

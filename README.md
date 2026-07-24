@@ -89,8 +89,8 @@ Swagger 文档: `http://localhost:8080/api-docs`（Docker 部署时为 `http://l
 
 ```bash
 cd backend
-npx tsx src/scripts/import-json.ts <项目ID> <JSON文件路径> <语言代码>
-# 例如: npx tsx src/scripts/import-json.ts <uuid> ../zh-Hans.json zh-Hans
+pnpm tsx src/scripts/import-json.ts <项目ID> <JSON文件路径> <语言代码>
+# 例如: pnpm tsx src/scripts/import-json.ts <uuid> ../zh-Hans.json zh-Hans
 ```
 
 ## 项目结构
