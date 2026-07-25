@@ -5,11 +5,14 @@ param(
     [Parameter(Mandatory, HelpMessage = "项目 Slug (UUID 或 code)")]
     [string]$ProjectSlug,
 
-    [Parameter(Mandatory, HelpMessage = "API Key (ak_xxx)")]
+    [Parameter(HelpMessage = "API Key (ak_xxx)，与 -ConfigFile 二选一")]
     [string]$ApiKey,
 
-    [Parameter(Mandatory, HelpMessage = "API Secret")]
+    [Parameter(HelpMessage = "API Secret，与 -ConfigFile 二选一")]
     [string]$ApiSecret,
+
+    [Parameter(HelpMessage = "鉴权信息文件路径（JSON 格式，包含 apiKey 和 apiSecret）")]
+    [string]$AuthConfig,
 
     [Parameter(Mandatory, HelpMessage = "导出模板 Slug (UUID 或 code)，在 Web 端创建后使用")]
     [string]$TemplateSlug,
@@ -29,6 +32,31 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# ── 加载配置文件 ──
+if ($AuthConfig) {
+    if (-not (Test-Path $AuthConfig)) {
+        Write-Host "错误: 鉴权文件不存在: $AuthConfig" -ForegroundColor Red
+        exit 1
+    }
+    $auth = Get-Content $AuthConfig -Raw | ConvertFrom-Json
+    if (-not $ApiKey) { $ApiKey = $auth.apiKey }
+    if (-not $ApiSecret) { $ApiSecret = $auth.apiSecret }
+    Write-Host "已加载鉴权信息" -ForegroundColor Yellow
+}
+
+# ── 必填参数检查 ──
+$missing = @()
+if (-not $Endpoint) { $missing += "Endpoint" }
+if (-not $ProjectSlug) { $missing += "ProjectSlug" }
+if (-not $ApiKey) { $missing += "ApiKey 或 AuthConfig 文件中 apiKey" }
+if (-not $ApiSecret) { $missing += "ApiSecret 或 AuthConfig 文件中 apiSecret" }
+if (-not $TemplateSlug) { $missing += "TemplateSlug" }
+if (-not $OutputDir) { $missing += "OutputDir" }
+if ($missing.Count -gt 0) {
+    Write-Host "错误: 缺少必填参数: $($missing -join ', ')" -ForegroundColor Red
+    exit 1
+}
 
 # ── 清理 ──
 if ($Delete) {

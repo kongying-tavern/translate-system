@@ -14,6 +14,7 @@ usage() {
   -o, --output <dir>          输出目录
 
 可选:
+  -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
   -l, --languages <list>      过滤语言，逗号分隔（如 zh-Hans,en-US），默认全部
   -d, --delete                导出前清理已有文件
   -m, --delete-mode <mode>    清理模式: file|folder (默认 file)
@@ -59,6 +60,7 @@ while [[ $# -gt 0 ]]; do
     -s|--api-secret)   API_SECRET="$2"; shift 2 ;;
     -t|--template)     TEMPLATE_SLUG="$2"; shift 2 ;;
     -o|--output)       OUTPUT_DIR="$2"; shift 2 ;;
+    -a|--auth-config)  AUTH_CONFIG="$2"; shift 2 ;;
     -l|--languages)    LANGUAGES="$2"; shift 2 ;;
     -d|--delete)       DELETE=true; shift ;;
     -m|--delete-mode)  DELETE_MODE="$2"; shift 2 ;;
@@ -68,6 +70,20 @@ while [[ $# -gt 0 ]]; do
 done
 
 DELETE_MODE="${DELETE_MODE:-file}"
+
+# ── 加载配置文件 ──
+if [[ -n "${AUTH_CONFIG:-}" ]]; then
+  if [[ ! -f "$AUTH_CONFIG" ]]; then
+    echo -e "${RED}错误: 鉴权文件不存在: $AUTH_CONFIG${NC}" >&2
+    exit 1
+  fi
+  AUTH_JSON=$(cat "$AUTH_CONFIG")
+  AUTH_API_KEY=$(echo "$AUTH_JSON" | json_field '.apiKey')
+  AUTH_API_SECRET=$(echo "$AUTH_JSON" | json_field '.apiSecret')
+  [[ -z "${API_KEY:-}" && -n "$AUTH_API_KEY" ]] && API_KEY="$AUTH_API_KEY"
+  [[ -z "${API_SECRET:-}" && -n "$AUTH_API_SECRET" ]] && API_SECRET="$AUTH_API_SECRET"
+  echo -e "${YELLOW}已加载鉴权信息${NC}"
+fi
 
 for var in ENDPOINT PROJECT_SLUG API_KEY API_SECRET TEMPLATE_SLUG OUTPUT_DIR; do
   if [[ -z "${!var:-}" ]]; then echo -e "${RED}缺少必填参数: $var${NC}"; usage; fi
