@@ -1,6 +1,6 @@
 <template>
   <div>
-    <div class="page-header"><h2>用户管理</h2><el-button v-if="auth.role === 'super_admin'" type="primary" @click="openCreate">添加用户</el-button></div>
+    <div class="page-header"><h2>用户管理</h2><el-button v-if="auth.role === 'super_admin' || auth.role === 'admin'" type="primary" @click="openCreate">添加用户</el-button></div>
     <el-table :data="users" stripe>
       <el-table-column prop="username" label="用户名" width="150" />
       <el-table-column prop="email" label="邮箱" width="250" />
@@ -50,7 +50,7 @@ onMounted(async ()=>{ const { data:res } = await getUsers(); users.value = res.d
 function roleLabel(r:string){ return { super_admin:'超管', admin:'管理员', member:'成员' }[r] || r }
 function cannotEdit(row:any){
   if (row.id === auth.user?.id) return true
-  if (auth.role !== 'super_admin') return true
+  if (row.role === 'super_admin') return true
   return false
 }
 

@@ -53,7 +53,7 @@ const ROLE_LEVEL: Record<string, number> = { super_admin: 3, admin: 2, member: 1
 
 function canManage(operator: string | undefined, target: string): boolean {
   if (operator === 'super_admin') return true
-  if (operator === 'admin') return target === 'member'
+  if (operator === 'admin') return target !== 'super_admin'  // admin can manage members and other admins
   return false
 }
 
