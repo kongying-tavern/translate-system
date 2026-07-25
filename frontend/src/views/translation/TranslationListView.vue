@@ -83,7 +83,7 @@ function init() { langStore.fetchProjectLanguages(projectSlug.value); loadTags()
 
 let sortable: any = null
 function bindSortable() {
-  const el = document.querySelector('.el-table__body-wrapper tbody')
+  const el = document.querySelector('.el-table__body-wrapper tbody') as HTMLElement
   if (!el || auth.role === 'member') return
   if (sortable) sortable.destroy()
   sortable = Sortable.create(el, {
