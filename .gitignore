@@ -14,3 +14,4 @@ backend/.env
 backend/migrate-data.ts
 backend/test-export.ts
 /data/
+.history/
