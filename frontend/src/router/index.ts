@@ -26,6 +26,8 @@ const router = createRouter({
             { path: 'translations', name: 'Translations', component: () => import('@/views/translation/TranslationListView.vue') },
             { path: 'languages', name: 'Languages', component: () => import('@/views/language/LanguageManageView.vue') },
             { path: 'members', name: 'Members', component: () => import('@/views/project/ProjectMembersView.vue') },
+            { path: 'imports', name: 'Imports', component: () => import('@/views/import/ImportTemplateView.vue') },
+            { path: 'imports/:templateId/edit', name: 'ImportTemplateEdit', component: () => import('@/views/import/ImportTemplateEditor.vue') },
             { path: 'exports', name: 'Exports', component: () => import('@/views/export/ExportTemplateView.vue') },
             { path: 'exports/:templateId/edit', name: 'ExportTemplateEdit', component: () => import('@/views/export/ExportTemplateEditor.vue') },
           ],

@@ -9,6 +9,7 @@
           <el-menu-item :index="`/projects/${projectSlug}/translations`"><el-icon><Document /></el-icon><span>翻译管理</span></el-menu-item>
           <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/members`"><el-icon><Avatar /></el-icon><span>项目成员</span></el-menu-item>
           <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/languages`"><el-icon><Collection /></el-icon><span>语言管理</span></el-menu-item>
+          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/imports`"><el-icon><Upload /></el-icon><span>导入模板</span></el-menu-item>
           <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/exports`"><el-icon><Download /></el-icon><span>导出模板</span></el-menu-item>
         </el-sub-menu>
       </template>
@@ -25,7 +26,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { User, Monitor, Avatar, Document, Collection, Download } from '@element-plus/icons-vue'
+import { User, Monitor, Avatar, Document, Collection, Download, Upload } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const auth = useAuthStore()

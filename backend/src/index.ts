@@ -9,6 +9,7 @@ import { languageRoutes } from './routes/languages'
 import { translationRoutes } from './routes/translations'
 import { layoutRoutes } from './routes/layouts'
 import { exportRoutes } from './routes/exports'
+import { importRoutes } from './routes/imports'
 import { apiKeyRoutes } from './routes/apikeys'
 import { apiKeyAuth } from './middleware/apikey'
 import { errorHandler } from './middleware/errorHandler'
@@ -34,6 +35,7 @@ app.use('/api/v1/languages', languageRoutes)
 app.use('/api/v1/projects', translationRoutes)
 app.use('/api/v1/projects', layoutRoutes)
 app.use('/api/v1/projects', exportRoutes)
+app.use('/api/v1/projects', importRoutes)
 
 // API Key proxy: whitelist of exposed routes
 const APIKEY_WHITELIST = [
