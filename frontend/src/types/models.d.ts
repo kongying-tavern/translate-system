@@ -52,7 +52,7 @@ export interface LayoutTemplate {
   name: string
   description: string
   thumbnailUrl: string
-  config: any
+  config: unknown
   isDefault: boolean
 }
 
@@ -61,7 +61,7 @@ export interface LayoutConfig {
   projectId: string
   name: string
   templateId: string | null
-  overrideConfig: any
+  overrideConfig: unknown
 }
 
 export interface ExportTemplate {
@@ -71,7 +71,7 @@ export interface ExportTemplate {
   code: string
   description: string
   formatType: string
-  config: any
+  config: unknown
 }
 
 export interface AuthResponse {

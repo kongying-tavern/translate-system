@@ -1,4 +1,4 @@
 declare module 'sortablejs' {
-  const Sortable: any
+  const Sortable: unknown
   export default Sortable
 }

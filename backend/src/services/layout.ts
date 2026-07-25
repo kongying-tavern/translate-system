@@ -40,7 +40,7 @@ export async function deleteConfig(id: string) {
 export async function getResolvedConfig(id: string) {
   const c = await prisma.layoutConfig.findUnique({ where: { id } })
   if (!c) throw { code: 1003, message: 'config not found' }
-  let result: any = {}
+  let result: Record<string, unknown> = {}
   if (c.templateId) {
     const t = await prisma.layoutTemplate.findUnique({ where: { id: c.templateId } })
     if (t) result = { ...(t.config as any) }

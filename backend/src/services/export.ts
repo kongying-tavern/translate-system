@@ -80,7 +80,7 @@ function exportFlatJSON(translations: any[], langs: string[], config?: any) {
 }
 
 function exportJSON(translations: any[], langs: string[], config?: any) {
-  const result: any = {}; for (const lang of langs) { const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); result[name] = {}; for (const t of translations) { if (t.languageCode === lang) result[name][t.translationKey] = t.translatedText } }
+  const result: Record<string, Record<string, string>> = {}; for (const lang of langs) { const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); result[name] = {}; for (const t of translations) { if (t.languageCode === lang) result[name][t.translationKey] = t.translatedText } }
   return JSON.stringify(result, null, 2)
 }
 
@@ -93,7 +93,7 @@ function exportCSV(translations: any[], langs: string[], config?: any) {
 }
 
 function exportProperties(translations: any[], langs: string[], config?: any) {
-  const result: any = {}; for (const lang of langs) { const lines: string[] = []; for (const t of translations) { if (t.languageCode === lang) lines.push(t.translationKey + '=' + t.translatedText) }; const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); result[name] = lines.join('\n') }
+  const result: Record<string, string> = {}; for (const lang of langs) { const lines: string[] = []; for (const t of translations) { if (t.languageCode === lang) lines.push(t.translationKey + '=' + t.translatedText) }; const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); result[name] = lines.join('\n') }
   return JSON.stringify(result, null, 2)
 }
 
@@ -111,7 +111,7 @@ function exportFlatYAML(translations: any[], langs: string[], config?: any) {
 }
 
 function exportNestedYAML(translations: any[], langs: string[], config?: any) {
-  const result: any = {}
+  const result: Record<string, Record<string, string>> = {}
   for (const lang of langs) {
     const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
     result[name] = {}
