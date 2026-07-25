@@ -1,10 +1,16 @@
-import client from './client'
 import type { ApiResponse, PageData } from '@/types/api'
 import type { TranslationKey, TranslationValue } from '@/types/models'
+import client from './client'
 
 export interface GroupedRow {
-  rowIndex: number; sortOrder: number; translationKey: string; sourceText: string; context: string; tags: string[]; keyId: string
-  translations: Record<string, { id: string; translatedText: string; isReviewed?: boolean; reviewerComment?: string }>
+  rowIndex: number
+  sortOrder: number
+  translationKey: string
+  sourceText: string
+  context: string
+  tags: string[]
+  keyId: string
+  translations: Record<string, { id: string, translatedText: string, isReviewed?: boolean, reviewerComment?: string }>
 }
 
 export interface CreateTranslationData {
@@ -31,7 +37,7 @@ export function getTranslations(projectId: string, params: TranslationQuery) {
 export function createTranslation(projectId: string, data: CreateTranslationData) {
   return client.post<ApiResponse<TranslationKey & { value: TranslationValue }>>(`/projects/${projectId}/translations`, data)
 }
-export function saveTranslation(projectId: string, key: string, langCode: string, data: { translatedText?: string; tags?: string[]; context?: string }) {
+export function saveTranslation(projectId: string, key: string, langCode: string, data: { translatedText?: string, tags?: string[], context?: string }) {
   return client.put(`/projects/${projectId}/translations/${encodeURIComponent(key)}/${langCode}`, data)
 }
 export function deleteTranslation(projectId: string, id: string) {

@@ -1,8 +1,12 @@
 <template>
   <div class="auth-layout">
-    <div class="auth-bg"><div class="bg-circle c1" /><div class="bg-circle c2" /></div>
+    <div class="auth-bg">
+      <div class="bg-circle c1" /><div class="bg-circle c2" />
+    </div>
     <div class="auth-card">
-      <h1 class="auth-title">空荧酒馆译站</h1>
+      <h1 class="auth-title">
+        空荧酒馆译站
+      </h1>
       <router-view />
     </div>
   </div>

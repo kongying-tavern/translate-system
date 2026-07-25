@@ -1,6 +1,6 @@
-import client from './client'
 import type { ApiResponse, PageData } from '@/types/api'
 import type { Project, ProjectMember } from '@/types/models'
+import client from './client'
 
 export function getProjects(page = 1, pageSize = 20) {
   return client.get<ApiResponse<PageData<Project>>>('/projects', { params: { page, pageSize } })
@@ -10,11 +10,11 @@ export function getProject(id: string) {
   return client.get<ApiResponse<Project>>(`/projects/${id}`)
 }
 
-export function createProject(data: { name: string; code: string; description?: string; sourceLanguage?: string }) {
+export function createProject(data: { name: string, code: string, description?: string, sourceLanguage?: string }) {
   return client.post<ApiResponse<Project>>('/projects', data)
 }
 
-export function updateProject(id: string, data: { name: string; code?: string; description?: string; sourceLanguage?: string }) {
+export function updateProject(id: string, data: { name: string, code?: string, description?: string, sourceLanguage?: string }) {
   return client.put<ApiResponse<Project>>(`/projects/${id}`, data)
 }
 

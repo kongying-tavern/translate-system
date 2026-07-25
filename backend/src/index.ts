@@ -1,18 +1,19 @@
-import express, { Request, Response, NextFunction } from 'express'
-import cors from 'cors'
+import type { NextFunction, Request, Response } from 'express'
 import { PrismaClient } from '@prisma/client'
+import cors from 'cors'
+import express from 'express'
 import swaggerUi from 'swagger-ui-express'
 import { swaggerSpec } from './docs/swagger'
-import { authRoutes } from './routes/auth'
-import { projectRoutes } from './routes/projects'
-import { languageRoutes } from './routes/languages'
-import { translationRoutes } from './routes/translations'
-import { layoutRoutes } from './routes/layouts'
-import { exportRoutes } from './routes/exports'
-import { importRoutes } from './routes/imports'
-import { apiKeyRoutes } from './routes/apikeys'
 import { apiKeyAuth } from './middleware/apikey'
 import { errorHandler } from './middleware/errorHandler'
+import { apiKeyRoutes } from './routes/apikeys'
+import { authRoutes } from './routes/auth'
+import { exportRoutes } from './routes/exports'
+import { importRoutes } from './routes/imports'
+import { languageRoutes } from './routes/languages'
+import { layoutRoutes } from './routes/layouts'
+import { projectRoutes } from './routes/projects'
+import { translationRoutes } from './routes/translations'
 
 export const prisma = new PrismaClient()
 
@@ -51,9 +52,10 @@ apikeyProxy.use(apiKeyAuth())
 // Whitelist guard
 apikeyProxy.use((req: Request, res: Response, next: NextFunction) => {
   const allowed = APIKEY_WHITELIST.some(w =>
-    w.method === req.method && w.path.test(req.path)
+    w.method === req.method && w.path.test(req.path),
   )
-  if (!allowed) return res.status(403).json({ code: 1002, message: '接口不在白名单', data: null })
+  if (!allowed)
+    return res.status(403).json({ code: 1002, message: '接口不在白名单', data: null })
   next()
 })
 apikeyProxy.use('/projects', projectRoutes)
@@ -64,6 +66,6 @@ app.use('/api/v1/apikey', apikeyProxy)
 app.use(errorHandler)
 
 app.listen(PORT, () => {
-  console.log('Server running on http://localhost:' + PORT)
-  console.log('Swagger docs: http://localhost:' + PORT + '/api-docs')
+  console.log(`Server running on http://localhost:${PORT}`)
+  console.log(`Swagger docs: http://localhost:${PORT}/api-docs`)
 })

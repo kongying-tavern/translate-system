@@ -1,8 +1,8 @@
+import type { User } from '@/types/models'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as authApi from '@/api/auth'
-import { setTokens, clearTokens, getRefreshToken, getAccessToken } from '@/utils/token'
-import type { User } from '@/types/models'
+import { clearTokens, getAccessToken, setTokens } from '@/utils/token'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -10,12 +10,14 @@ export const useAuthStore = defineStore('auth', () => {
   const role = ref('member')
 
   async function init() {
-    if (!getAccessToken()) return
+    if (!getAccessToken())
+      return
     try {
       const { data: res } = await authApi.getMe()
       user.value = res.data
       role.value = res.data.role || 'member'
-    } catch { /* token might be expired, refresh will handle it */ }
+    }
+    catch { /* token might be expired, refresh will handle it */ }
   }
 
   async function login(account: string, password: string) {

@@ -13,19 +13,22 @@ export async function listProjects(userId: string, page: number, pageSize: numbe
 
 async function resolveProject(identifier: string) {
   let p = await prisma.project.findUnique({ where: { id: identifier } })
-  if (!p) p = await prisma.project.findUnique({ where: { code: identifier } })
+  if (!p)
+    p = await prisma.project.findUnique({ where: { code: identifier } })
   return p
 }
 
 export async function getProject(identifier: string) {
   const p = await resolveProject(identifier)
-  if (!p) throw { code: 1003, message: 'project not found' }
+  if (!p)
+    throw { code: 1003, message: 'project not found' }
   return p
 }
 
-export async function createProject(userId: string, data: { name: string; description?: string; sourceLanguage?: string; code: string }) {
+export async function createProject(userId: string, data: { name: string, description?: string, sourceLanguage?: string, code: string }) {
   const existing = await prisma.project.findUnique({ where: { code: data.code } })
-    if (existing) throw { code: 1004, message: 'code already exists' }
+  if (existing)
+    throw { code: 1004, message: 'code already exists' }
   return prisma.project.create({
     data: {
       userId,
@@ -33,16 +36,18 @@ export async function createProject(userId: string, data: { name: string; descri
       name: data.name,
       description: data.description || '',
       sourceLanguage: data.sourceLanguage || 'en',
-    }
+    },
   })
 }
 
-export async function updateProject(identifier: string, data: { name: string; description?: string; sourceLanguage?: string; code?: string }) {
+export async function updateProject(identifier: string, data: { name: string, description?: string, sourceLanguage?: string, code?: string }) {
   const p = await resolveProject(identifier)
-  if (!p) throw { code: 1003, message: 'project not found' }
+  if (!p)
+    throw { code: 1003, message: 'project not found' }
   if (data.code && data.code !== p.code) {
     const existing = await prisma.project.findUnique({ where: { code: data.code } })
-  if (existing) throw { code: 1004, message: 'code already exists' }
+    if (existing)
+      throw { code: 1004, message: 'code already exists' }
   }
   return prisma.project.update({
     where: { id: p.id },
@@ -51,12 +56,13 @@ export async function updateProject(identifier: string, data: { name: string; de
       description: data.description,
       sourceLanguage: data.sourceLanguage || p.sourceLanguage,
       code: data.code,
-    }
+    },
   })
 }
 
 export async function deleteProject(identifier: string) {
   const p = await resolveProject(identifier)
-  if (!p) throw { code: 1003, message: 'project not found' }
+  if (!p)
+    throw { code: 1003, message: 'project not found' }
   return prisma.project.delete({ where: { id: p.id } })
 }

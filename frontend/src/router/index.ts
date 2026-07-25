@@ -1,12 +1,15 @@
-import { createRouter, createWebHistory, type RouteLocationGeneric } from 'vue-router'
-import { getAccessToken } from '@/utils/token'
+import type { RouteLocationGeneric } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { getAccessToken } from '@/utils/token'
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/auth', component: () => import('@/layouts/AuthLayout.vue'), meta: { guest: true },
+      path: '/auth',
+      component: () => import('@/layouts/AuthLayout.vue'),
+      meta: { guest: true },
       redirect: '/login',
       children: [
         { path: 'login', name: 'Login', component: () => import('@/views/auth/LoginView.vue') },
@@ -14,15 +17,18 @@ const router = createRouter({
       ],
     },
     {
-      path: '/', component: () => import('@/layouts/AppLayout.vue'), meta: { requiresAuth: true },
+      path: '/',
+      component: () => import('@/layouts/AppLayout.vue'),
+      meta: { requiresAuth: true },
       children: [
         { path: '', name: 'Dashboard', component: () => import('@/views/dashboard/DashboardView.vue') },
         { path: 'users', name: 'Users', component: () => import('@/views/auth/UserManageView.vue') },
         { path: 'api-doc', name: 'ApiDoc', component: () => import('@/views/auth/ApiDocView.vue') },
         { path: 'projects/new', name: 'ProjectCreate', component: () => import('@/views/project/ProjectCreateView.vue') },
         {
-          path: 'projects/:projectSlug', children: [
-            { path: '', redirect: (to: RouteLocationGeneric) => '/projects/' + to.params.projectSlug + '/translations' },
+          path: 'projects/:projectSlug',
+          children: [
+            { path: '', redirect: (to: RouteLocationGeneric) => `/projects/${to.params.projectSlug}/translations` },
             { path: 'translations', name: 'Translations', component: () => import('@/views/translation/TranslationListView.vue') },
             { path: 'languages', name: 'Languages', component: () => import('@/views/language/LanguageManageView.vue') },
             { path: 'members', name: 'Members', component: () => import('@/views/project/ProjectMembersView.vue') },
@@ -41,8 +47,10 @@ let initDone = false
 router.beforeEach(async (to, _from, next) => {
   const token = getAccessToken()
   if (token && !initDone) { initDone = true; await useAuthStore().init() }
-  if (to.meta.requiresAuth && !token) next('/auth/login')
-  else if (to.meta.guest && token) next('/')
+  if (to.meta.requiresAuth && !token)
+    next('/auth/login')
+  else if (to.meta.guest && token)
+    next('/')
   else next()
 })
 

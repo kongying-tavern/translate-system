@@ -1,7 +1,7 @@
+import type { BaseLanguage, ProjectLanguage } from '@/types/models'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as langApi from '@/api/language'
-import type { BaseLanguage, ProjectLanguage } from '@/types/models'
 import languagesData from '@/data/languages.json'
 
 export const useLanguageStore = defineStore('language', () => {
@@ -25,7 +25,7 @@ export const useLanguageStore = defineStore('language', () => {
 
   function getBaseName(code: string): string {
     const lang = baseLanguages.value.find(l => l.languageCode === code)
-    return lang ? lang.englishName + ' (' + (lang.nativeName || '') + ')' : code
+    return lang ? `${lang.englishName} (${lang.nativeName || ''})` : code
   }
 
   return { baseLanguages, projectLanguages, fetchProjectLanguages, addLanguage, removeLanguage, getBaseName }

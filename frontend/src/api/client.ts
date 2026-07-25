@@ -1,6 +1,6 @@
 import axios from 'axios'
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from '@/utils/token'
 import router from '@/router'
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '@/utils/token'
 
 const client = axios.create({
   baseURL: '/api/v1',
@@ -9,11 +9,12 @@ const client = axios.create({
 })
 
 let isRefreshing = false
-let failedQueue: Array<{ resolve: Function; reject: Function }> = []
+let failedQueue: Array<{ resolve: Function, reject: Function }> = []
 
 function processQueue(error: unknown, token: string | null = null) {
   failedQueue.forEach((prom) => {
-    if (error) prom.reject(error)
+    if (error)
+      prom.reject(error)
     else prom.resolve(token)
   })
   failedQueue = []
@@ -21,12 +22,13 @@ function processQueue(error: unknown, token: string | null = null) {
 
 client.interceptors.request.use((config) => {
   const token = getAccessToken()
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  if (token)
+    config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
 client.interceptors.response.use(
-  (response) => response,
+  response => response,
   async (error) => {
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -55,17 +57,19 @@ client.interceptors.response.use(
         processQueue(null, res.data.accessToken)
         originalRequest.headers.Authorization = `Bearer ${res.data.accessToken}`
         return client(originalRequest)
-      } catch (err) {
+      }
+      catch (err) {
         processQueue(err, null)
         clearTokens()
         router.push('/auth/login')
         return Promise.reject(err)
-      } finally {
+      }
+      finally {
         isRefreshing = false
       }
     }
     return Promise.reject(error)
-  }
+  },
 )
 
 export default client

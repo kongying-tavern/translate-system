@@ -1,18 +1,9 @@
-<template>
-  <form class="login-wrap" @submit.prevent="handleLogin">
-    <div class="input-group"><el-icon class="input-icon"><Message /></el-icon><input v-model="form.account" placeholder="用户名/邮箱" class="dark-input" /></div>
-    <div class="input-group"><el-icon class="input-icon"><Lock /></el-icon><input v-model="form.password" :type="showPwd?'text':'password'" placeholder="密码" class="dark-input" /><el-icon class="input-icon toggle-pwd" @click="showPwd=!showPwd"><View v-if="!showPwd" /><Hide v-else /></el-icon></div>
-    <button class="login-btn" :disabled="loading" type="submit"><span v-if="loading">登录中...</span><span v-else>登 录</span></button>
-  </form>
-  <div class="login-footer"><router-link to="/auth/register">没有账号？立即注册</router-link></div>
-</template>
-
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { Hide, Lock, Message, View } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ElMessage } from 'element-plus'
-import { Message, Lock, View, Hide } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -23,10 +14,36 @@ const form = reactive({ account: '', password: '' })
 async function handleLogin() {
   if (!form.account || !form.password) { ElMessage.warning('请填写用户名/邮箱和密码'); return }
   loading.value = true
-  try { await auth.login(form.account, form.password); ElMessage.success('登录成功'); router.push('/') } catch { ElMessage.error('用户名/邮箱或密码错误') }
+  try { await auth.login(form.account, form.password); ElMessage.success('登录成功'); router.push('/') }
+  catch { ElMessage.error('用户名/邮箱或密码错误') }
   finally { loading.value = false }
 }
 </script>
+
+<template>
+  <form class="login-wrap" @submit.prevent="handleLogin">
+    <div class="input-group">
+      <el-icon class="input-icon">
+        <Message />
+      </el-icon><input v-model="form.account" placeholder="用户名/邮箱" class="dark-input">
+    </div>
+    <div class="input-group">
+      <el-icon class="input-icon">
+        <Lock />
+      </el-icon><input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="密码" class="dark-input"><el-icon class="input-icon toggle-pwd" @click="showPwd = !showPwd">
+        <View v-if="!showPwd" /><Hide v-else />
+      </el-icon>
+    </div>
+    <button class="login-btn" :disabled="loading" type="submit">
+      <span v-if="loading">登录中...</span><span v-else>登 录</span>
+    </button>
+  </form>
+  <div class="login-footer">
+    <router-link to="/auth/register">
+      没有账号？立即注册
+    </router-link>
+  </div>
+</template>
 
 <style scoped>
 .login-wrap { display: flex; flex-direction: column; gap: 16px; }

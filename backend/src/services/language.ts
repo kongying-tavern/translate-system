@@ -7,7 +7,8 @@ export async function getBaseLanguages() {
 export async function searchBaseLanguages(q: string) {
   return prisma.baseLanguage.findMany({
     where: { OR: [{ languageCode: { contains: q, mode: 'insensitive' } }, { englishName: { contains: q, mode: 'insensitive' } }, { nativeName: { contains: q, mode: 'insensitive' } }] },
-    take: 50, orderBy: { englishName: 'asc' },
+    take: 50,
+    orderBy: { englishName: 'asc' },
   })
 }
 
@@ -17,7 +18,8 @@ export async function listProjectLanguages(projectId: string) {
 
 export async function addProjectLanguage(projectId: string, languageCode: string) {
   const exists = await prisma.projectLanguage.findUnique({ where: { projectId_languageCode: { projectId, languageCode } } })
-  if (exists) throw { code: 1004, message: 'language already added to project' }
+  if (exists)
+    throw { code: 1004, message: 'language already added to project' }
   return prisma.projectLanguage.create({ data: { projectId, languageCode } })
 }
 

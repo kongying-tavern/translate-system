@@ -1,6 +1,6 @@
-import client from './client'
 import type { ApiResponse } from '@/types/api'
 import type { AuthResponse, User } from '@/types/models'
+import client from './client'
 
 export function register(username: string, email: string, password: string) {
   return client.post<ApiResponse<AuthResponse>>('/auth/register', { username, email, password })
@@ -20,7 +20,7 @@ export function getUsers() {
 export function updateUserRole(id: string, role: string) {
   return client.put<ApiResponse<User>>(`/auth/users/${id}/role`, { role })
 }
-export function createUser(data: { username: string; email: string; password: string; role: string }) {
+export function createUser(data: { username: string, email: string, password: string, role: string }) {
   return client.post<ApiResponse<User>>('/auth/users', data)
 }
 export function deleteUser(id: string) {

@@ -1,24 +1,32 @@
+<script setup lang="ts">
+import { Loading } from '@element-plus/icons-vue'
+import AppHeader from '@/components/common/AppHeader.vue'
+import AppSidebar from '@/components/common/AppSidebar.vue'
+import { useLoadingStore } from '@/stores/loading'
+
+const loadingStore = useLoadingStore()
+</script>
+
 <template>
   <el-container class="app-layout">
-    <el-aside width="220px"><AppSidebar /></el-aside>
+    <el-aside width="220px">
+      <AppSidebar />
+    </el-aside>
     <el-container>
-      <el-header height="56px"><AppHeader /></el-header>
+      <el-header height="56px">
+        <AppHeader />
+      </el-header>
       <el-main style="position:relative">
         <router-view />
-        <div v-if="loadingStore.loading" class="loading-overlay"><el-icon class="loading-icon" :size="40"><Loading /></el-icon></div>
+        <div v-if="loadingStore.loading" class="loading-overlay">
+          <el-icon class="loading-icon" :size="40">
+            <Loading />
+          </el-icon>
+        </div>
       </el-main>
     </el-container>
   </el-container>
 </template>
-
-<script setup lang="ts">
-import { Loading } from '@element-plus/icons-vue'
-import { useLoadingStore } from '@/stores/loading'
-import AppHeader from '@/components/common/AppHeader.vue'
-import AppSidebar from '@/components/common/AppSidebar.vue'
-
-const loadingStore = useLoadingStore()
-</script>
 
 <style scoped>
 .app-layout { height: 100vh; }

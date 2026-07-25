@@ -1,19 +1,9 @@
-<template>
-  <form class="login-wrap" @submit.prevent="handleRegister">
-    <div class="input-group"><el-icon class="input-icon"><User /></el-icon><input v-model="form.username" placeholder="用户名" class="dark-input" /></div>
-    <div class="input-group"><el-icon class="input-icon"><Message /></el-icon><input v-model="form.email" placeholder="邮箱" class="dark-input" /></div>
-    <div class="input-group"><el-icon class="input-icon"><Lock /></el-icon><input v-model="form.password" :type="showPwd?'text':'password'" placeholder="密码（至少6位）" class="dark-input" /><el-icon class="input-icon toggle-pwd" @click="showPwd=!showPwd"><View v-if="!showPwd" /><Hide v-else /></el-icon></div>
-    <button class="login-btn" :disabled="loading"><span v-if="loading">注册中...</span><span v-else>注 册</span></button>
-  </form>
-  <div class="login-footer"><router-link to="/auth/login">已有账号？立即登录</router-link></div>
-</template>
-
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { Hide, Lock, Message, User, View } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { ElMessage } from 'element-plus'
-import { User, Message, Lock, View, Hide } from '@element-plus/icons-vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -26,10 +16,41 @@ async function handleRegister() {
   if (form.username.length < 3) { ElMessage.warning('用户名至少3个字符'); return }
   if (form.password.length < 6) { ElMessage.warning('密码至少6位'); return }
   loading.value = true
-  try { await auth.register(form.username, form.email, form.password); ElMessage.success('注册成功'); router.push('/') } catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '注册失败') }
+  try { await auth.register(form.username, form.email, form.password); ElMessage.success('注册成功'); router.push('/') }
+  catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '注册失败') }
   finally { loading.value = false }
 }
 </script>
+
+<template>
+  <form class="login-wrap" @submit.prevent="handleRegister">
+    <div class="input-group">
+      <el-icon class="input-icon">
+        <User />
+      </el-icon><input v-model="form.username" placeholder="用户名" class="dark-input">
+    </div>
+    <div class="input-group">
+      <el-icon class="input-icon">
+        <Message />
+      </el-icon><input v-model="form.email" placeholder="邮箱" class="dark-input">
+    </div>
+    <div class="input-group">
+      <el-icon class="input-icon">
+        <Lock />
+      </el-icon><input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="密码（至少6位）" class="dark-input"><el-icon class="input-icon toggle-pwd" @click="showPwd = !showPwd">
+        <View v-if="!showPwd" /><Hide v-else />
+      </el-icon>
+    </div>
+    <button class="login-btn" :disabled="loading">
+      <span v-if="loading">注册中...</span><span v-else>注 册</span>
+    </button>
+  </form>
+  <div class="login-footer">
+    <router-link to="/auth/login">
+      已有账号？立即登录
+    </router-link>
+  </div>
+</template>
 
 <style scoped>
 .login-wrap { display: flex; flex-direction: column; gap: 16px; }

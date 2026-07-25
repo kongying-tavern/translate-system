@@ -1,7 +1,7 @@
+import type { CreateTranslationData, GroupedRow, TranslationQuery } from '@/api/translation'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as translationApi from '@/api/translation'
-import type { CreateTranslationData, TranslationQuery, GroupedRow } from '@/api/translation'
 
 export const useTranslationStore = defineStore('translation', () => {
   const rows = ref<GroupedRow[]>([])
@@ -14,14 +14,15 @@ export const useTranslationStore = defineStore('translation', () => {
       const { data: res } = await translationApi.getTranslations(projectId, params)
       rows.value = res.data.list
       total.value = res.data.total
-    } finally { loading.value = false }
+    }
+    finally { loading.value = false }
   }
 
   async function create(projectId: string, data: CreateTranslationData) {
     await translationApi.createTranslation(projectId, data)
   }
 
-  async function saveForLang(projectId: string, key: string, langCode: string, data: { translatedText?: string; tags?: string[]; context?: string }) {
+  async function saveForLang(projectId: string, key: string, langCode: string, data: { translatedText?: string, tags?: string[], context?: string }) {
     await translationApi.saveTranslation(projectId, key, langCode, data)
   }
 

@@ -1,6 +1,6 @@
-import client from './client'
 import type { ApiResponse } from '@/types/api'
 import type { BaseLanguage, ProjectLanguage } from '@/types/models'
+import client from './client'
 
 export function getBaseLanguages() {
   return client.get<ApiResponse<BaseLanguage[]>>('/languages')

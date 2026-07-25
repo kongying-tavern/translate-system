@@ -1,5 +1,9 @@
 export interface User {
-  id: string; username: string; email: string; avatarUrl?: string; role: string
+  id: string
+  username: string
+  email: string
+  avatarUrl?: string
+  role: string
 }
 
 export interface Project {

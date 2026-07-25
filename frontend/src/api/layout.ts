@@ -1,6 +1,6 @@
-import client from './client'
 import type { ApiResponse } from '@/types/api'
-import type { LayoutTemplate, LayoutConfig } from '@/types/models'
+import type { LayoutConfig, LayoutTemplate } from '@/types/models'
+import client from './client'
 
 // Templates
 export function getTemplates(projectId: string) {

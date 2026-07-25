@@ -1,40 +1,10 @@
-<template>
-  <div>
-    <div class="page-header"><h2>{{ isEdit ? '编辑导出模板' : '新建导出模板' }}</h2></div>
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:700px">
-      <el-form-item label="名称" prop="name"><el-input v-model="form.name" /></el-form-item>
-      <el-form-item label="模板标识" prop="code"><el-input v-model="form.code" placeholder="英文标识，如 config-json" /></el-form-item>
-      <el-form-item label="描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
-      <el-form-item label="输出格式">
-        <el-select v-model="form.formatType" style="width:100%">
-          <el-option v-for="fmt in formatOptions" :key="fmt.value" :label="fmt.label" :value="fmt.value">
-            <span>{{ fmt.value }}</span>
-            <span style="float:right;color:#909399;font-size:12px">{{ fmt.tags }}</span>
-          </el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="配置">
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <el-checkbox v-model="configForm.skipIdentical">跳过 Key 和译文相同的行（源语言）</el-checkbox>
-          <el-checkbox v-model="configForm.skipEmpty">跳过译文为空的行</el-checkbox>
-          <el-checkbox v-model="configForm.useCodeKey">使用原始语言 Code（不应用别名）</el-checkbox>
-        </div>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="handleSave" :loading="saving">保存</el-button>
-        <el-button @click="$router.back()">取消</el-button>
-      </el-form-item>
-    </el-form>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import type { FormInstance, FormRules } from 'element-plus'
+import { ElMessage } from 'element-plus'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
-import { EXPORT_FORMAT_MAP, type ExportFormatMeta } from '@/data/exportFormats'
-import { ElMessage } from 'element-plus'
-import type { FormInstance, FormRules } from 'element-plus'
+import { EXPORT_FORMAT_MAP } from '@/data/exportFormats'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,7 +19,7 @@ const formatOptions = computed(() =>
     value,
     label: `${value} — ${meta.format}`,
     tags: meta.tags.join('、'),
-  }))
+  })),
 )
 
 const form = reactive({ name: '', code: '', description: '', formatType: 'nested-json' })
@@ -72,23 +42,75 @@ onMounted(async () => {
 })
 
 async function handleSave() {
-  if (!formRef.value) return
-  try { await formRef.value.validate() } catch { return }
+  if (!formRef.value)
+    return
+  try { await formRef.value.validate() }
+  catch { return }
   saving.value = true
   try {
     const config = { ...configForm }
     const data = { ...form, config }
     if (isEdit.value) {
       await updateExportTemplate(projectSlug.value, templateId.value, data)
-    } else {
+    }
+    else {
       await createExportTemplate(projectSlug.value, data)
     }
     ElMessage.success('保存成功')
     router.back()
-  } catch { ElMessage.error('保存失败') }
+  }
+  catch { ElMessage.error('保存失败') }
   finally { saving.value = false }
 }
 </script>
+
+<template>
+  <div>
+    <div class="page-header">
+      <h2>{{ isEdit ? '编辑导出模板' : '新建导出模板' }}</h2>
+    </div>
+    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:700px">
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="form.name" />
+      </el-form-item>
+      <el-form-item label="模板标识" prop="code">
+        <el-input v-model="form.code" placeholder="英文标识，如 config-json" />
+      </el-form-item>
+      <el-form-item label="描述">
+        <el-input v-model="form.description" type="textarea" />
+      </el-form-item>
+      <el-form-item label="输出格式">
+        <el-select v-model="form.formatType" style="width:100%">
+          <el-option v-for="fmt in formatOptions" :key="fmt.value" :label="fmt.label" :value="fmt.value">
+            <span>{{ fmt.value }}</span>
+            <span style="float:right;color:#909399;font-size:12px">{{ fmt.tags }}</span>
+          </el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="配置">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <el-checkbox v-model="configForm.skipIdentical">
+            跳过 Key 和译文相同的行（源语言）
+          </el-checkbox>
+          <el-checkbox v-model="configForm.skipEmpty">
+            跳过译文为空的行
+          </el-checkbox>
+          <el-checkbox v-model="configForm.useCodeKey">
+            使用原始语言 Code（不应用别名）
+          </el-checkbox>
+        </div>
+      </el-form-item>
+      <el-form-item>
+        <el-button type="primary" :loading="saving" @click="handleSave">
+          保存
+        </el-button>
+        <el-button @click="$router.back()">
+          取消
+        </el-button>
+      </el-form-item>
+    </el-form>
+  </div>
+</template>
 
 <style scoped>
 .page-header { margin-bottom: 20px; }

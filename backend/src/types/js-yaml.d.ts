@@ -2,7 +2,7 @@ import 'js-yaml'
 
 declare module 'js-yaml' {
   interface DumpOptions {
-    quotingType?: '"' | "'"
+    quotingType?: '"' | '\''
     forceQuotes?: boolean
   }
 }

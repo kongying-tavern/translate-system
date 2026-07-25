@@ -1,28 +1,33 @@
 import { Router } from 'express'
-import * as exportService from '../services/export'
-import * as transService from '../services/translation'
-import * as langService from '../services/language'
+import { ErrCode } from '../lib/errors'
+import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
-import { success, error } from '../lib/response'
-import { ErrCode } from '../lib/errors'
+import * as exportService from '../services/export'
+import * as langService from '../services/language'
+import * as transService from '../services/translation'
 
 export const exportRoutes = Router()
 
 exportRoutes.get('/:projectSlug/exports/templates', authMiddleware, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.listTemplates(req.params.projectSlug); success(res, data) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  try { const data = await exportService.listTemplates(req.params.projectSlug); success(res, data) }
+  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 exportRoutes.post('/:projectSlug/exports/templates', authMiddleware, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.createTemplate(req.params.projectSlug, req.body); success(res, data) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  try { const data = await exportService.createTemplate(req.params.projectSlug, req.body); success(res, data) }
+  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 exportRoutes.get('/:projectSlug/exports/templates/:templateSlug', authMiddleware, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.getTemplate(req.params.templateSlug, req.params.projectSlug); success(res, data) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  try { const data = await exportService.getTemplate(req.params.templateSlug, req.params.projectSlug); success(res, data) }
+  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 exportRoutes.put('/:projectSlug/exports/templates/:templateSlug', authMiddleware, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.updateTemplate(req.params.templateSlug, req.body); success(res, data) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  try { const data = await exportService.updateTemplate(req.params.templateSlug, req.body); success(res, data) }
+  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 exportRoutes.delete('/:projectSlug/exports/templates/:templateSlug', authMiddleware, requireOwnership, async (req, res, next) => {
-  try { await exportService.deleteTemplate(req.params.templateSlug); success(res, null) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  try { await exportService.deleteTemplate(req.params.templateSlug); success(res, null) }
+  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 exportRoutes.post('/:projectSlug/exports/preview', authMiddleware, requireOwnership, async (req, res, next) => {
@@ -32,7 +37,8 @@ exportRoutes.post('/:projectSlug/exports/preview', authMiddleware, requireOwners
     const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
     const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as Record<string, unknown>, filterTags)
     success(res, { content, format, ...(encoding ? { encoding } : {}) })
-  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  }
+  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 exportRoutes.post('/:projectSlug/exports/generate', authMiddleware, requireOwnership, async (req, res, next) => {
@@ -42,5 +48,6 @@ exportRoutes.post('/:projectSlug/exports/generate', authMiddleware, requireOwner
     const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
     const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as Record<string, unknown>, filterTags)
     success(res, { content, format, ...(encoding ? { encoding } : {}) })
-  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  }
+  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
