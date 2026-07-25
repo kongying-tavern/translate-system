@@ -45,7 +45,7 @@ function flattenKeys(keys: any[], languageCodes: string[], aliases?: Record<stri
   return result
 }
 
-export function exportTranslations(keys: any[], languageCodes: string[], formatType: string, aliases?: Record<string, string>, config?: any, filterTags?: string[]) {
+export function exportTranslations(keys: any[], languageCodes: string[], formatType: string, aliases?: Record<string, string>, config?: any, filterTags?: string[]): [string, string] | [string, string, string] {
   if (filterTags?.length) {
     keys = keys.filter(k => filterTags.some(t => k.tags?.includes(t)))
   }

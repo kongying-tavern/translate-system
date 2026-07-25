@@ -97,6 +97,10 @@ async function doPreview() {
     return
   }
   const { data: res } = await generateExport(projectSlug.value, selectedTemplate.value, selectedLangs.value, exportFilterTags.value.length ? exportFilterTags.value : undefined)
+  if (res.data.encoding === 'base64') {
+    ElMessage.warning('二进制格式不支持预览')
+    return
+  }
   previewContent.value = res.data.content
   previewVisible.value = true
 }
@@ -107,8 +111,16 @@ function doDownload() {
     return
   }
   generateExport(projectSlug.value, selectedTemplate.value, selectedLangs.value, exportFilterTags.value.length ? exportFilterTags.value : undefined).then(({ data: res }) => {
-    const ext = res.data.format === 'csv' ? 'csv' : res.data.format === 'xml' ? 'xml' : 'json'
-    const blob = new Blob([res.data.content], { type: 'text/plain;charset=utf-8' })
+    const ext = res.data.format
+    let blob: Blob
+    if (res.data.encoding === 'base64') {
+      const binaryStr = atob(res.data.content)
+      const bytes = new Uint8Array(binaryStr.length)
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+      blob = new Blob([bytes])
+    } else {
+      blob = new Blob([res.data.content], { type: 'text/plain;charset=utf-8' })
+    }
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url

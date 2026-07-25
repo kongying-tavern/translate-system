@@ -18,8 +18,8 @@ export function deleteExportTemplate(projectId: string, id: string) {
   return client.delete<ApiResponse<null>>(`/projects/${projectId}/exports/templates/${id}`)
 }
 export function previewExport(projectSlug: string, templateSlug: string, languageCodes: string[], filterTags?: string[]) {
-  return client.post<ApiResponse<{ content: string; format: string }>>(`/projects/${projectSlug}/exports/preview`, { templateSlug, languageCodes, filterTags })
+  return client.post<ApiResponse<{ content: string; format: string; encoding?: string }>>(`/projects/${projectSlug}/exports/preview`, { templateSlug, languageCodes, filterTags })
 }
 export function generateExport(projectSlug: string, templateSlug: string, languageCodes: string[], filterTags?: string[]) {
-  return client.post<ApiResponse<{ content: string; format: string }>>(`/projects/${projectSlug}/exports/generate`, { templateSlug, languageCodes, filterTags })
+  return client.post<ApiResponse<{ content: string; format: string; encoding?: string }>>(`/projects/${projectSlug}/exports/generate`, { templateSlug, languageCodes, filterTags })
 }

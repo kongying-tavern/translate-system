@@ -30,8 +30,8 @@ exportRoutes.post('/:projectSlug/exports/preview', authMiddleware as any, requir
     const { templateSlug, languageCodes, filterTags } = req.body
     const t = await exportService.getTemplate(templateSlug, req.params.projectSlug)
     const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
-    const [content, format] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as any, filterTags)
-    success(res, { content, format })
+    const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as any, filterTags) as any
+    success(res, { content, format, ...(encoding ? { encoding } : {}) })
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
 })
 
@@ -40,7 +40,7 @@ exportRoutes.post('/:projectSlug/exports/generate', authMiddleware as any, requi
     const { templateSlug, languageCodes, filterTags } = req.body
     const t = await exportService.getTemplate(templateSlug, req.params.projectSlug)
     const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
-    const [content, format] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as any, filterTags)
-    success(res, { content, format })
+    const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as any, filterTags) as any
+    success(res, { content, format, ...(encoding ? { encoding } : {}) })
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
 })

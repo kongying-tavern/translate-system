@@ -9,6 +9,7 @@ export const EXPORT_FORMAT_MAP: Record<string, ExportFormatMeta> = {
   'csv': { format: 'csv', tags: ['多语言', '表格'] },
   'properties': { format: 'properties', tags: ['单语言', '键值对'] },
   'xml': { format: 'xml', tags: ['多语言', '标签结构'] },
+  'xlsx': { format: 'xlsx', tags: ['多语言', '表格', '二进制'] },
 }
 
 export function getFormatMeta(formatType: string): ExportFormatMeta {
