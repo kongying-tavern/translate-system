@@ -57,8 +57,8 @@ export function exportTranslations(keys: any[], languageCodes: string[], formatT
     translations = translations.filter(t => t.translatedText)
   }
   switch (formatType) {
-    case 'json': return [exportJSON(translations, languageCodes, config), 'json']
     case 'flat-json': return [exportFlatJSON(translations, languageCodes, config), 'json']
+    case 'nested-json': return [exportJSON(translations, languageCodes, config), 'json']
     case 'csv': return [exportCSV(translations, languageCodes, config), 'csv']
     case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
     case 'xml': return [exportXML(translations, languageCodes, config), 'xml']

@@ -52,7 +52,7 @@ const formatOptions = computed(() =>
   }))
 )
 
-const form = reactive({ name: '', code: '', description: '', formatType: 'json' })
+const form = reactive({ name: '', code: '', description: '', formatType: 'nested-json' })
 const configForm = reactive({ skipIdentical: false, skipEmpty: false, useCodeKey: false })
 
 const rules: FormRules = {
