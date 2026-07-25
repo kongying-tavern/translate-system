@@ -69,9 +69,10 @@ export function exportTranslations(keys: any[], languageCodes: string[], formatT
 function getLangKey(t: any, config?: any) { return config?.useCodeKey ? t.languageCode : (t.alias || t.languageCode) }
 
 function exportFlatJSON(translations: any[], langs: string[], config?: any) {
-  const result: Record<string, any> = {}
-  for (const lang of langs) { const items: Record<string, string> = {}; for (const t of translations) { if (t.languageCode === lang) items[t.translationKey] = t.translatedText }; const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); if (langs.length === 1) return JSON.stringify(items, null, 2); result[name] = items }
-  return JSON.stringify(result, null, 2)
+  const lang = langs[0]
+  const items: Record<string, string> = {}
+  for (const t of translations) { if (t.languageCode === lang) items[t.translationKey] = t.translatedText }
+  return JSON.stringify(items, null, 2)
 }
 
 function exportJSON(translations: any[], langs: string[], config?: any) {
