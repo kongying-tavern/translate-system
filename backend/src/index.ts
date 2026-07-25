@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import { PrismaClient } from '@prisma/client'
 import swaggerUi from 'swagger-ui-express'
@@ -49,7 +49,7 @@ const APIKEY_WHITELIST = [
 const apikeyProxy = express.Router()
 apikeyProxy.use(apiKeyAuth())
 // Whitelist guard
-apikeyProxy.use((req: any, res: any, next: any) => {
+apikeyProxy.use((req: Request, res: Response, next: NextFunction) => {
   const allowed = APIKEY_WHITELIST.some(w =>
     w.method === req.method && w.path.test(req.path)
   )

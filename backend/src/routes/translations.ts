@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../index'
 import * as transService from '../services/translation'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
 import { success, successWithPage, error } from '../lib/response'
 import { ErrCode } from '../lib/errors'
@@ -9,7 +9,7 @@ import { ErrCode } from '../lib/errors'
 export const translationRoutes = Router()
 
 // Grouped list - one row per key, all language translations embedded
-translationRoutes.get('/:projectSlug/translations', authMiddleware as any, requireOwnership, async (req, res, next) => {
+translationRoutes.get('/:projectSlug/translations', authMiddleware, requireOwnership, async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string || '1'))
     const pageSize = Math.min(100, parseInt(req.query.pageSize as string || '20'))
@@ -25,7 +25,7 @@ translationRoutes.get('/:projectSlug/translations', authMiddleware as any, requi
   } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-translationRoutes.post('/:projectSlug/translations', authMiddleware as any, requireOwnership, async (req, res, next) => {
+translationRoutes.post('/:projectSlug/translations', authMiddleware, requireOwnership, async (req, res, next) => {
   try {
     const t = await transService.createTranslation(req.params.projectSlug, req.body)
     success(res, t)
@@ -33,7 +33,7 @@ translationRoutes.post('/:projectSlug/translations', authMiddleware as any, requ
 })
 
 // Update key and sourceText for all translations matching oldKey (MUST be before /:key/:langCode)
-translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware as any, requireOwnership, async (req, res, next) => {
+translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware, requireOwnership, async (req, res, next) => {
   try {
     const { translationKey, sourceText } = req.body
     if (!translationKey?.trim()) return error(res, ErrCode.InvalidParams, 'Key cannot be empty')
@@ -43,7 +43,7 @@ translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware a
 })
 
 // Save translation for a specific key + language
-translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddleware as any, requireOwnership, async (req, res, next) => {
+translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddleware, requireOwnership, async (req, res, next) => {
   try {
     const t = await transService.saveForLang(req.params.projectSlug, req.params.key, req.params.langCode, req.body)
     success(res, t)
@@ -51,21 +51,21 @@ translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddlewar
 })
 
 // All tags for a project
-translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware as any, requireOwnership, async (req, res, next) => {
+translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware, requireOwnership, async (req, res, next) => {
   try {
     const tags = await transService.getAllTags(req.params.projectSlug)
     success(res, tags)
   } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware as any, requireOwnership, async (req, res, next) => {
+translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware, requireOwnership, async (req, res, next) => {
   try {
     await transService.deleteTranslation(req.params.translationId)
     success(res, null)
   } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
   try {
     for (const o of req.body.orders) {
       await prisma.translationKey.update({ where: { id: o.keyId }, data: { sortOrder: o.sortOrder } })
@@ -74,7 +74,7 @@ translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware as
   } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-translationRoutes.post('/:projectSlug/translations/batch', authMiddleware as any, requireOwnership, async (req, res, next) => {
+translationRoutes.post('/:projectSlug/translations/batch', authMiddleware, requireOwnership, async (req, res, next) => {
   try {
     await transService.batchUpsert(req.params.projectSlug, req.body.translations)
     success(res, null)

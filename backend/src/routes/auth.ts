@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import * as authService from '../services/auth'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireRole } from '../middleware/role'
 import { success, error } from '../lib/response'
 import { ErrCode } from '../lib/errors'
@@ -103,47 +103,47 @@ authRoutes.post('/refresh', async (req, res, next) => {
  *     responses:
  *       200: { description: 返回用户信息 }
  */
-authRoutes.get('/me', authMiddleware, async (req: any, res, next) => {
-  try { success(res, await authService.getUser(req.userId)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'failed') }
+authRoutes.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
+  try { success(res, await authService.getUser(req.userId!)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'failed') }
 })
 
-authRoutes.put('/me/password', authMiddleware, async (req: any, res, next) => {
+authRoutes.put('/me/password', authMiddleware, async (req: AuthRequest, res, next) => {
   try {
     const { oldPassword, newPassword } = req.body
     if (!oldPassword || !newPassword) return error(res, ErrCode.InvalidParams, '缺少密码')
     if (newPassword.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
-    await authService.changeOwnPassword(req.userId, oldPassword, newPassword)
+    await authService.changeOwnPassword(req.userId!, oldPassword, newPassword)
     success(res, { updated: true })
   } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 // ── User management (admin+) ──
-authRoutes.get('/users', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
+authRoutes.get('/users', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
   try { success(res, await authService.listUsers()) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-authRoutes.put('/users/:id/role', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
-  try { success(res, await authService.updateUserRole(req.userId, req.params.id, req.body.role)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+authRoutes.put('/users/:id/role', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
+  try { success(res, await authService.updateUserRole(req.userId!, req.params.id, req.body.role)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
-authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
+authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
   try {
     const { username, email, password, role } = req.body
     if (!username || !email || !password) return error(res, ErrCode.InvalidParams, '缺少必填字段')
     if (password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
-    success(res, await authService.createUser(username, email, password, role || 'member', req.userRole))
+    success(res, await authService.createUser(username, email, password, role || 'member', req.userRole!))
   } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
-authRoutes.delete('/users/:id', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
-  try { await authService.deleteUser(req.userId, req.params.id); success(res, { deleted: true }) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+authRoutes.delete('/users/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
+  try { await authService.deleteUser(req.userId!, req.params.id); success(res, { deleted: true }) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
-authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
+authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
   try {
     if (!req.body.password) return error(res, ErrCode.InvalidParams, '密码不能为空')
     if (req.body.password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
-    await authService.changeUserPassword(req.userId, req.params.id, req.body.password)
+    await authService.changeUserPassword(req.userId!, req.params.id, req.body.password)
     success(res, { updated: true })
   } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })

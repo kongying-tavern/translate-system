@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../index'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
 import { success, error } from '../lib/response'
 import { ErrCode } from '../lib/errors'
@@ -18,11 +18,11 @@ interface ImportEntry {
 
 export const importRoutes = Router()
 
-importRoutes.get('/:projectSlug/imports/templates', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+importRoutes.get('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
   try { success(res, await prisma.importTemplate.findMany({ where: { projectId: req.params.projectSlug }, orderBy: { createdAt: 'desc' } })) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-importRoutes.post('/:projectSlug/imports/templates', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+importRoutes.post('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
   try {
     const { name, description, formatType, config } = req.body
     if (!name) return error(res, ErrCode.InvalidParams, 'name is required')
@@ -30,20 +30,20 @@ importRoutes.post('/:projectSlug/imports/templates', authMiddleware as any, requ
   } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-importRoutes.get('/:projectSlug/imports/templates/:id', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+importRoutes.get('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
   try { success(res, await prisma.importTemplate.findUnique({ where: { id: req.params.id } })) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-importRoutes.put('/:projectSlug/imports/templates/:id', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+importRoutes.put('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
   try { success(res, await prisma.importTemplate.update({ where: { id: req.params.id }, data: req.body })) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-importRoutes.delete('/:projectSlug/imports/templates/:id', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+importRoutes.delete('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
   try { await prisma.importTemplate.delete({ where: { id: req.params.id } }); success(res, null) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 // Execute import (supports both template-based and direct mode)
-importRoutes.post('/:projectSlug/imports/execute', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
   try {
     const { templateId, languageCode, data, entriesOnly, overwrite, autoCreate } = req.body
     console.log('[import] entriesOnly:', entriesOnly, 'overwrite:', overwrite, 'autoCreate:', autoCreate, 'lang:', languageCode)

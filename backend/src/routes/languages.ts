@@ -6,11 +6,11 @@ import { ErrCode } from '../lib/errors'
 
 export const languageRoutes = Router()
 
-languageRoutes.get('/', authMiddleware as any, async (req, res, next) => {
+languageRoutes.get('/', authMiddleware, async (req, res, next) => {
   try { success(res, await langService.getBaseLanguages()) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-languageRoutes.get('/search', authMiddleware as any, async (req, res, next) => {
+languageRoutes.get('/search', authMiddleware, async (req, res, next) => {
   try {
     const q = req.query.q as string
     if (!q) return error(res, ErrCode.InvalidParams, 'query q is required')
