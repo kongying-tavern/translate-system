@@ -31,6 +31,7 @@ authRoutes.post('/register', async (req, res, next) => {
   try {
     const { username, email, password } = req.body
     if (!username || !email || !password) return error(res, ErrCode.InvalidParams, 'missing required fields')
+    if (password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     const result = await authService.register(username, email, password)
     success(res, result)
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message || 'register failed') }
@@ -110,6 +111,7 @@ authRoutes.put('/me/password', authMiddleware, async (req: any, res, next) => {
   try {
     const { oldPassword, newPassword } = req.body
     if (!oldPassword || !newPassword) return error(res, ErrCode.InvalidParams, '缺少密码')
+    if (newPassword.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     await authService.changeOwnPassword(req.userId, oldPassword, newPassword)
     success(res, { updated: true })
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
@@ -128,6 +130,7 @@ authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: any,
   try {
     const { username, email, password, role } = req.body
     if (!username || !email || !password) return error(res, ErrCode.InvalidParams, '缺少必填字段')
+    if (password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     success(res, await authService.createUser(username, email, password, role || 'member', req.userRole))
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
 })
@@ -139,6 +142,7 @@ authRoutes.delete('/users/:id', authMiddleware, requireRole('admin'), async (req
 authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
   try {
     if (!req.body.password) return error(res, ErrCode.InvalidParams, '密码不能为空')
+    if (req.body.password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     await authService.changeUserPassword(req.userId, req.params.id, req.body.password)
     success(res, { updated: true })
   } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }

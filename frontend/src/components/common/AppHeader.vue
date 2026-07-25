@@ -64,6 +64,7 @@
     <el-form label-width="80px">
       <el-form-item label="当前密码"><el-input v-model="pwdForm.oldPassword" show-password /></el-form-item>
       <el-form-item label="新密码"><el-input v-model="pwdForm.newPassword" show-password /></el-form-item>
+      <el-form-item label="确认新密码"><el-input v-model="pwdForm.confirmPassword" show-password /></el-form-item>
     </el-form>
     <template #footer><el-button @click="pwdVisible=false">取消</el-button><el-button type="primary" @click="handlePwd">确认</el-button></template>
   </el-dialog>
@@ -86,7 +87,7 @@ const projectSlug = computed(() => route.params.projectSlug as string | undefine
 const isProjectRoute = computed(() => route.path.startsWith('/projects/'))
 const projectName = ref('')
 const pwdVisible = ref(false)
-const pwdForm = reactive({ oldPassword: '', newPassword: '' })
+const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const switcherVisible = ref(false)
 const searchProject = ref('')
 const allProjects = ref<any[]>([])
@@ -96,13 +97,19 @@ const settingsForm = reactive({ name: '', code: '', description: '' })
 
 function handleCommand(cmd: string) {
   if (cmd === 'logout') { auth.logout(); router.push('/auth/login') }
-  if (cmd === 'pwd') { pwdForm.oldPassword = ''; pwdForm.newPassword = ''; pwdVisible.value = true }
+  if (cmd === 'pwd') { pwdForm.oldPassword = ''; pwdForm.newPassword = ''; pwdForm.confirmPassword = ''; pwdVisible.value = true }
   if (cmd === 'apikey') { loadApiKeys(); apikeyVisible.value = true }
 }
 
 async function handlePwd() {
-  if (!pwdForm.oldPassword || !pwdForm.newPassword) { ElMessage.warning('请填写完整'); return }
-  try { await client.put('/auth/me/password', pwdForm); pwdVisible.value = false; ElMessage.success('密码已修改，请重新登录'); auth.logout(); router.push('/auth/login') } catch (e: any) { ElMessage.error(e.response?.data?.message || '修改失败') }
+  if (!pwdForm.oldPassword || !pwdForm.newPassword || !pwdForm.confirmPassword) { ElMessage.warning('请填写完整'); return }
+  if (pwdForm.newPassword.length < 6) { ElMessage.warning('密码至少6位'); return }
+  if (pwdForm.newPassword !== pwdForm.confirmPassword) { ElMessage.warning('两次输入的新密码不一致'); return }
+  try {
+    const res = await client.put('/auth/me/password', { oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword })
+    if (res.data.code !== 0) { ElMessage.error(res.data.message || '修改失败'); return }
+    pwdVisible.value = false; ElMessage.success('密码已修改，请重新登录'); auth.logout(); router.push('/auth/login')
+  } catch (e: any) { ElMessage.error(e.response?.data?.message || '修改失败') }
 }
 
 const filteredProjects = computed(() => {

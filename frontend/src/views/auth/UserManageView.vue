@@ -26,7 +26,7 @@
       <template #footer><el-button @click="createVisible=false">取消</el-button><el-button type="primary" @click="handleCreate">确认添加</el-button></template>
     </el-dialog>
     <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
-      <el-form label-width="80px"><el-form-item label="用户">{{ pwdTarget?.username }}</el-form-item><el-form-item label="新密码"><el-input v-model="pwdForm.password" show-password /></el-form-item></el-form>
+      <el-form label-width="80px"><el-form-item label="用户">{{ pwdTarget?.username }}</el-form-item><el-form-item label="新密码"><el-input v-model="pwdForm.password" show-password /></el-form-item><el-form-item label="确认密码"><el-input v-model="pwdForm.confirmPassword" show-password /></el-form-item></el-form>
       <template #footer><el-button @click="pwdVisible=false">取消</el-button><el-button type="primary" @click="handlePwdSave">确认</el-button></template>
     </el-dialog>
   </div>
@@ -43,7 +43,7 @@ const LEVEL: Record<string,number> = { super_admin:3, admin:2, member:1 }
 const auth = useAuthStore()
 const users = ref<any[]>([])
 const createVisible = ref(false), createForm = reactive({ username:'', email:'', password:'', role:'member' })
-const pwdVisible = ref(false), pwdTarget = ref<any>(null), pwdForm = reactive({ password:'' })
+const pwdVisible = ref(false), pwdTarget = ref<any>(null), pwdForm = reactive({ password:'', confirmPassword:'' })
 
 onMounted(async ()=>{ const { data:res } = await getUsers(); users.value = res.data })
 
@@ -60,15 +60,18 @@ async function onChangeRole(row:any, newRole:string){
 function openCreate(){ Object.assign(createForm, { username:'', email:'', password:'', role:'member' }); createVisible.value = true }
 async function handleCreate(){
   if(!createForm.username||!createForm.email||!createForm.password){ ElMessage.warning('请填写完整'); return }
+  if(createForm.password.length < 6){ ElMessage.warning('密码至少6位'); return }
   try { const { data:res } = await createUser({...createForm}); users.value.push(res.data); createVisible.value = false; ElMessage.success('已添加') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
 }
 async function handleDelete(row:any){
   try { await ElMessageBox.confirm('确定删除 '+row.username+' 吗？','确认',{type:'warning'}) } catch { return }
   try { await deleteUser(row.id); users.value = users.value.filter(u=>u.id!==row.id); ElMessage.success('已删除') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
 }
-function openPwd(row:any){ pwdTarget.value = row; pwdForm.password = ''; pwdVisible.value = true }
+function openPwd(row:any){ pwdTarget.value = row; pwdForm.password = ''; pwdForm.confirmPassword = ''; pwdVisible.value = true }
 async function handlePwdSave(){
-  if(!pwdForm.password){ ElMessage.warning('请输入新密码'); return }
+  if(!pwdForm.password || !pwdForm.confirmPassword){ ElMessage.warning('请填写完整'); return }
+  if(pwdForm.password.length < 6){ ElMessage.warning('密码至少6位'); return }
+  if(pwdForm.password !== pwdForm.confirmPassword){ ElMessage.warning('两次输入的密码不一致'); return }
   try { await changePassword(pwdTarget.value.id, pwdForm.password); pwdVisible.value = false; ElMessage.success('已修改') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
 }
 </script>
