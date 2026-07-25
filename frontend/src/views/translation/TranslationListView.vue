@@ -8,7 +8,11 @@
       <el-form-item><el-checkbox v-model="untransOnly" @change="load">仅未翻译</el-checkbox></el-form-item>
       <el-form-item><el-button type="primary" @click="load">查询</el-button><el-button v-if="auth.role !== 'member'" @click="openCreate">新增 Key</el-button></el-form-item>
     </el-form>
-    <el-table :data="rows" stripe v-loading="loading" :key="tableKey">
+    <el-table ref="tableRef" :data="rows" stripe v-loading="loading" :key="tableKey" row-key="translationKey">
+      <el-table-column width="44" fixed="left" class-name="drag-handle-col">
+        <template #default><span class="drag-handle">⋮⋮</span></template>
+      </el-table-column>
+      <el-table-column label="#" width="55"><template #default="{ row }">{{ row.rowIndex }}</template></el-table-column>
       <el-table-column v-if="auth.role !== 'member'" label="Key" min-width="160">
         <template #default="{ row }"><el-input :model-value="editKey.get(row.translationKey) ?? row.translationKey" @update:model-value="(v: string) => editKey.set(row.translationKey, v)" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" @blur="onKeySave(row)" class="inline-input" /></template>
       </el-table-column>
@@ -29,7 +33,9 @@
       </el-table-column>
       <el-table-column v-if="auth.role !== 'member'" label="操作" width="80"><template #default="{ row }"><el-button link type="danger" size="small" @click="handleDelete(row)">删除</el-button></template></el-table-column>
     </el-table>
-    <div class="pagination-wrap" v-if="total > pageSize"><el-pagination background layout="prev, pager, next" :total="total" :page-size="pageSize" v-model:current-page="page" @current-change="load" /></div>
+    <div style="text-align:center;margin-top:16px" v-if="hasMore">
+      <el-button :loading="loadingMore" @click="loadMore">加载更多 ({{ rows.length }}/{{ total }})</el-button>
+    </div>
     <el-dialog v-model="showCreateDialog" title="新增 Key" width="500px">
       <el-form label-width="60px"><el-form-item label="Key"><el-input v-model="form.translationKey" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入翻译 Key" /></el-form-item><el-form-item label="原文"><el-input v-model="form.sourceText" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入原文" /></el-form-item><el-form-item label="标签"><el-select v-model="form.tags" multiple filterable allow-create style="width:100%" placeholder="选择或输入标签"><el-option v-for="t in allTags" :key="t" :label="t" :value="t" /></el-select></el-form-item></el-form>
       <template #footer><el-button @click="showCreateDialog = false">取消</el-button><el-button type="primary" @click="handleCreate" :loading="saving">保存</el-button></template>
@@ -38,11 +44,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
+import Sortable from 'sortablejs'
+import client from '@/api/client'
 import { useRoute } from 'vue-router'
 import { useTranslationStore } from '@/stores/translation'
 import { useLanguageStore } from '@/stores/language'
-import { getTags, saveTranslation, updateKey } from '@/api/translation'
+import { getTags, saveTranslation, updateKey, getTranslations } from '@/api/translation'
 import { useAuthStore } from '@/stores/auth'
 import { useLoadingStore } from '@/stores/loading'
 import { storeToRefs } from 'pinia'
@@ -57,7 +65,7 @@ const langStore = useLanguageStore()
 const { rows, total, loading } = storeToRefs(transStore)
 const { projectLanguages } = storeToRefs(langStore)
 
-const page = ref(1); const pageSize = ref(20); const filters = reactive({ search: '' })
+const page = ref(1); const pageSize = ref(50); const filters = reactive({ search: '' }); const loadingMore = ref(false)
 const filterTags = ref<string[]>([]); const allTags = ref<string[]>([]); const untransOnly = ref(false)
 const globalLang = ref(''); const rowLangs = ref<string[]>([]); const tableKey = ref(0)
 const showCreateDialog = ref(false); const saving = ref(false)
@@ -72,16 +80,55 @@ onMounted(() => { init() })
 watch(projectSlug, () => { if (projectSlug.value) init() })
 
 function init() { langStore.fetchProjectLanguages(projectSlug.value); loadTags(); load() }
+
+let sortable: any = null
+function bindSortable() {
+  const el = document.querySelector('.el-table__body-wrapper tbody')
+  if (!el || auth.role === 'member') return
+  if (sortable) sortable.destroy()
+  sortable = Sortable.create(el, {
+    handle: '.drag-handle',
+    animation: 200,
+    onEnd({ oldIndex, newIndex }: any) {
+      if (oldIndex === newIndex) return
+      const clone = [...rows.value]
+      const [moved] = clone.splice(oldIndex, 1)
+      clone.splice(newIndex, 0, moved)
+      rows.value = clone
+      rows.value.forEach((r, i) => { r.rowIndex = i + 1 })
+      // Update moved row's sortOrder between neighbors' actual sortOrders
+      const prev = newIndex > 0 ? rows.value[newIndex - 1] : null
+      const nxt = newIndex < rows.value.length - 1 ? rows.value[newIndex + 1] : null
+      const prevSo = prev?.sortOrder ?? 0
+      const nxtSo = nxt?.sortOrder ?? (prevSo + 200)
+      const so = prev ? Math.round((prevSo + nxtSo) / 2) : Math.round(nxtSo / 2)
+      client.put('/projects/' + projectSlug.value + '/translations/sortOrders', { orders: [{ keyId: moved.keyId, sortOrder: so }] }).catch(() => {})
+    }
+  })
+}
 watch(projectLanguages, (langs) => { if (langs.length && !globalLang.value) { globalLang.value = langs[0].languageCode; load() } })
 function syncRowLangs() { rowLangs.value = rows.value.map(() => globalLang.value || projectLanguages.value[0]?.languageCode || '') }
 
+const hasMore = computed(() => rows.value.length < total.value)
+
 async function load() {
-  loadingStore.start()
+  page.value = 1; loadingStore.start()
   try {
     const lang = globalLang.value || projectLanguages.value[0]?.languageCode
-    await transStore.fetchTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: filters.search })
-    buildCache(); syncRowLangs(); tableKey.value++
+    await transStore.fetchTranslations(projectSlug.value, { page: 1, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: filters.search })
+    buildCache(); syncRowLangs(); tableKey.value++; nextTick(() => bindSortable())
   } finally { loadingStore.stop() }
+}
+
+async function loadMore() {
+  page.value++; loadingMore.value = true
+  try {
+    const lang = globalLang.value || projectLanguages.value[0]?.languageCode
+    const { data: res } = await getTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: filters.search })
+    rows.value.push(...res.data.list)
+    total.value = res.data.total
+    buildCache(); syncRowLangs(); tableKey.value++; nextTick(() => bindSortable())
+  } finally { loadingMore.value = false }
 }
 
 function onGlobalLangChange(lang: string) { rowLangs.value = rows.value.map(() => lang) }
@@ -127,4 +174,7 @@ async function handleDelete(row: any) {
 .pagination-wrap { display: flex; justify-content: center; margin-top: 16px; }
 .inline-input { } .inline-input :deep(.el-textarea__inner) { padding: 2px 6px; font-size: 13px; }
 .pre-wrap { white-space: pre-wrap; word-break: break-word; }
+.drag-handle { color: #c0c4cc; cursor: grab; font-size: 18px; display: block; text-align: center; line-height: 1; padding: 8px 0; }
+.drag-handle:hover { color: #409eff; }
+.drag-handle-col { user-select: none; }
 </style>

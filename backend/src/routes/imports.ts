@@ -69,7 +69,8 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware as any, requir
       let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId: req.params.projectSlug, key } } })
       const keyExisted = !!tk
       if (!tk && autoCreate !== false) {
-        tk = await prisma.translationKey.create({ data: { projectId: req.params.projectSlug, key, sourceText: sourceText || key, context: context || '', tags: tags || [] } })
+        const maxSo = await prisma.translationKey.aggregate({ where: { projectId: req.params.projectSlug }, _max: { sortOrder: true } })
+        tk = await prisma.translationKey.create({ data: { projectId: req.params.projectSlug, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
       }
       if (eOnly && keyExisted && !overwrite) skipped++
       if (tk) {

@@ -92,6 +92,7 @@ model TranslationKey {
   sourceText   String   @map("source_text") @db.Text
   context      String?  @db.Text
   tags         String[] @default([])
+  sortOrder    Int      @default(0) @map("sort_order")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

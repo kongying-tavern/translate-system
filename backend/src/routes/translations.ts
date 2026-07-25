@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import { prisma } from '../index'
 import * as transService from '../services/translation'
 import { authMiddleware } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
@@ -60,6 +61,15 @@ translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware as 
 translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware as any, requireOwnership, async (req, res, next) => {
   try {
     await transService.deleteTranslation(req.params.translationId)
+    success(res, null)
+  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+})
+
+translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
+  try {
+    for (const o of req.body.orders) {
+      await prisma.translationKey.update({ where: { id: o.keyId }, data: { sortOrder: o.sortOrder } })
+    }
     success(res, null)
   } catch (e: any) { error(res, ErrCode.Internal, e.message) }
 })

@@ -3,45 +3,46 @@ import { prisma } from '../index'
 export async function listGrouped(projectId: string, query: {
   languageCode?: string; search?: string; tags?: string[]; untransOnly?: boolean; page: number; pageSize: number;
 }) {
-  const whereKey: any = { projectId }
-  const whereVal: any = {}
-  if (query.languageCode) whereVal.languageCode = query.languageCode
-  if (query.search) {
-    whereKey.OR = [
-      { key: { contains: query.search, mode: 'insensitive' } },
-      { sourceText: { contains: query.search, mode: 'insensitive' } },
-      { context: { contains: query.search, mode: 'insensitive' } },
-    ]
-    whereVal.translatedText = { contains: query.search, mode: 'insensitive' }
-  }
-  if (query.tags?.length) whereKey.tags = { hasSome: query.tags }
-
+  // Always fetch all keys to keep rowIndex stable
   const keys = await prisma.translationKey.findMany({
-    where: whereKey,
-    include: { values: { where: Object.keys(whereVal).length ? whereVal : undefined } },
-    orderBy: { key: 'asc' },
+    where: { projectId },
+    include: { values: true },
+    orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
   })
 
-  // Search in values too and filter
-  let filtered = keys.filter(k => k.values.length > 0 || !query.languageCode)
-  if (query.search && !whereKey.OR) {
-    // search only in values
-    filtered = keys.filter(k => k.values.some(v => v.translatedText.toLowerCase().includes(query.search!.toLowerCase())))
+  let idx = 0
+  const allItems = keys.map(k => ({
+    key: k,
+    rowIndex: ++idx,
+    show: /* check if key should be included */ true
+  }))
+
+  // Apply original filter logic
+  let visible = allItems
+  if (query.search || query.tags?.length || query.languageCode || query.untransOnly) {
+    visible = allItems.filter(item => {
+      const k = item.key
+      if (query.languageCode && !query.untransOnly && !query.search) return k.values.length > 0
+      if (query.untransOnly && query.languageCode) return !k.values.some(v => v.languageCode === query.languageCode && v.translatedText)
+      if (query.tags?.length) return query.tags.some(t => k.tags?.includes(t))
+      if (query.search) return k.key.toLowerCase().includes(query.search.toLowerCase()) || k.sourceText.toLowerCase().includes(query.search.toLowerCase()) || k.values.some(v => v.translatedText.toLowerCase().includes(query.search.toLowerCase())) || k.context?.toLowerCase().includes(query.search.toLowerCase())
+      return true
+    })
   }
-  if (query.untransOnly && query.languageCode) {
-    filtered = filtered.filter(k => !k.values.some(v => v.languageCode === query.languageCode && v.translatedText))
-  } else if (query.languageCode && !query.search) {
-    filtered = keys.filter(k => k.values.length > 0)
+  if (query.languageCode && !query.search && !query.untransOnly) {
+    visible = visible.filter(item => item.key.values.length > 0)
   }
 
-  const total = filtered.length
-  const list = filtered.slice((query.page - 1) * query.pageSize, query.page * query.pageSize).map(k => ({
-    translationKey: k.key,
-    sourceText: k.sourceText,
-    context: k.context || '',
-    tags: k.tags,
-    keyId: k.id,
-    translations: Object.fromEntries(k.values.map(v => [v.languageCode, {
+  const total = visible.length
+  const list = visible.slice((query.page - 1) * query.pageSize, query.page * query.pageSize).map(item => ({
+    rowIndex: item.rowIndex,
+    sortOrder: item.key.sortOrder,
+    translationKey: item.key.key,
+    sourceText: item.key.sourceText,
+    context: item.key.context || '',
+    tags: item.key.tags,
+    keyId: item.key.id,
+    translations: Object.fromEntries(item.key.values.map(v => [v.languageCode, {
       id: v.id,
       translatedText: v.translatedText,
       isReviewed: v.isReviewed,
@@ -135,7 +136,7 @@ export async function getForExport(projectId: string, languageCodes: string[]) {
   const keys = await prisma.translationKey.findMany({
     where: { projectId },
     include: { values: true },
-    orderBy: { key: 'asc' },
+    orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
   })
   return keys
 }

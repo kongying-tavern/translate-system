@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import * as translationApi from '@/api/translation'
 
 export interface GroupedRow {
-  translationKey: string; sourceText: string; context: string; tags: string[]; keyId: string
+  rowIndex: number; sortOrder: number; translationKey: string; sourceText: string; context: string; tags: string[]; keyId: string
   translations: Record<string, { id: string; translatedText: string; isReviewed?: boolean; reviewerComment?: string }>
 }
 

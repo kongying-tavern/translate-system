@@ -2,7 +2,7 @@ import client from './client'
 import type { ApiResponse, PageData } from '@/types/api'
 
 export interface GroupedRow {
-  translationKey: string; sourceText: string; context: string; tags: string[]; keyId: string
+  rowIndex: number; sortOrder: number; translationKey: string; sourceText: string; context: string; tags: string[]; keyId: string
   translations: Record<string, { id: string; translatedText: string; isReviewed?: boolean; reviewerComment?: string }>
 }
 
