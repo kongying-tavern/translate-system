@@ -17,7 +17,7 @@ projectRoutes.get('/', async (req: any, res, next) => {
     const pageSize = Math.min(parseInt(req.query.pageSize || '20'), 100)
     const { projects, total } = await projectService.listProjects(req.userId, page, pageSize)
     successWithPage(res, projects, total, page, pageSize)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 projectRoutes.post('/', async (req: any, res, next) => {
@@ -26,24 +26,24 @@ projectRoutes.post('/', async (req: any, res, next) => {
     if (!req.body.name) return error(res, ErrCode.InvalidParams, 'name is required')
     if (!req.body.code) return error(res, ErrCode.InvalidParams, 'code is required')
     success(res, await projectService.createProject(req.userId, req.body))
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 projectRoutes.get('/:projectSlug', requireOwnership, async (req: any, res, next) => {
-  try { success(res, await projectService.getProject(req.params.projectSlug)) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  try { success(res, await projectService.getProject(req.params.projectSlug)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 projectRoutes.put('/:projectSlug', requireOwnership, async (req: any, res, next) => {
-  try { success(res, await projectService.updateProject(req.params.projectSlug, req.body)) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  try { success(res, await projectService.updateProject(req.params.projectSlug, req.body)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 projectRoutes.delete('/:projectSlug', requireOwnership, async (req: any, res, next) => {
-  try { await projectService.deleteProject(req.params.projectSlug); success(res, null) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { await projectService.deleteProject(req.params.projectSlug); success(res, null) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 // ── Project Languages ──
 projectRoutes.get('/:projectSlug/languages', requireOwnership, async (req: any, res, next) => {
-  try { success(res, await langService.listProjectLanguages(req.params.projectSlug)) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { success(res, await langService.listProjectLanguages(req.params.projectSlug)) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 projectRoutes.post('/:projectSlug/languages', requireOwnership, async (req: any, res, next) => {
@@ -51,19 +51,19 @@ projectRoutes.post('/:projectSlug/languages', requireOwnership, async (req: any,
     const { languageCode } = req.body
     if (!languageCode) return error(res, ErrCode.InvalidParams, 'languageCode is required')
     success(res, await langService.addProjectLanguage(req.params.projectSlug, languageCode))
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 projectRoutes.delete('/:projectSlug/languages/:langCode', requireOwnership, async (req: any, res, next) => {
-  try { await langService.removeProjectLanguage(req.params.projectSlug, req.params.langCode); success(res, null) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { await langService.removeProjectLanguage(req.params.projectSlug, req.params.langCode); success(res, null) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 projectRoutes.put('/:projectSlug/languages/:langCode/alias', requireOwnership, async (req: any, res, next) => {
-  try { success(res, await langService.updateLanguageAlias(req.params.langCode, req.body.alias)) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { success(res, await langService.updateLanguageAlias(req.params.langCode, req.body.alias)) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 projectRoutes.put('/:projectSlug/languages/:langCode/sortOrder', requireOwnership, async (req: any, res, next) => {
-  try { success(res, await langService.updateLanguageSortOrder(req.params.langCode, req.body.sortOrder)) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { success(res, await langService.updateLanguageSortOrder(req.params.langCode, req.body.sortOrder)) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 // ── Project Members ──
@@ -75,7 +75,7 @@ projectRoutes.get('/:projectSlug/members', requireOwnership, async (req: any, re
       orderBy: { createdAt: 'asc' }
     })
     success(res, members.map((m: any) => ({ id: m.id, userId: m.userId, username: m.user.username, email: m.user.email, role: m.user.role, projectRole: m.projectRole, createdAt: m.createdAt })))
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 projectRoutes.post('/:projectSlug/members', requireOwnership, async (req: any, res, next) => {
@@ -89,17 +89,17 @@ projectRoutes.post('/:projectSlug/members', requireOwnership, async (req: any, r
     if (existing) return error(res, ErrCode.Conflict, '该用户已是项目成员')
     const m = await prisma.projectMember.create({ data: { projectId: req.params.projectSlug, userId: user.id, projectRole: pRole } })
     success(res, { id: m.id, userId: user.id, username: user.username, email: user.email, role: user.role, projectRole: m.projectRole, createdAt: m.createdAt })
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 projectRoutes.put('/:projectSlug/members/:memberId/role', requireOwnership, async (req: any, res, next) => {
   try {
     await prisma.projectMember.update({ where: { id: req.params.memberId }, data: { projectRole: req.body.projectRole } }); success(res, null)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 projectRoutes.delete('/:projectSlug/members/:memberId', requireOwnership, async (req: any, res, next) => {
   try {
     await prisma.projectMember.delete({ where: { id: req.params.memberId } }); success(res, null)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })

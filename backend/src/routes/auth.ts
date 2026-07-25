@@ -34,7 +34,7 @@ authRoutes.post('/register', async (req, res, next) => {
     if (password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     const result = await authService.register(username, email, password)
     success(res, result)
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message || 'register failed') }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'register failed') }
 })
 
 /**
@@ -63,7 +63,7 @@ authRoutes.post('/login', async (req, res, next) => {
     if (!loginAccount || !password) return error(res, ErrCode.InvalidParams, '请输入用户名/邮箱和密码')
     const result = await authService.login(loginAccount, password)
     success(res, result)
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message || 'login failed') }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'login failed') }
 })
 
 /**
@@ -90,7 +90,7 @@ authRoutes.post('/refresh', async (req, res, next) => {
     if (!refreshToken) return error(res, ErrCode.InvalidParams, 'missing refreshToken')
     const result = await authService.refresh(refreshToken)
     success(res, result)
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message || 'refresh failed') }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'refresh failed') }
 })
 
 /**
@@ -104,7 +104,7 @@ authRoutes.post('/refresh', async (req, res, next) => {
  *       200: { description: 返回用户信息 }
  */
 authRoutes.get('/me', authMiddleware, async (req: any, res, next) => {
-  try { success(res, await authService.getUser(req.userId)) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message || 'failed') }
+  try { success(res, await authService.getUser(req.userId)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'failed') }
 })
 
 authRoutes.put('/me/password', authMiddleware, async (req: any, res, next) => {
@@ -114,16 +114,16 @@ authRoutes.put('/me/password', authMiddleware, async (req: any, res, next) => {
     if (newPassword.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     await authService.changeOwnPassword(req.userId, oldPassword, newPassword)
     success(res, { updated: true })
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 // ── User management (admin+) ──
 authRoutes.get('/users', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
-  try { success(res, await authService.listUsers()) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { success(res, await authService.listUsers()) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 authRoutes.put('/users/:id/role', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
-  try { success(res, await authService.updateUserRole(req.userId, req.params.id, req.body.role)) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  try { success(res, await authService.updateUserRole(req.userId, req.params.id, req.body.role)) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
@@ -132,11 +132,11 @@ authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: any,
     if (!username || !email || !password) return error(res, ErrCode.InvalidParams, '缺少必填字段')
     if (password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     success(res, await authService.createUser(username, email, password, role || 'member', req.userRole))
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 authRoutes.delete('/users/:id', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
-  try { await authService.deleteUser(req.userId, req.params.id); success(res, { deleted: true }) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  try { await authService.deleteUser(req.userId, req.params.id); success(res, { deleted: true }) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), async (req: any, res, next) => {
@@ -145,5 +145,5 @@ authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), asyn
     if (req.body.password.length < 6) return error(res, ErrCode.InvalidParams, '密码至少6位')
     await authService.changeUserPassword(req.userId, req.params.id, req.body.password)
     success(res, { updated: true })
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })

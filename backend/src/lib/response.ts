@@ -1,6 +1,6 @@
 import { Response } from 'express'
 
-export function success(res: Response, data: any = null) {
+export function success(res: Response, data: unknown = null) {
   res.json({ code: 0, message: 'success', data })
 }
 

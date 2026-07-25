@@ -48,7 +48,7 @@ onMounted(async () => {
 async function handleSave() {
   saving.value = true
   try {
-    let config: any
+    let config: unknown
     try { config = JSON.parse(configStr.value) } catch { ElMessage.error('JSON格式错误'); saving.value = false; return }
 
     const data = { ...form, config }

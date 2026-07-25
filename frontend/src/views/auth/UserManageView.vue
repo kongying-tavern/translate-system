@@ -55,24 +55,24 @@ function cannotEdit(row:any){
 }
 
 async function onChangeRole(row:any, newRole:string){
-  try { await updateUserRole(row.id, newRole); row.role = newRole; ElMessage.success('已更新') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { await updateUserRole(row.id, newRole); row.role = newRole; ElMessage.success('已更新') } catch(e: unknown){ ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 function openCreate(){ Object.assign(createForm, { username:'', email:'', password:'', role:'member' }); createVisible.value = true }
 async function handleCreate(){
   if(!createForm.username||!createForm.email||!createForm.password){ ElMessage.warning('请填写完整'); return }
   if(createForm.password.length < 6){ ElMessage.warning('密码至少6位'); return }
-  try { const { data:res } = await createUser({...createForm}); users.value.push(res.data); createVisible.value = false; ElMessage.success('已添加') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { const { data:res } = await createUser({...createForm}); users.value.push(res.data); createVisible.value = false; ElMessage.success('已添加') } catch(e: unknown){ ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 async function handleDelete(row:any){
   try { await ElMessageBox.confirm('确定删除 '+row.username+' 吗？','确认',{type:'warning'}) } catch { return }
-  try { await deleteUser(row.id); users.value = users.value.filter(u=>u.id!==row.id); ElMessage.success('已删除') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { await deleteUser(row.id); users.value = users.value.filter(u=>u.id!==row.id); ElMessage.success('已删除') } catch(e: unknown){ ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 function openPwd(row:any){ pwdTarget.value = row; pwdForm.password = ''; pwdForm.confirmPassword = ''; pwdVisible.value = true }
 async function handlePwdSave(){
   if(!pwdForm.password || !pwdForm.confirmPassword){ ElMessage.warning('请填写完整'); return }
   if(pwdForm.password.length < 6){ ElMessage.warning('密码至少6位'); return }
   if(pwdForm.password !== pwdForm.confirmPassword){ ElMessage.warning('两次输入的密码不一致'); return }
-  try { await changePassword(pwdTarget.value.id, pwdForm.password); pwdVisible.value = false; ElMessage.success('已修改') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { await changePassword(pwdTarget.value.id, pwdForm.password); pwdVisible.value = false; ElMessage.success('已修改') } catch(e: unknown){ ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 </script>
 

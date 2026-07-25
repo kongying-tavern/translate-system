@@ -109,7 +109,7 @@ async function handlePwd() {
     const res = await client.put('/auth/me/password', { oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword })
     if (res.data.code !== 0) { ElMessage.error(res.data.message || '修改失败'); return }
     pwdVisible.value = false; ElMessage.success('密码已修改，请重新登录'); auth.logout(); router.push('/auth/login')
-  } catch (e: any) { ElMessage.error(e.response?.data?.message || '修改失败') }
+  } catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '修改失败') }
 }
 
 const filteredProjects = computed(() => {

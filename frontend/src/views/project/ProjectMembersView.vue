@@ -65,7 +65,7 @@ async function handleAdd(userId:string){
   if(!userId) return
   const u = userOptions.value.find(o=>o.id===userId)
   if(!u) return
-  try { const {data:res}=await addMember(projectSlug.value, u.email, newMemberRole.value); members.value.push(res.data); selectedUserId.value = ''; userOptions.value = []; ElMessage.success('已添加') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { const {data:res}=await addMember(projectSlug.value, u.email, newMemberRole.value); members.value.push(res.data); selectedUserId.value = ''; userOptions.value = []; ElMessage.success('已添加') } catch(e: unknown){ ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 
 async function handleRemove(row:any){
@@ -73,7 +73,7 @@ async function handleRemove(row:any){
 }
 
 async function changeProjectRole(row:any, newRole:string){
-  try { await client.put('/projects/'+projectSlug.value+'/members/'+row.id+'/role', { projectRole:newRole }); row.projectRole = newRole; ElMessage.success('已更新') } catch(e:any){ ElMessage.error(e.response?.data?.message||'失败') }
+  try { await client.put('/projects/'+projectSlug.value+'/members/'+row.id+'/role', { projectRole:newRole }); row.projectRole = newRole; ElMessage.success('已更新') } catch(e: unknown){ ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 </script>
 

@@ -10,6 +10,10 @@
 
 密码长度 **至少 6 位**，无最大长度限制，无可用字符限制。前后端同时校验，后端所有密码入口（注册、改密、创建用户）统一检查 `password.length < 6`。
 
+### TypeScript
+
+禁止使用 `any`，如无法确定类型则使用 `unknown`。`catch (e: any)` 一律改为 `catch (e: unknown)` 配合类型断言访问属性。已在 `tsconfig.json` 中开启 `strict: true`（含 `noImplicitAny`），不允许隐式 `any`。
+
 ### 行尾
 
 文本文件统一使用 LF（`\n`）换行，文件末尾保留一个空行。`.gitattributes` 已配置 `* text=auto eol=lf`，新增或修改的文件会自动标准化。

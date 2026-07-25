@@ -35,7 +35,7 @@ export async function requireOwnership(req: AuthRequest, res: Response, next: Ne
 
 export function requireProjectRole(minRole: string) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userLevel = PROJECT_ROLE_LEVEL[(req as any).projectRole || 'member'] || 0
+    const userLevel = PROJECT_ROLE_LEVEL[req.projectRole || 'member'] || 0
     if (userLevel >= (PROJECT_ROLE_LEVEL[minRole] || 0)) return next()
     return res.status(403).json({ code: ErrCode.Forbidden, message: '项目权限不足', data: null })
   }

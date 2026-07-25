@@ -22,14 +22,14 @@ translationRoutes.get('/:projectSlug/translations', authMiddleware as any, requi
       pageSize,
     })
     successWithPage(res, result.list, result.total, page, pageSize)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 translationRoutes.post('/:projectSlug/translations', authMiddleware as any, requireOwnership, async (req, res, next) => {
   try {
     const t = await transService.createTranslation(req.params.projectSlug, req.body)
     success(res, t)
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 // Update key and sourceText for all translations matching oldKey (MUST be before /:key/:langCode)
@@ -39,7 +39,7 @@ translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware a
     if (!translationKey?.trim()) return error(res, ErrCode.InvalidParams, 'Key cannot be empty')
     const t = await transService.updateKeyAndSource(req.params.projectSlug, req.params.oldKey, translationKey.trim(), sourceText)
     success(res, t)
-  } catch (e: any) { const status = e.code === ErrCode.Conflict ? 409 : 200; error(res, e.code || ErrCode.Internal, e.message, status) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; const status = err.code === ErrCode.Conflict ? 409 : 200; error(res, err.code || ErrCode.Internal, err.message || '', status) }
 })
 
 // Save translation for a specific key + language
@@ -47,7 +47,7 @@ translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddlewar
   try {
     const t = await transService.saveForLang(req.params.projectSlug, req.params.key, req.params.langCode, req.body)
     success(res, t)
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 // All tags for a project
@@ -55,14 +55,14 @@ translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware as 
   try {
     const tags = await transService.getAllTags(req.params.projectSlug)
     success(res, tags)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware as any, requireOwnership, async (req, res, next) => {
   try {
     await transService.deleteTranslation(req.params.translationId)
     success(res, null)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
@@ -71,12 +71,12 @@ translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware as
       await prisma.translationKey.update({ where: { id: o.keyId }, data: { sortOrder: o.sortOrder } })
     }
     success(res, null)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 translationRoutes.post('/:projectSlug/translations/batch', authMiddleware as any, requireOwnership, async (req, res, next) => {
   try {
     await transService.batchUpsert(req.params.projectSlug, req.body.translations)
     success(res, null)
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })

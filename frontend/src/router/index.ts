@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory, type RouteLocationGeneric } from 'vue-router'
 import { getAccessToken } from '@/utils/token'
 import { useAuthStore } from '@/stores/auth'
 
@@ -22,7 +22,7 @@ const router = createRouter({
         { path: 'projects/new', name: 'ProjectCreate', component: () => import('@/views/project/ProjectCreateView.vue') },
         {
           path: 'projects/:projectSlug', children: [
-            { path: '', redirect: (to: any) => '/projects/' + to.params.projectSlug + '/translations' },
+            { path: '', redirect: (to: RouteLocationGeneric) => '/projects/' + to.params.projectSlug + '/translations' },
             { path: 'translations', name: 'Translations', component: () => import('@/views/translation/TranslationListView.vue') },
             { path: 'languages', name: 'Languages', component: () => import('@/views/language/LanguageManageView.vue') },
             { path: 'members', name: 'Members', component: () => import('@/views/project/ProjectMembersView.vue') },

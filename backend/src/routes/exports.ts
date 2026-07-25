@@ -10,19 +10,19 @@ import { ErrCode } from '../lib/errors'
 export const exportRoutes = Router()
 
 exportRoutes.get('/:projectSlug/exports/templates', authMiddleware as any, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.listTemplates(req.params.projectSlug); success(res, data) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { const data = await exportService.listTemplates(req.params.projectSlug); success(res, data) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 exportRoutes.post('/:projectSlug/exports/templates', authMiddleware as any, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.createTemplate(req.params.projectSlug, req.body); success(res, data) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  try { const data = await exportService.createTemplate(req.params.projectSlug, req.body); success(res, data) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 exportRoutes.get('/:projectSlug/exports/templates/:templateSlug', authMiddleware as any, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.getTemplate(req.params.templateSlug, req.params.projectSlug); success(res, data) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  try { const data = await exportService.getTemplate(req.params.templateSlug, req.params.projectSlug); success(res, data) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 exportRoutes.put('/:projectSlug/exports/templates/:templateSlug', authMiddleware as any, requireOwnership, async (req, res, next) => {
-  try { const data = await exportService.updateTemplate(req.params.templateSlug, req.body); success(res, data) } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  try { const data = await exportService.updateTemplate(req.params.templateSlug, req.body); success(res, data) } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 exportRoutes.delete('/:projectSlug/exports/templates/:templateSlug', authMiddleware as any, requireOwnership, async (req, res, next) => {
-  try { await exportService.deleteTemplate(req.params.templateSlug); success(res, null) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { await exportService.deleteTemplate(req.params.templateSlug); success(res, null) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 exportRoutes.post('/:projectSlug/exports/preview', authMiddleware as any, requireOwnership, async (req, res, next) => {
@@ -32,7 +32,7 @@ exportRoutes.post('/:projectSlug/exports/preview', authMiddleware as any, requir
     const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
     const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as any, filterTags) as any
     success(res, { content, format, ...(encoding ? { encoding } : {}) })
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })
 
 exportRoutes.post('/:projectSlug/exports/generate', authMiddleware as any, requireOwnership, async (req, res, next) => {
@@ -42,5 +42,5 @@ exportRoutes.post('/:projectSlug/exports/generate', authMiddleware as any, requi
     const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
     const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as any, filterTags) as any
     success(res, { content, format, ...(encoding ? { encoding } : {}) })
-  } catch (e: any) { error(res, e.code || ErrCode.Internal, e.message) }
+  } catch (e: unknown) { const err = e as { code?: number; message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
 })

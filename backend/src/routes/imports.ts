@@ -9,7 +9,7 @@ import * as yaml from 'js-yaml'
 export const importRoutes = Router()
 
 importRoutes.get('/:projectSlug/imports/templates', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
-  try { success(res, await prisma.importTemplate.findMany({ where: { projectId: req.params.projectSlug }, orderBy: { createdAt: 'desc' } })) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { success(res, await prisma.importTemplate.findMany({ where: { projectId: req.params.projectSlug }, orderBy: { createdAt: 'desc' } })) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 importRoutes.post('/:projectSlug/imports/templates', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
@@ -17,19 +17,19 @@ importRoutes.post('/:projectSlug/imports/templates', authMiddleware as any, requ
     const { name, description, formatType, config } = req.body
     if (!name) return error(res, ErrCode.InvalidParams, 'name is required')
     success(res, await prisma.importTemplate.create({ data: { projectId: req.params.projectSlug, name, description: description || '', formatType: formatType || 'flat-json', config: config || {} } }))
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 importRoutes.get('/:projectSlug/imports/templates/:id', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
-  try { success(res, await prisma.importTemplate.findUnique({ where: { id: req.params.id } })) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { success(res, await prisma.importTemplate.findUnique({ where: { id: req.params.id } })) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 importRoutes.put('/:projectSlug/imports/templates/:id', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
-  try { success(res, await prisma.importTemplate.update({ where: { id: req.params.id }, data: req.body })) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { success(res, await prisma.importTemplate.update({ where: { id: req.params.id }, data: req.body })) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 importRoutes.delete('/:projectSlug/imports/templates/:id', authMiddleware as any, requireOwnership, async (req: any, res, next) => {
-  try { await prisma.importTemplate.delete({ where: { id: req.params.id } }); success(res, null) } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  try { await prisma.importTemplate.delete({ where: { id: req.params.id } }); success(res, null) } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 // Execute import (supports both template-based and direct mode)
@@ -97,7 +97,7 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware as any, requir
       count++
     }
     success(res, { imported: count, created, skipped })
-  } catch (e: any) { error(res, ErrCode.Internal, e.message) }
+  } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
 function flatJSONParse(data: any, languageCode: string) {

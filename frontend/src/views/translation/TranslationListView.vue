@@ -89,11 +89,11 @@ function onScroll(e: Event) {
   }
 }
 
-let sortable: any = null
+let sortable: unknown = null
 function bindSortable() {
   const el = document.querySelector('.el-table__body-wrapper tbody') as HTMLElement
   const hasFilter = appliedSearch.value || filterTags.value.length || untransOnly.value
-  if (sortable) { sortable.destroy(); sortable = null }
+  if (sortable) { (sortable as { destroy: () => void }).destroy(); sortable = null }
   if (!el || auth.role === 'member' || hasFilter) return
   sortable = Sortable.create(el, {
     handle: '.drag-handle',
@@ -161,10 +161,10 @@ async function onKeySave(row: any) {
   const oldKey = row.translationKey; const ek = editKey.value; const newKey = ek.get(oldKey)
   if (newKey === undefined || newKey === oldKey) return
   if (!newKey.trim()) { ElMessage.warning('Key 不能为空'); ek.delete(oldKey); return }
-  try { await updateKey(projectSlug.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText); ek.delete(oldKey); editSource.value.delete(oldKey); for (const lang of Object.keys(row.translations)) { const oc = oldKey + '|' + lang; const nc = newKey + '|' + lang; if (oc in transCache) { transCache[nc] = transCache[oc]; delete transCache[oc] } }; row.translationKey = newKey.trim(); ElMessage.success('Key 已更新') } catch (e: any) { ElMessage.error(e.response?.data?.message || 'Key 更新失败'); ek.delete(oldKey) }
+  try { await updateKey(projectSlug.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText); ek.delete(oldKey); editSource.value.delete(oldKey); for (const lang of Object.keys(row.translations)) { const oc = oldKey + '|' + lang; const nc = newKey + '|' + lang; if (oc in transCache) { transCache[nc] = transCache[oc]; delete transCache[oc] } }; row.translationKey = newKey.trim(); ElMessage.success('Key 已更新') } catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Key 更新失败'); ek.delete(oldKey) }
 }
 
-async function onSourceSave(row: any) { const oldKey = row.translationKey; const es = editSource.value; const newSrc = es.get(oldKey); if (newSrc === undefined || newSrc === row.sourceText) return; try { await updateKey(projectSlug.value, oldKey, oldKey, newSrc); es.delete(oldKey); row.sourceText = newSrc; ElMessage.success('原文已更新') } catch (e: any) { ElMessage.error(e.response?.data?.message || '原文更新失败'); es.delete(oldKey) } }
+async function onSourceSave(row: any) { const oldKey = row.translationKey; const es = editSource.value; const newSrc = es.get(oldKey); if (newSrc === undefined || newSrc === row.sourceText) return; try { await updateKey(projectSlug.value, oldKey, oldKey, newSrc); es.delete(oldKey); row.sourceText = newSrc; ElMessage.success('原文已更新') } catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败'); es.delete(oldKey) } }
 
 async function onTagsChange(row: any, tags: string[]) { try { await saveTranslation(projectSlug.value, row.translationKey, '', { tags }); row.tags = tags; loadTags() } catch { ElMessage.error('保存失败') } }
 function openCreate() { Object.assign(form, { translationKey: '', sourceText: '', tags: [] }); showCreateDialog.value = true }
