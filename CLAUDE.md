@@ -47,6 +47,12 @@ rm -rf node_modules/.vite        # 清除 Vite 缓存（模块找不到时）
 
 # 导入翻译文件
 cd backend && pnpm tsx src/scripts/import-json.ts <projectId> <file> <langCode>
+
+# Lint + 类型检查（提交前必须执行）
+cd backend && pnpm lint            # ESLint + tsc
+cd backend && pnpm lint:fix        # 自动修复 + tsc（仅修复格式，剩余需手动处理）
+cd frontend && pnpm lint           # ESLint + vue-tsc
+cd frontend && pnpm lint:fix       # 自动修复 + vue-tsc（仅修复格式，剩余需手动处理）
 ```
 
 ## 核心架构
