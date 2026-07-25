@@ -90,6 +90,7 @@ function onScroll(e: Event) {
   }
 }
 
+
 let sortable: unknown = null
 function bindSortable() {
   const el = document.querySelector('.el-table__body-wrapper tbody') as HTMLElement
@@ -129,20 +130,75 @@ async function load() {
   try {
     const lang = globalLang.value || projectLanguages.value[0]?.languageCode
     const isRowSearch = appliedSearch.value.startsWith('#')
-    await transStore.fetchTranslations(projectSlug.value, { page: 1, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: isRowSearch ? undefined : appliedSearch.value })
-    if (isRowSearch) { const num = parseInt(appliedSearch.value.slice(1)); if (!isNaN(num)) rows.value = rows.value.filter((r: GroupedRow) => r.rowIndex === num) }
-    buildCache(); syncRowLangs(); tableKey.value++; nextTick(() => { bindSortable(); document.querySelector('.el-table__body-wrapper')?.scrollTo(0, 0) })
+    const rowQuery = isRowSearch ? appliedSearch.value.slice(1) : ''
+    const isRange = rowQuery.includes('-')
+    const rowStart = isRowSearch ? parseInt(rowQuery.split('-')[0]) : 0
+    const rowEnd = isRange ? (parseInt(rowQuery.split('-')[1]) || 99999) : rowStart
+    const PZ = pageSize.value
+    let pg = isRowSearch && !isNaN(rowStart) ? Math.ceil(rowStart / PZ) : 1
+    if (isRowSearch && isRange && !isNaN(rowStart)) {
+      // Load enough pages to get at least 20 filtered rows for range search
+      const allRows: any[] = []
+      while (allRows.filter((r: any) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd).length < PZ && allRows.length < (rowEnd - rowStart + PZ)) {
+        const { data: r } = await getTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
+        allRows.push(...r.data.list)
+        pg++
+      }
+      rows.value = allRows.filter((r: any) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd)
+      total.value = rowEnd - rowStart + 1
+      page.value = pg // remember next page for loadMore
+    } else if (isRowSearch && !isNaN(rowStart)) {
+      await transStore.fetchTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
+      rows.value = rows.value.filter((r: any) => r.rowIndex === rowStart)
+      total.value = 1
+    } else {
+      await transStore.fetchTranslations(projectSlug.value, { page: 1, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: appliedSearch.value })
+    }
+    if (isRowSearch && !isNaN(rowStart)) {
+      rows.value = rows.value.filter((r: any) => isRange ? (r.rowIndex >= rowStart && r.rowIndex <= rowEnd) : r.rowIndex === rowStart)
+      total.value = isRange ? (rowEnd - rowStart + 1) : 1
+    }
+    buildCache(); syncRowLangs(); tableKey.value++; await nextTick()
+    // Viewport fill for range search: calc visible rows, load enough to overflow
+    if (isRowSearch && isRange && !isNaN(rowStart)) {
+      const pageEl = document.querySelector('.trans-page') as HTMLElement
+      const rowEl = document.querySelector('.el-table__row') as HTMLElement
+      const headerEl = document.querySelector('.page-header') as HTMLElement
+      const filterEl = document.querySelector('.filter-bar') as HTMLElement
+      const pageH = pageEl?.clientHeight || window.innerHeight - 100
+      const headerH = headerEl?.offsetHeight || 0
+      const filterH = filterEl?.offsetHeight || 0
+      const rowH = rowEl?.offsetHeight || 40
+      const visible = Math.max(1, Math.ceil((pageH - headerH - filterH - 32) / rowH))
+      const needed = visible + 5
+      while (rows.value.length < needed && rows.value.length < total.value) {
+        const { data: r } = await getTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
+        const filtered = r.data.list.filter((row: any) => row.rowIndex >= rowStart && row.rowIndex <= rowEnd)
+        if (!filtered.length) break
+        rows.value.push(...filtered)
+        pg++; page.value = pg
+        await nextTick()
+      }
+    }
+    nextTick(() => { bindSortable(); document.querySelector('.el-table__body-wrapper')?.scrollTo(0, 0) })
   } finally { loadingStore.stop(); setTimeout(() => { resetting = false; loadingMore.value = false }, 600) }
 }
 
 async function loadMore() {
-  if (loading.value || loadingMore.value || resetting || appliedSearch.value.startsWith('#')) return
+  const isSingleRow = appliedSearch.value.startsWith('#') && !appliedSearch.value.includes('-')
+  if (loading.value || loadingMore.value || resetting || isSingleRow) return
   page.value++; loadingMore.value = true
   try {
     const lang = globalLang.value || projectLanguages.value[0]?.languageCode
-    const { data: res } = await getTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: appliedSearch.value })
+    const isRowSearch = appliedSearch.value.startsWith('#')
+    const { data: res } = await getTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: isRowSearch ? undefined : appliedSearch.value })
     rows.value.push(...res.data.list)
-    total.value = res.data.total
+    if (isRowSearch && appliedSearch.value.includes('-')) {
+      const s = parseInt(appliedSearch.value.slice(1).split('-')[0]), e = parseInt(appliedSearch.value.split('-')[1]) || 99999
+      if (!isNaN(s)) rows.value = rows.value.filter((r: any) => r.rowIndex >= s && r.rowIndex <= e)
+    } else {
+      total.value = res.data.total
+    }
     buildCache(); syncRowLangs(); nextTick(() => bindSortable())
   } finally { loadingMore.value = false }
 }
