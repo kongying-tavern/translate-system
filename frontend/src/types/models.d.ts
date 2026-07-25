@@ -94,6 +94,29 @@ export interface ApiKey {
   createdAt: string
 }
 
+export interface TranslationKey {
+  id: string
+  projectId: string
+  key: string
+  sourceText: string
+  context: string | null
+  tags: string[]
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TranslationValue {
+  id: string
+  keyId: string
+  languageCode: string
+  translatedText: string
+  isReviewed: boolean
+  reviewerComment: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 export interface AuthResponse {
   accessToken: string
   refreshToken: string

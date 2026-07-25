@@ -54,7 +54,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useLoadingStore } from '@/stores/loading'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { GroupedRow } from '@/stores/translation'
+import type { GroupedRow } from '@/api/translation'
 
 const auth = useAuthStore()
 const loadingStore = useLoadingStore()

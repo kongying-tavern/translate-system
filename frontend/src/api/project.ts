@@ -1,6 +1,6 @@
 import client from './client'
 import type { ApiResponse, PageData } from '@/types/api'
-import type { Project } from '@/types/models'
+import type { Project, ProjectMember } from '@/types/models'
 
 export function getProjects(page = 1, pageSize = 20) {
   return client.get<ApiResponse<PageData<Project>>>('/projects', { params: { page, pageSize } })
@@ -22,10 +22,10 @@ export function deleteProject(id: string) {
   return client.delete<ApiResponse<null>>(`/projects/${id}`)
 }
 export function getMembers(projectId: string) {
-  return client.get<ApiResponse<any[]>>(`/projects/${projectId}/members`)
+  return client.get<ApiResponse<ProjectMember[]>>(`/projects/${projectId}/members`)
 }
 export function addMember(projectId: string, email: string, projectRole = 'member') {
-  return client.post<ApiResponse<any>>(`/projects/${projectId}/members`, { email, projectRole })
+  return client.post<ApiResponse<ProjectMember>>(`/projects/${projectId}/members`, { email, projectRole })
 }
 export function removeMember(projectId: string, memberId: string) {
   return client.delete(`/projects/${projectId}/members/${memberId}`)

@@ -18,14 +18,14 @@ export function getUsers() {
   return client.get<ApiResponse<User[]>>('/auth/users')
 }
 export function updateUserRole(id: string, role: string) {
-  return client.put<ApiResponse<any>>(`/auth/users/${id}/role`, { role })
+  return client.put<ApiResponse<User>>(`/auth/users/${id}/role`, { role })
 }
 export function createUser(data: { username: string; email: string; password: string; role: string }) {
-  return client.post<ApiResponse<any>>('/auth/users', data)
+  return client.post<ApiResponse<User>>('/auth/users', data)
 }
 export function deleteUser(id: string) {
-  return client.delete<ApiResponse<any>>(`/auth/users/${id}`)
+  return client.delete<ApiResponse<null>>(`/auth/users/${id}`)
 }
 export function changePassword(id: string, password: string) {
-  return client.put<ApiResponse<any>>(`/auth/users/${id}/password`, { password })
+  return client.put<ApiResponse<null>>(`/auth/users/${id}/password`, { password })
 }
