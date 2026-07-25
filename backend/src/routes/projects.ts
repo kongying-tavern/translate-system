@@ -74,7 +74,7 @@ projectRoutes.get('/:projectSlug/members', requireOwnership, async (req: any, re
       select: { id: true, userId: true, projectRole: true, createdAt: true, user: { select: { username: true, email: true, role: true } } },
       orderBy: { createdAt: 'asc' }
     })
-    success(res, members.map((m: any) => ({ id: m.id, userId: m.userId, username: m.user.username, email: m.user.email, role: m.user.role, projectRole: m.projectRole, createdAt: m.createdAt })))
+    success(res, members.map((m) => ({ id: m.id, userId: m.userId, username: m.user.username, email: m.user.email, role: m.user.role, projectRole: m.projectRole, createdAt: m.createdAt })))
   } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 

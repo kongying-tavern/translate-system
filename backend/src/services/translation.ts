@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../index'
 
 export interface BatchUpsertItem {
@@ -89,7 +90,7 @@ export async function saveForLang(projectId: string, translationKey: string, lan
       data: { projectId, key: translationKey, sourceText: translationKey, context: data.context || '', tags: data.tags || [] }
     })
   } else if (data.tags !== undefined || data.context !== undefined) {
-    const updateData: any = {}
+    const updateData: Prisma.TranslationKeyUpdateInput = {}
     if (data.tags !== undefined) updateData.tags = data.tags
     if (data.context !== undefined) updateData.context = data.context
     await prisma.translationKey.update({ where: { id: key.id }, data: updateData })
@@ -114,7 +115,7 @@ export async function updateKeyAndSource(projectId: string, oldKey: string, newK
     if (dup) throw { code: 1004, message: 'Key 已存在，不能重复' }
   }
 
-  const updateData: any = { key: newKey }
+  const updateData: Prisma.TranslationKeyUpdateInput = { key: newKey }
   if (sourceText !== undefined) updateData.sourceText = sourceText
 
   await prisma.translationKey.update({ where: { id: existing.id }, data: updateData })
@@ -141,7 +142,7 @@ export async function batchUpsert(projectId: string, items: BatchUpsertItem[]) {
   }
 }
 
-export async function getForExport(projectId: string, languageCodes: string[]) {
+export async function getForExport(projectId: string, languageCodes: string[]): Promise<Prisma.TranslationKeyGetPayload<{ include: { values: true } }>[]> {
   const keys = await prisma.translationKey.findMany({
     where: { projectId },
     include: { values: true },

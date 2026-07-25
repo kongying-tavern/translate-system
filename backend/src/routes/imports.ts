@@ -1,10 +1,20 @@
 import { Router } from 'express'
+import { Prisma } from '@prisma/client'
 import { prisma } from '../index'
 import { authMiddleware } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
 import { success, error } from '../lib/response'
 import { ErrCode } from '../lib/errors'
 import * as yaml from 'js-yaml'
+
+interface ImportEntry {
+  key: string
+  sourceText: string
+  translatedText: string
+  tags: string[]
+  context: string
+  lang?: string
+}
 
 export const importRoutes = Router()
 
@@ -50,7 +60,7 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware as any, requir
     }
 
     // Parse
-    let entries: any[] = []
+    let entries: ImportEntry[] = []
     if (eOnly) {
       if (raw.trim().startsWith('{')) entries = flatJSONParse(JSON.parse(raw), languageCode)
       else if (raw.trim().startsWith('<')) entries = xmlParse(raw)
@@ -75,7 +85,7 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware as any, requir
       if (eOnly && keyExisted && !overwrite) skipped++
       if (tk) {
         if (context !== undefined || tags?.length) {
-          const updates: any = {}
+          const updates: Prisma.TranslationKeyUpdateInput = {}
           if (context !== undefined) updates.context = context
           if (tags?.length) updates.tags = tags
           if (Object.keys(updates).length) await prisma.translationKey.update({ where: { id: tk.id }, data: updates })
@@ -100,16 +110,17 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware as any, requir
   } catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
 })
 
-function flatJSONParse(data: any, languageCode: string) {
+function flatJSONParse(data: Record<string, unknown>, languageCode: string): ImportEntry[] {
   // Detect nested: { "zh-Hans": { "key": "val" } } → flatten with lang
   const firstVal = Object.values(data)[0]
-  if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal) && !firstVal.translatedText && !firstVal.sourceText) {
-    const entries: any[] = []
+  if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal) && !('translatedText' in (firstVal as Record<string, unknown>)) && !('sourceText' in (firstVal as Record<string, unknown>))) {
+    const entries: ImportEntry[] = []
     for (const [lang, obj] of Object.entries(data)) {
       if (!obj || typeof obj !== 'object') continue
-      for (const [k, v] of Object.entries(obj as any)) {
+      for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
         if (v && typeof v === 'object' && !Array.isArray(v)) {
-          entries.push({ key: k, sourceText: v.sourceText || k, translatedText: v.translatedText || '', tags: v.tags || [], context: v.context || '', lang })
+          const vo = v as Record<string, unknown>
+          entries.push({ key: k, sourceText: (vo.sourceText as string) || k, translatedText: (vo.translatedText as string) || '', tags: (vo.tags as string[]) || [], context: (vo.context as string) || '', lang })
         } else {
           entries.push({ key: k, sourceText: k, translatedText: String(v || ''), tags: [], context: '', lang })
         }
@@ -120,20 +131,21 @@ function flatJSONParse(data: any, languageCode: string) {
   // Flat: { "key": "val" } or { "key": { sourceText, tags, ... } }
   return Object.entries(data).map(([key, value]) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-      return { key, sourceText: value.sourceText || key, translatedText: value.translatedText || '', tags: value.tags || [], context: value.context || '' }
+      const vo = value as Record<string, unknown>
+      return { key, sourceText: (vo.sourceText as string) || key, translatedText: (vo.translatedText as string) || '', tags: (vo.tags as string[]) || [], context: (vo.context as string) || '' }
     }
     return { key, sourceText: key, translatedText: String(value || ''), tags: [], context: '' }
   })
 }
 
-function csvParse(data: string) {
+function csvParse(data: string): ImportEntry[] {
   const lines = data.split('\n').filter(l => l.trim())
   if (!lines.length) return []
   const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
-  const entries: any[] = []
+  const entries: ImportEntry[] = []
   for (let i = 1; i < lines.length; i++) {
     const vals = parseCSVLine(lines[i])
-    const entry: any = { tags: [], context: '' }
+    const entry: Partial<ImportEntry> & { key?: string } = { tags: [], context: '' }
     headers.forEach((h, idx) => {
       if (h === 'key') entry.key = vals[idx]
       else if (h === 'sourcetext' || h === 'source_text') entry.sourceText = vals[idx]
@@ -141,22 +153,23 @@ function csvParse(data: string) {
       else if (h === 'tags' && vals[idx]) entry.tags = vals[idx].split(';').map((t: string) => t.trim())
       else if (h === 'context') entry.context = vals[idx]
     })
-    if (entry.key) { entry.sourceText = entry.sourceText || entry.key; entries.push(entry) }
+    if (entry.key) { entry.sourceText = entry.sourceText || entry.key; entries.push(entry as ImportEntry) }
   }
   return entries
 }
 
-function yamlParse(data: string) {
-  const parsed: any = yaml.load(data)
+function yamlParse(data: string): ImportEntry[] {
+  const parsed = yaml.load(data) as Record<string, unknown> | undefined
   if (!parsed || typeof parsed !== 'object') return []
   // Check if nested: { "zh-Hans": { "key": "val" }, "en-US": { "key": "val" } }
   const firstVal = Object.values(parsed)[0]
   if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal)) {
-    const entries: any[] = []
+    const entries: ImportEntry[] = []
     for (const [lang, obj] of Object.entries(parsed)) {
-      for (const [key, value] of Object.entries(obj as any)) {
+      for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
         if (value && typeof value === 'object' && !Array.isArray(value)) {
-          entries.push({ key, sourceText: (value as any).sourceText || key, translatedText: (value as any).translatedText || '', tags: (value as any).tags || [], context: (value as any).context || '', lang })
+          const vo = value as Record<string, unknown>
+          entries.push({ key, sourceText: (vo.sourceText as string) || key, translatedText: (vo.translatedText as string) || '', tags: (vo.tags as string[]) || [], context: (vo.context as string) || '', lang })
         } else {
           entries.push({ key, sourceText: key, translatedText: String(value || ''), tags: [], context: '', lang })
         }
@@ -165,16 +178,17 @@ function yamlParse(data: string) {
     return entries
   }
   // Flat: { "key": "val" }
-  return Object.entries(parsed).map(([key, value]: [string, any]) => {
+  return Object.entries(parsed).map(([key, value]: [string, unknown]) => {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
-      return { key, sourceText: value.sourceText || key, translatedText: value.translatedText || '', tags: value.tags || [], context: value.context || '' }
+      const vo = value as Record<string, unknown>
+      return { key, sourceText: (vo.sourceText as string) || key, translatedText: (vo.translatedText as string) || '', tags: (vo.tags as string[]) || [], context: (vo.context as string) || '' }
     }
     return { key, sourceText: key, translatedText: String(value || ''), tags: [], context: '' }
   })
 }
 
-function propertiesParse(data: string) {
-  const entries: any[] = []
+function propertiesParse(data: string): ImportEntry[] {
+  const entries: ImportEntry[] = []
   for (const line of data.split('\n')) {
     const t = line.trim()
     if (!t || t.startsWith('#') || t.startsWith('!')) continue
@@ -185,8 +199,8 @@ function propertiesParse(data: string) {
   return entries
 }
 
-function xmlParse(data: string) {
-  const entries: any[] = []
+function xmlParse(data: string): ImportEntry[] {
+  const entries: ImportEntry[] = []
   const langRe = /<language\s+code="([^"]*)"[^>]*>([\s\S]*?)<\/language>/g
   let lm
   while ((lm = langRe.exec(data))) {

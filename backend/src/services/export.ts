@@ -1,5 +1,16 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../index'
 import yaml from 'js-yaml'
+
+type ExportKey = Prisma.TranslationKeyGetPayload<{ include: { values: true } }>
+
+interface FlatTranslation {
+  translationKey: string
+  languageCode: string
+  sourceText: string
+  translatedText: string
+  alias?: string
+}
 
 export async function listTemplates(projectId: string) {
   return prisma.exportTemplate.findMany({ where: { projectId }, orderBy: { createdAt: 'desc' } })
@@ -13,18 +24,19 @@ export async function getTemplate(id: string, projectId?: string) {
   return t
 }
 
-export async function createTemplate(projectId: string, data: any) {
+export async function createTemplate(projectId: string, data: Omit<Prisma.ExportTemplateUncheckedCreateInput, 'id' | 'projectId'>) {
   if (!data.code) throw { code: 1001, message: 'code is required' }
   const existing = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId, code: data.code } } })
   if (existing) throw { code: 1004, message: 'code already exists' }
   return prisma.exportTemplate.create({ data: { projectId, ...data, config: data.config || {} } })
 }
 
-export async function updateTemplate(id: string, data: any) {
-  if (data.code) {
+export async function updateTemplate(id: string, data: Prisma.ExportTemplateUncheckedUpdateInput) {
+  const code = typeof data.code === 'string' ? data.code : undefined
+  if (code) {
     const t = await prisma.exportTemplate.findUnique({ where: { id } })
-    if (t && data.code !== t.code) {
-      const existing = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId: t.projectId, code: data.code } } })
+    if (t && code !== t.code) {
+      const existing = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId: t.projectId, code } } })
       if (existing) throw { code: 1004, message: 'code already exists' }
     }
   }
@@ -35,18 +47,18 @@ export async function deleteTemplate(id: string) {
   return prisma.exportTemplate.delete({ where: { id } })
 }
 
-function flattenKeys(keys: any[], languageCodes: string[], aliases?: Record<string, string>) {
-  const result: any[] = []
+function flattenKeys(keys: ExportKey[], languageCodes: string[], aliases?: Record<string, string>) {
+  const result: FlatTranslation[] = []
   for (const k of keys) {
     for (const lang of languageCodes) {
-      const v = k.values.find((v: any) => v.languageCode === lang)
+      const v = k.values.find(v => v.languageCode === lang)
       result.push({ translationKey: k.key, languageCode: lang, sourceText: k.sourceText, translatedText: v?.translatedText || '', alias: aliases?.[lang] })
     }
   }
   return result
 }
 
-export function exportTranslations(keys: any[], languageCodes: string[], formatType: string, aliases?: Record<string, string>, config?: any, filterTags?: string[]): [string, string] | [string, string, string] {
+export function exportTranslations(keys: ExportKey[], languageCodes: string[], formatType: string, aliases?: Record<string, string>, config?: Record<string, unknown>, filterTags?: string[]): [string, string] | [string, string, string] {
   if (filterTags?.length) {
     keys = keys.filter(k => filterTags.some(t => k.tags?.includes(t)))
   }
@@ -69,9 +81,9 @@ export function exportTranslations(keys: any[], languageCodes: string[], formatT
   }
 }
 
-function getLangKey(t: any, config?: any) { return config?.useCodeKey ? t.languageCode : (t.alias || t.languageCode) }
+function getLangKey(t: { languageCode: string; alias?: string }, config?: Record<string, unknown>) { return config?.useCodeKey ? t.languageCode : (t.alias || t.languageCode) }
 
-function exportFlatJSON(translations: any[], langs: string[], config?: any) {
+function exportFlatJSON(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   if (!langs.length) return '{}'
   const lang = langs[0]
   const items: Record<string, string> = {}
@@ -79,30 +91,30 @@ function exportFlatJSON(translations: any[], langs: string[], config?: any) {
   return JSON.stringify(items, null, 2)
 }
 
-function exportJSON(translations: any[], langs: string[], config?: any) {
+function exportJSON(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   const result: Record<string, Record<string, string>> = {}; for (const lang of langs) { const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); result[name] = {}; for (const t of translations) { if (t.languageCode === lang) result[name][t.translationKey] = t.translatedText } }
   return JSON.stringify(result, null, 2)
 }
 
-function exportCSV(translations: any[], langs: string[], config?: any) {
-  const rows: Record<string, any> = {}; for (const t of translations) { if (!rows[t.translationKey]) rows[t.translationKey] = { source: t.sourceText, langs: {} }; rows[t.translationKey].langs[t.languageCode] = t.translatedText }
+function exportCSV(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
+  const rows: Record<string, { source: string; langs: Record<string, string> }> = {}; for (const t of translations) { if (!rows[t.translationKey]) rows[t.translationKey] = { source: t.sourceText, langs: {} }; rows[t.translationKey].langs[t.languageCode] = t.translatedText }
   const headerNames = langs.map(l => getLangKey(translations.find(t => t.languageCode === l) || { languageCode: l }, config))
   const header = ['key', 'source', ...headerNames].join(','); const lines = [header]
-  for (const [key, row] of Object.entries(rows)) { lines.push([csvEscape(key), csvEscape((row as any).source), ...langs.map(l => csvEscape((row as any).langs[l] || ''))].join(',')) }
+  for (const [key, row] of Object.entries(rows)) { lines.push([csvEscape(key), csvEscape(row.source), ...langs.map(l => csvEscape(row.langs[l] || ''))].join(',')) }
   return lines.join('\n')
 }
 
-function exportProperties(translations: any[], langs: string[], config?: any) {
+function exportProperties(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   const result: Record<string, string> = {}; for (const lang of langs) { const lines: string[] = []; for (const t of translations) { if (t.languageCode === lang) lines.push(t.translationKey + '=' + t.translatedText) }; const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); result[name] = lines.join('\n') }
   return JSON.stringify(result, null, 2)
 }
 
-function exportXML(translations: any[], langs: string[], config?: any) {
+function exportXML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<resources>\n'; for (const lang of langs) { const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); xml += '  <language code="' + xmlEscape(name) + '">\n'; for (const t of translations) { if (t.languageCode === lang) xml += '    <string name="' + xmlEscape(t.translationKey) + '">' + xmlEscape(t.translatedText) + '</string>\n' }; xml += '  </language>\n' }
   xml += '</resources>\n'; return xml
 }
 
-function exportFlatYAML(translations: any[], langs: string[], config?: any) {
+function exportFlatYAML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   if (!langs.length) return ''
   const lang = langs[0]
   const items: Record<string, string> = {}
@@ -110,7 +122,7 @@ function exportFlatYAML(translations: any[], langs: string[], config?: any) {
   return yaml.dump(items, { noRefs: true, quotingType: '"', forceQuotes: false, lineWidth: -1 })
 }
 
-function exportNestedYAML(translations: any[], langs: string[], config?: any) {
+function exportNestedYAML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   const result: Record<string, Record<string, string>> = {}
   for (const lang of langs) {
     const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
