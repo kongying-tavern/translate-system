@@ -1,21 +1,61 @@
 <template>
   <div>
-    <div class="page-header"><h2>导入模板</h2><el-button type="primary" @click="$router.push('/projects/'+projectSlug+'/imports/new/edit')">新建模板</el-button></div>
+    <div class="page-header"><h2>导入</h2></div>
 
-    <el-form :inline="true" class="import-bar" v-if="templates.length">
-      <el-form-item label="选择模板"><el-select v-model="selectedTemplate" placeholder="选择导入模板" style="width:220px"><el-option v-for="t in templates" :key="t.id" :label="t.name + ' (' + t.formatType + ')'" :value="t.id" /></el-select></el-form-item>
-      <el-form-item label="目标语言"><el-select v-model="importLang" placeholder="选择语言" style="width:180px"><el-option v-for="l in projectLanguages" :key="l.languageCode" :label="l.alias || l.languageCode" :value="l.languageCode" /></el-select></el-form-item>
-      <el-form-item><el-checkbox v-model="entriesOnly">仅导入条目（不导入译文）</el-checkbox></el-form-item>
-      <el-form-item><el-upload :auto-upload="false" :show-file-list="false" accept=".json,.csv" @change="onFileChange"><el-button>选择文件</el-button></el-upload></el-form-item>
-      <el-form-item><el-button type="primary" @click="doImport" :loading="importing">导入</el-button></el-form-item>
+    <el-form :inline="true" class="import-bar">
+      <el-form-item label="模式">
+        <el-radio-group v-model="mode">
+          <el-radio-button value="entries">导入条目</el-radio-button>
+          <el-radio-button value="translate">导入翻译</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
     </el-form>
-    <div v-if="importFile" style="margin-bottom:12px;font-size:13px;color:#909399">已选文件: {{ importFile.name }}</div>
 
-    <el-table :data="templates" stripe style="margin-top:16px">
-      <el-table-column prop="name" label="模板名称" /><el-table-column prop="formatType" label="格式" width="150" /><el-table-column prop="description" label="描述" />
-      <el-table-column label="操作" width="150"><template #default="{row}"><el-button link type="primary" @click="$router.push('/projects/'+projectSlug+'/imports/'+row.id+'/edit')">编辑</el-button><el-button link type="danger" @click="handleDelete(row.id)">删除</el-button></template></el-table-column>
-    </el-table>
-    <EmptyState v-if="!templates.length" description="暂无导入模板" />
+    <el-form :inline="true" class="import-bar" style="margin-top:0">
+      <template v-if="mode === 'translate'">
+        <el-form-item label="格式"><el-select v-model="fmt" style="width:160px">
+          <el-option label="扁平 JSON" value="flat-json" />
+          <el-option label="嵌套 JSON" value="json" />
+          <el-option label="CSV" value="csv" />
+          <el-option label="Properties" value="properties" />
+          <el-option label="YAML" value="yaml" />
+          <el-option label="XML" value="xml" />
+        </el-select></el-form-item>
+        <el-form-item label="语言" v-if="needLang"><el-select v-model="importLang" style="width:160px"><el-option v-for="l in projectLanguages" :key="l.languageCode" :label="l.alias || l.languageCode" :value="l.languageCode" /></el-select></el-form-item>
+        <el-form-item><el-checkbox v-model="autoCreate">自动补全新条目</el-checkbox></el-form-item>
+      </template>
+      <el-form-item><el-checkbox v-model="overwrite">{{ mode === 'entries' ? '覆盖已有条目' : '覆盖已有译文' }}</el-checkbox></el-form-item>
+      <el-form-item>
+        <el-radio-group v-model="inputMode" size="small">
+          <el-radio-button value="file">文件</el-radio-button>
+          <el-radio-button value="text">文本</el-radio-button>
+        </el-radio-group>
+      </el-form-item>
+      <el-form-item v-if="inputMode==='file'"><el-upload :auto-upload="false" :show-file-list="false" :accept="fileAccept" @change="onFileChange"><el-button type="primary">选择文件</el-button></el-upload></el-form-item>
+      <el-form-item v-if="importFile && inputMode==='file'"><el-button type="success" @click="doImport" :loading="importing">开始导入</el-button></el-form-item>
+    </el-form>
+    <div v-if="importFile && inputMode==='file'" style="font-size:13px;color:#909399;margin-bottom:12px">已选: {{ importFile.name }}</div>
+    <div v-if="inputMode==='text'" style="margin-bottom:16px">
+      <el-input v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." style="font-family:monospace;font-size:13px" />
+      <el-button type="success" @click="doTextImport" :loading="importing" style="margin-top:8px">开始导入</el-button>
+    </div>
+    <el-alert v-if="mode==='entries'" type="info" :closable="false" style="margin-bottom:16px" title="导入条目不会更改现有条目的翻译内容" />
+
+    <el-card header="格式说明" style="margin-top:16px">
+      <template v-if="mode==='entries'">
+        <p style="margin:0 0 12px;font-size:13px;color:#909399">字段: key(必填) / sourceText(原文) / tags(标签;分隔) / context(备注)</p>
+        <el-tabs v-model="exampleTab" type="card" size="small">
+          <el-tab-pane label="JSON" name="json"><pre class="ex-pre">{{ entriesExample.json }}</pre></el-tab-pane>
+          <el-tab-pane label="CSV" name="csv"><pre class="ex-pre">{{ entriesExample.csv }}</pre></el-tab-pane>
+          <el-tab-pane label="YAML" name="yaml"><pre class="ex-pre">{{ entriesExample.yaml }}</pre></el-tab-pane>
+          <el-tab-pane label="XML" name="xml"><pre class="ex-pre">{{ entriesExample.xml }}</pre></el-tab-pane>
+        </el-tabs>
+      </template>
+      <template v-else>
+        <p style="margin:0 0 8px;font-size:13px;color:#909399">{{ exampleTitle }}</p>
+        <pre class="ex-pre">{{ exampleText }}</pre>
+      </template>
+    </el-card>
   </div>
 </template>
 
@@ -23,48 +63,80 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import EmptyState from '@/components/common/EmptyState.vue'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
-const templates = ref<any[]>([])
 const projectLanguages = ref<any[]>([])
-const selectedTemplate = ref(''), importLang = ref(''), entriesOnly = ref(false), importing = ref(false)
-const importFile = ref<File | null>(null)
+const mode = ref('entries'), fmt = ref('flat-json'), importLang = ref('')
+const overwrite = ref(false), autoCreate = ref(true), importing = ref(false)
+const importFile = ref<File | null>(null), exampleTab = ref('json'), inputMode = ref('file'), textInput = ref('')
 
-onMounted(async () => {
-  const [tRes, lRes] = await Promise.all([client.get('/projects/'+projectSlug.value+'/imports/templates'), client.get('/projects/'+projectSlug.value+'/languages')])
-  templates.value = tRes.data.data; projectLanguages.value = lRes.data.data
-  if (templates.value.length) selectedTemplate.value = templates.value[0].id
-  if (projectLanguages.value.length) importLang.value = projectLanguages.value[0].languageCode
+const needLang = computed(() => mode.value === 'translate' && (fmt.value === 'flat-json' || fmt.value === 'properties'))
+const fileAccept = computed(() => {
+  if (mode.value === 'entries') return '.json,.csv,.yaml,.yml,.xml'
+  if (fmt.value === 'csv') return '.csv'; if (fmt.value === 'yaml') return '.yaml,.yml'
+  if (fmt.value === 'properties') return '.properties'; if (fmt.value === 'xml') return '.xml'
+  return '.json'
 })
+
+const fmtNames: Record<string,string> = { 'flat-json':'扁平 JSON','json':'嵌套 JSON','csv':'CSV','properties':'Properties','yaml':'YAML','xml':'XML' }
+const exampleTitle = computed(() => fmtNames[fmt.value] || fmt.value)
+
+const entriesExample = {
+  json: '{\n  "login.title": { "sourceText": "登录遇到问题？", "tags": ["auth", "ui"], "context": "登录弹窗标题" },\n  "error.network": { "tags": ["network"] }\n}',
+  csv: 'key,sourceText,tags,context\nlogin.title,登录遇到问题？,auth;ui,登录弹窗标题\nerror.network,,network,',
+  yaml: 'login.title:\n  sourceText: 登录遇到问题？\n  tags: [auth, ui]\n  context: 登录弹窗标题\nerror.network:\n  tags: [network]',
+  xml: '<resources>\n  <string name="login.title" sourceText="登录遇到问题？" tags="auth;ui" context="登录弹窗标题" />\n  <string name="error.network" tags="network" />\n</resources>'
+}
+
+const exampleText = computed(() => {
+  switch (fmt.value) {
+    case 'flat-json': return '{\n  "login.title": "Login",\n  "error.network": "Network Error"\n}'
+    case 'json': return '{\n  "zh-Hans": { "login.title": "登录" },\n  "en-US": { "login.title": "Login" }\n}'
+    case 'csv': return 'key,sourceText,zh-Hans,en-US\nlogin.title,登录,登录,Login'
+    case 'properties': return 'login.title=Login\nerror.network=Network Error'
+    case 'yaml': return 'zh-Hans:\n  login.title: 登录\nen-US:\n  login.title: Login'
+    case 'xml': return '<resources>\n  <language code="zh-Hans">\n    <string name="login.title">登录</string>\n  </language>\n  <language code="en-US">\n    <string name="login.title">Login</string>\n  </language>\n</resources>'
+    default: return ''
+  }
+})
+
+onMounted(async () => { const { data: res } = await client.get('/projects/'+projectSlug.value+'/languages'); projectLanguages.value = res.data || []; if (projectLanguages.value.length) importLang.value = projectLanguages.value[0].languageCode })
 
 function onFileChange(file: any) { importFile.value = file.raw }
 
-async function doImport() {
-  if (!selectedTemplate.value || !importFile.value || !importLang.value) { ElMessage.warning('请选择模板、语言和文件'); return }
+async function doTextImport() {
+  if (!textInput.value.trim()) { ElMessage.warning('请输入内容'); return }
+  if (mode.value === 'translate' && needLang.value && !importLang.value) { ElMessage.warning('请选择语言'); return }
   importing.value = true
   try {
-    const text = await importFile.value.text()
-    const data = JSON.parse(text)
-    const { data: res } = await client.post('/projects/'+projectSlug.value+'/imports/execute', {
-      templateId: selectedTemplate.value, languageCode: importLang.value, data, entriesOnly: entriesOnly.value
-    })
-    ElMessage.success('导入完成: ' + res.data.imported + ' 条')
-    importFile.value = null
+    const body: any = { data: textInput.value, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
+    const { data: res } = await client.post('/projects/'+projectSlug.value+'/imports/execute', body)
+    const d1 = res.data; ElMessage.success('导入完成: ' + d1.imported + ' 条' + (d1.created ? '，' + d1.created + ' 新增' : '') + (d1.skipped ? '，' + d1.skipped + ' 跳过（已有）' : ''))
+    textInput.value = ''
   } catch (e: any) { ElMessage.error(e.response?.data?.message || '导入失败') }
   finally { importing.value = false }
 }
 
-async function handleDelete(id: string) {
-  await client.delete('/projects/'+projectSlug.value+'/imports/templates/'+id)
-  templates.value = templates.value.filter(t => t.id !== id); ElMessage.success('已删除')
+async function doImport() {
+  if (!importFile.value) { ElMessage.warning('请选择文件'); return }
+  if (mode.value === 'translate' && needLang.value && !importLang.value) { ElMessage.warning('请选择语言'); return }
+  importing.value = true
+  try {
+    const text = await importFile.value.text()
+    const body: any = { data: text, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
+    const { data: res } = await client.post('/projects/'+projectSlug.value+'/imports/execute', body)
+    const d1 = res.data; ElMessage.success('导入完成: ' + d1.imported + ' 条' + (d1.created ? '，' + d1.created + ' 新增' : '') + (d1.skipped ? '，' + d1.skipped + ' 跳过（已有）' : ''))
+    importFile.value = null
+  } catch (e: any) { ElMessage.error(e.response?.data?.message || '导入失败') }
+  finally { importing.value = false }
 }
 </script>
 
 <style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; } .page-header h2 { margin: 0; }
+.page-header { margin-bottom: 20px; } .page-header h2 { margin: 0; }
 .import-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .import-bar .el-form-item { margin-bottom: 0; }
+.ex-pre { font-size:13px; white-space:pre-wrap; margin:0; }
 </style>

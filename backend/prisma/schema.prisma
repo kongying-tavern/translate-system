@@ -42,6 +42,7 @@ model Project {
   layoutTemplates   LayoutTemplate[]
   layoutConfigs     LayoutConfig[]
   exportTemplates   ExportTemplate[]
+  importTemplates   ImportTemplate[]
 
   @@index([userId])
   @@map("projects")

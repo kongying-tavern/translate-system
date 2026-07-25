@@ -6,8 +6,12 @@
       <el-form-item label="描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
       <el-form-item label="输入格式">
         <el-select v-model="form.formatType" style="width:100%">
-          <el-option label="扁平 JSON {Key: 译文}" value="flat-json" />
-          <el-option label="嵌套 JSON {语言: {Key: 译文}}" value="json" />
+          <el-option label="扁平 JSON" value="flat-json" />
+          <el-option label="嵌套 JSON" value="json" />
+          <el-option label="CSV" value="csv" />
+          <el-option label="Properties" value="properties" />
+          <el-option label="XML" value="xml" />
+          <el-option label="仅导入条目" value="entries-only" />
         </el-select>
       </el-form-item>
       <el-form-item><el-button type="primary" @click="handleSave" :loading="saving">保存</el-button><el-button @click="$router.back()">取消</el-button></el-form-item>
