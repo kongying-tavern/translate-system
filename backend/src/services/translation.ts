@@ -25,7 +25,7 @@ export async function listGrouped(projectId: string, query: {
       if (query.languageCode && !query.untransOnly && !query.search) return k.values.length > 0
       if (query.untransOnly && query.languageCode) return !k.values.some(v => v.languageCode === query.languageCode && v.translatedText)
       if (query.tags?.length) return query.tags.some(t => k.tags?.includes(t))
-      if (query.search) return k.key.toLowerCase().includes(query.search.toLowerCase()) || k.sourceText.toLowerCase().includes(query.search.toLowerCase()) || k.values.some(v => v.translatedText.toLowerCase().includes(query.search.toLowerCase())) || k.context?.toLowerCase().includes(query.search.toLowerCase())
+      if (query.search) { const s = query.search; if (s.startsWith('/') && s.endsWith('/') && s.length > 2) { try { const re = new RegExp(s.slice(1, -1), 'i'); return re.test(k.key) || re.test(k.sourceText) || k.values.some(v => re.test(v.translatedText)) || re.test(k.context || '') } catch {} }; return k.key.toLowerCase().includes(s.toLowerCase()) || k.sourceText.toLowerCase().includes(s.toLowerCase()) || k.values.some(v => v.translatedText.toLowerCase().includes(s.toLowerCase())) || k.context?.toLowerCase().includes(s.toLowerCase()) }
       return true
     })
   }
