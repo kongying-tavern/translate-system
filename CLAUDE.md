@@ -4,6 +4,18 @@
 
 本地化翻译管理平台，前后端分离。Vue 3 + Express + PostgreSQL + Prisma。
 
+## 代码规范
+
+### 行尾
+
+文本文件统一使用 LF（`\n`）换行，文件末尾保留一个空行。`.gitattributes` 已配置 `* text=auto eol=lf`，新增或修改的文件会自动标准化。
+
+如需手动转换现有文件：
+```bash
+# 将已跟踪文件的行尾标准化为 LF
+git add --renormalize .
+```
+
 ## 常用命令
 
 ```bash
