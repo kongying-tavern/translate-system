@@ -19,7 +19,8 @@
 | `-TemplateSlug` | `-t` | 导出模板 Slug（UUID 或 code） |
 | `-OutputDir` | `-o` | 输出目录 |
 | `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
-| `-Languages` | `-l` | 过滤语言，逗号分隔（如 `zh-Hans,en-US`），不传则导出全部 |
+| `-NoAlias` | `-n` | 输出文件名及字段名使用语言代码而非别名 |
+| `-Languages` | `-l` | 过滤语言，逗号分隔，支持 code 或 alias（如 `zh-Hans,简体中文`），不传则导出全部 |
 | `-Delete` | `-d` | 导出前清理输出目录 |
 | `-DeleteMode` | `-m` | 清理模式：`file` 仅删 `.json`，`folder` 删整个目录，默认 `file` |
 

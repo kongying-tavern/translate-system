@@ -14,6 +14,9 @@ param(
     [Parameter(HelpMessage = "鉴权信息文件路径（JSON 格式，包含 apiKey 和 apiSecret）")]
     [string]$AuthConfig,
 
+    [Parameter(HelpMessage = "不使用语言别名作为文件名，改用语言代码")]
+    [switch]$NoAlias,
+
     [Parameter(Mandatory, HelpMessage = "导出模板 Slug (UUID 或 code)，在 Web 端创建后使用")]
     [string]$TemplateSlug,
 
@@ -75,40 +78,68 @@ if ($Delete) {
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 
 # ── 获取项目语言列表 ──
-if ([string]::IsNullOrWhiteSpace($Languages)) {
-    Write-Host "正在获取项目语言列表..." -ForegroundColor Cyan
-    $langUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/languages"
-    try {
-        $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("x-api-key", $ApiKey)
-        $wc.Headers.Add("x-api-secret", $ApiSecret)
-        $rawJson = $wc.DownloadString($langUrl)
-        $langObj = $rawJson | ConvertFrom-Json
-        if ($langObj.code -ne 0) { throw $langObj.message }
-        $langCodes = $langObj.data | ForEach-Object { $_.languageCode }
-        if ($langCodes.Count -eq 0) { throw "项目没有配置任何语言" }
-        Write-Host "发现 $($langCodes.Count) 种语言: $($langCodes -join ', ')" -ForegroundColor Cyan
-    } catch {
-        Write-Host "获取语言列表失败: $_" -ForegroundColor Red
-        exit 1
+Write-Host "正在获取项目语言列表..." -ForegroundColor Cyan
+$langUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/languages"
+$aliasMap = @{}
+$codeMap = @{}
+$allCodes = @()
+try {
+    $wc = New-Object System.Net.WebClient
+    $wc.Headers.Add("x-api-key", $ApiKey)
+    $wc.Headers.Add("x-api-secret", $ApiSecret)
+    $rawJson = $wc.DownloadString($langUrl)
+    $langObj = $rawJson | ConvertFrom-Json
+    if ($langObj.code -ne 0) { throw $langObj.message }
+    foreach ($item in $langObj.data) {
+        $allCodes += $item.languageCode
+        if ($item.alias) {
+            $aliasMap[$item.languageCode] = $item.alias
+            $codeMap[$item.alias] = $item.languageCode
+        }
     }
-} else {
-    $langCodes = $Languages -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+    if ($allCodes.Count -eq 0) { throw "项目没有配置任何语言" }
+} catch {
+    Write-Host "获取语言列表失败: $_" -ForegroundColor Red
+    exit 1
 }
+
+# 解析目标语言（支持 code 和 alias 匹配）
+$langCodes = @()
+if ([string]::IsNullOrWhiteSpace($Languages)) {
+    $langCodes = $allCodes
+} else {
+    foreach ($entry in ($Languages -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })) {
+        if ($allCodes -contains $entry) {
+            $langCodes += $entry
+        } elseif ($codeMap.ContainsKey($entry)) {
+            $langCodes += $codeMap[$entry]
+        } else {
+            Write-Host "警告: 未匹配到语言: $entry" -ForegroundColor Yellow
+        }
+    }
+}
+if ($langCodes.Count -eq 0) { Write-Host "错误: 没有匹配的语言可供导出" -ForegroundColor Red; exit 1 }
+Write-Host "发现 $($langCodes.Count) 种语言: $($langCodes -join ', ')" -ForegroundColor Cyan
 
 # ── 逐语言导出 ──
 $exportUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/exports/generate"
 $succeeded = 0
 $failed = 0
 
-foreach ($lang in $langCodes) {
+foreach ($code in $langCodes) {
+    if ($NoAlias) {
+        $name = $code
+    } else {
+        $name = if ($aliasMap.ContainsKey($code)) { $aliasMap[$code] } else { $code }
+    }
+
     $body = @{
         templateSlug  = $TemplateSlug
-        languageCodes = @($lang)
+        languageCodes = @($code)
         filterTags    = @()
     } | ConvertTo-Json
 
-    Write-Host "导出 $lang ..." -NoNewline
+    Write-Host "导出 $code ..." -NoNewline
 
     try {
         $wc = New-Object System.Net.WebClient
@@ -122,7 +153,7 @@ foreach ($lang in $langCodes) {
             $format = $respObj.data.format
             $encoding = $respObj.data.encoding
             $content = $respObj.data.content
-            $outFile = Join-Path $OutputDir "$lang.$format"
+            $outFile = Join-Path $OutputDir "$name.$format"
             if ($encoding -eq 'base64') {
                 [Convert]::FromBase64String($content) | Set-Content -Path $outFile -Encoding Byte
             } else {

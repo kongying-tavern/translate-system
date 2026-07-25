@@ -15,6 +15,7 @@ usage() {
 
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
+  -n, --no-alias              不使用语言别名作为文件名，改用语言代码
   -l, --languages <list>      过滤语言，逗号分隔（如 zh-Hans,en-US），默认全部
   -d, --delete                导出前清理已有文件
   -m, --delete-mode <mode>    清理模式: file|folder (默认 file)
@@ -61,6 +62,7 @@ while [[ $# -gt 0 ]]; do
     -t|--template)     TEMPLATE_SLUG="$2"; shift 2 ;;
     -o|--output)       OUTPUT_DIR="$2"; shift 2 ;;
     -a|--auth-config)  AUTH_CONFIG="$2"; shift 2 ;;
+    -n|--no-alias)     NO_ALIAS=true; shift ;;
     -l|--languages)    LANGUAGES="$2"; shift 2 ;;
     -d|--delete)       DELETE=true; shift ;;
     -m|--delete-mode)  DELETE_MODE="$2"; shift 2 ;;
@@ -110,33 +112,72 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 # ── 获取项目语言列表 ──
-if [[ -z "${LANGUAGES:-}" ]]; then
-  echo -e "${CYAN}正在获取项目语言列表...${NC}"
-  LANG_RESP=$(curl -s -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
-    "$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/languages")
-  if [[ -z "$LANG_RESP" ]]; then echo -e "${RED}获取语言列表失败: API 返回空响应${NC}"; exit 1; fi
-  if [[ "$(echo "$LANG_RESP" | json_field '.code')" != "0" ]]; then
-    echo -e "${RED}获取语言列表失败: $(echo "$LANG_RESP" | json_field '.message')${NC}"; exit 1
-  fi
-  LANGUAGES=$(echo "$LANG_RESP" | json_field '.data[].languageCode' | tr '\n' ',')
-  LANGUAGES="${LANGUAGES%,}"
-  if [[ -z "$LANGUAGES" ]]; then echo -e "${RED}项目没有配置任何语言${NC}"; exit 1; fi
-  echo -e "${CYAN}发现语言: $LANGUAGES${NC}"
+echo -e "${CYAN}正在获取项目语言列表...${NC}"
+LANG_RESP=$(curl -s -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
+  "$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/languages")
+if [[ -z "$LANG_RESP" ]]; then echo -e "${RED}获取语言列表失败: API 返回空响应${NC}"; exit 1; fi
+if [[ "$(echo "$LANG_RESP" | json_field '.code')" != "0" ]]; then
+  echo -e "${RED}获取语言列表失败: $(echo "$LANG_RESP" | json_field '.message')${NC}"; exit 1
 fi
+
+declare -A ALIAS_MAP CODE_MAP IS_CODE
+ALL_CODES=()
+while IFS='|' read -r code alias; do
+  ALL_CODES+=("$code")
+  IS_CODE["$code"]=1
+  if [[ -n "$alias" ]]; then
+    ALIAS_MAP["$code"]="$alias"
+    CODE_MAP["$alias"]="$code"
+  fi
+done < <(echo "$LANG_RESP" | node -e "
+  var input = '';
+  process.stdin.on('data',function(c){input+=c});
+  process.stdin.on('end',function(){
+    var d=JSON.parse(input).data||[];
+    d.forEach(function(x){console.log(x.languageCode+'|'+(x.alias||''))});
+  });
+")
+if [[ ${#ALL_CODES[@]} -eq 0 ]]; then echo -e "${RED}项目没有配置任何语言${NC}"; exit 1; fi
+
+# 解析目标语言（支持 code 和 alias 匹配）
+LANG_CODES=()
+if [[ -z "${LANGUAGES:-}" ]]; then
+  LANG_CODES=("${ALL_CODES[@]}")
+else
+  IFS=',' read -ra FILTER_LIST <<< "$LANGUAGES"
+  for entry in "${FILTER_LIST[@]}"; do
+    entry="${entry// /}"
+    [[ -z "$entry" ]] && continue
+    if [[ -n "${IS_CODE[$entry]:-}" ]]; then
+      LANG_CODES+=("$entry")
+    elif [[ -n "${CODE_MAP[$entry]:-}" ]]; then
+      LANG_CODES+=("${CODE_MAP[$entry]}")
+    else
+      echo -e "${YELLOW}警告: 未匹配到语言: $entry${NC}"
+    fi
+  done
+fi
+if [[ ${#LANG_CODES[@]} -eq 0 ]]; then echo -e "${RED}没有匹配的语言可供导出${NC}"; exit 1; fi
+echo -e "${CYAN}发现语言: ${LANG_CODES[*]}${NC}"
 
 # ── 逐语言导出 ──
 EXPORT_URL="$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/exports/generate"
 SUCCEEDED=0
 FAILED=0
 
-IFS=',' read -ra LANG_ARRAY <<< "$LANGUAGES"
-for LANG in "${LANG_ARRAY[@]}"; do
-  LANG="${LANG// /}"
-  [[ -z "$LANG" ]] && continue
+for CODE in "${LANG_CODES[@]}"; do
+  CODE="${CODE// /}"
+  [[ -z "$CODE" ]] && continue
 
-  echo -n "导出 $LANG ..."
+  if [[ "${NO_ALIAS:-false}" = "true" ]]; then
+    NAME="$CODE"
+  else
+    NAME="${ALIAS_MAP[$CODE]:-$CODE}"
+  fi
 
-  BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$LANG\"],\"filterTags\":[]}"
+  echo -n "导出 $CODE ..."
+
+  BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$CODE\"],\"filterTags\":[]}"
   RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
     -H "Content-Type: application/json" -d "$BODY" "$EXPORT_URL")
   [[ -z "$RESP" ]] && { echo -e "${RED} 错误: API 返回空响应${NC}"; ((++FAILED)); continue; }
@@ -144,7 +185,7 @@ for LANG in "${LANG_ARRAY[@]}"; do
   if [[ "$(echo "$RESP" | json_field '.code')" = "0" ]]; then
     FORMAT=$(echo "$RESP" | json_field '.data.format')
     ENCODING=$(echo "$RESP" | json_field '.data.encoding')
-    OUT_FILE="$OUTPUT_DIR/$LANG.$FORMAT"
+    OUT_FILE="$OUTPUT_DIR/$NAME.$FORMAT"
     if [[ "$ENCODING" = "base64" ]]; then
       echo "$RESP" | json_field '.data.content' | base64 -d > "$OUT_FILE"
     else
