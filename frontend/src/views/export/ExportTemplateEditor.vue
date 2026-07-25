@@ -7,11 +7,10 @@
       <el-form-item label="描述"><el-input v-model="form.description" type="textarea" /></el-form-item>
       <el-form-item label="输出格式">
         <el-select v-model="form.formatType" style="width:100%">
-          <el-option label="扁平 JSON {Key: 译文}" value="flat-json" />
-          <el-option label="嵌套 JSON {语言: {Key: 译文}}" value="json" />
-          <el-option label="CSV" value="csv" />
-          <el-option label="Properties" value="properties" />
-          <el-option label="XML" value="xml" />
+          <el-option v-for="fmt in formatOptions" :key="fmt.value" :label="fmt.label" :value="fmt.value">
+            <span>{{ fmt.value }}</span>
+            <span style="float:right;color:#909399;font-size:12px">{{ fmt.tags }}</span>
+          </el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="配置">
@@ -33,6 +32,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
+import { EXPORT_FORMAT_MAP, type ExportFormatMeta } from '@/data/exportFormats'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -43,6 +43,14 @@ const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
 const formRef = ref<FormInstance>()
+
+const formatOptions = computed(() =>
+  Object.entries(EXPORT_FORMAT_MAP).map(([value, meta]) => ({
+    value,
+    label: `${value} — ${meta.format}`,
+    tags: meta.tags.join('、'),
+  }))
+)
 
 const form = reactive({ name: '', code: '', description: '', formatType: 'json' })
 const configForm = reactive({ skipIdentical: false, skipEmpty: false, useCodeKey: false })

@@ -31,7 +31,17 @@
       <el-table :data="templates" stripe style="margin-top:16px">
         <el-table-column prop="name" label="模板名称" />
         <el-table-column label="标识" width="140"><template #default="{ row }">{{ row.code || '-' }}</template></el-table-column>
-        <el-table-column prop="formatType" label="格式" width="150" />
+        <el-table-column label="格式" width="180">
+          <template #default="{ row }">
+            <el-tooltip placement="top">
+              <template #content>
+                <div>格式：{{ getFormatMeta(row.formatType).format }}</div>
+                <div>标签：{{ getFormatMeta(row.formatType).tags.join('、') }}</div>
+              </template>
+              <span>{{ row.formatType }}</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
         <el-table-column prop="description" label="描述" />
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
@@ -56,6 +66,7 @@ import { getExportTemplates, deleteExportTemplate, generateExport } from '@/api/
 import { getProjectLanguages } from '@/api/language'
 import { getTags } from '@/api/translation'
 import type { ExportTemplate } from '@/types/models'
+import { getFormatMeta } from '@/data/exportFormats'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { ElMessage } from 'element-plus'
 
