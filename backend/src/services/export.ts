@@ -1,4 +1,5 @@
 import { prisma } from '../index'
+import yaml from 'js-yaml'
 
 export async function listTemplates(projectId: string) {
   return prisma.exportTemplate.findMany({ where: { projectId }, orderBy: { createdAt: 'desc' } })
@@ -59,6 +60,8 @@ export function exportTranslations(keys: any[], languageCodes: string[], formatT
   switch (formatType) {
     case 'flat-json': return [exportFlatJSON(translations, languageCodes, config), 'json']
     case 'nested-json': return [exportJSON(translations, languageCodes, config), 'json']
+    case 'flat-yaml': return [exportFlatYAML(translations, languageCodes, config), 'yaml']
+    case 'nested-yaml': return [exportNestedYAML(translations, languageCodes, config), 'yaml']
     case 'csv': return [exportCSV(translations, languageCodes, config), 'csv']
     case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
     case 'xml': return [exportXML(translations, languageCodes, config), 'xml']
@@ -97,6 +100,24 @@ function exportProperties(translations: any[], langs: string[], config?: any) {
 function exportXML(translations: any[], langs: string[], config?: any) {
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<resources>\n'; for (const lang of langs) { const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config); xml += '  <language code="' + xmlEscape(name) + '">\n'; for (const t of translations) { if (t.languageCode === lang) xml += '    <string name="' + xmlEscape(t.translationKey) + '">' + xmlEscape(t.translatedText) + '</string>\n' }; xml += '  </language>\n' }
   xml += '</resources>\n'; return xml
+}
+
+function exportFlatYAML(translations: any[], langs: string[], config?: any) {
+  if (!langs.length) return ''
+  const lang = langs[0]
+  const items: Record<string, string> = {}
+  for (const t of translations) { if (t.languageCode === lang) items[t.translationKey] = t.translatedText }
+  return yaml.dump(items, { noRefs: true, quotingType: '"', forceQuotes: false, lineWidth: -1 })
+}
+
+function exportNestedYAML(translations: any[], langs: string[], config?: any) {
+  const result: any = {}
+  for (const lang of langs) {
+    const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
+    result[name] = {}
+    for (const t of translations) { if (t.languageCode === lang) result[name][t.translationKey] = t.translatedText }
+  }
+  return yaml.dump(result, { noRefs: true, quotingType: '"', forceQuotes: false, lineWidth: -1 })
 }
 
 function csvEscape(s: string) { if (/[,"\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'; return s }
