@@ -134,7 +134,6 @@ for LANG in "${LANG_ARRAY[@]}"; do
   LANG="${LANG// /}"
   [[ -z "$LANG" ]] && continue
 
-  OUT_FILE="$OUTPUT_DIR/$LANG.json"
   echo -n "导出 $LANG ..."
 
   BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$LANG\"],\"filterTags\":[]}"
@@ -143,7 +142,14 @@ for LANG in "${LANG_ARRAY[@]}"; do
   [[ -z "$RESP" ]] && { echo -e "${RED} 错误: API 返回空响应${NC}"; ((++FAILED)); continue; }
 
   if [[ "$(echo "$RESP" | json_field '.code')" = "0" ]]; then
-    echo "$RESP" | json_field '.data.content' > "$OUT_FILE"
+    FORMAT=$(echo "$RESP" | json_field '.data.format')
+    ENCODING=$(echo "$RESP" | json_field '.data.encoding')
+    OUT_FILE="$OUTPUT_DIR/$LANG.$FORMAT"
+    if [[ "$ENCODING" = "base64" ]]; then
+      echo "$RESP" | json_field '.data.content' | base64 -d > "$OUT_FILE"
+    else
+      echo "$RESP" | json_field '.data.content' > "$OUT_FILE"
+    fi
     echo -e "${GREEN} -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)${NC}"
     ((++SUCCEEDED))
   else

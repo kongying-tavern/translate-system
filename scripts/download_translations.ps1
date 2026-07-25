@@ -108,7 +108,6 @@ foreach ($lang in $langCodes) {
         filterTags    = @()
     } | ConvertTo-Json
 
-    $outFile = Join-Path $OutputDir "$lang.json"
     Write-Host "导出 $lang ..." -NoNewline
 
     try {
@@ -120,9 +119,17 @@ foreach ($lang in $langCodes) {
         $respObj = $rawJson | ConvertFrom-Json
 
         if ($respObj.code -eq 0) {
+            $format = $respObj.data.format
+            $encoding = $respObj.data.encoding
             $content = $respObj.data.content
-            $content | Out-File -FilePath $outFile -Encoding utf8
-            Write-Host " -> $outFile ($($content.Length) 字符)" -ForegroundColor Green
+            $outFile = Join-Path $OutputDir "$lang.$format"
+            if ($encoding -eq 'base64') {
+                [Convert]::FromBase64String($content) | Set-Content -Path $outFile -Encoding Byte
+            } else {
+                $content | Out-File -FilePath $outFile -Encoding utf8
+            }
+            $fileSize = if ($encoding -eq 'base64') { [Convert]::FromBase64String($content).Length } else { $content.Length }
+            Write-Host " -> $outFile ($fileSize 字节)" -ForegroundColor Green
             $succeeded++
         } else {
             Write-Host " 错误: $($respObj.message)" -ForegroundColor Red
