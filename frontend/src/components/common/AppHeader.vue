@@ -79,6 +79,7 @@ import { getProject, getProjects, updateProject, deleteProject } from '@/api/pro
 import client from '@/api/client'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import EmptyState from './EmptyState.vue'
+import type { ApiKey } from '@/types/models'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -115,7 +116,7 @@ async function handlePwd() {
 const filteredProjects = computed(() => {
   if (!searchProject.value) return allProjects.value
   const q = searchProject.value.toLowerCase()
-  return allProjects.value.filter((p: any) => p.name.toLowerCase().includes(q))
+  return allProjects.value.filter(p => p.name.toLowerCase().includes(q))
 })
 
 watch(projectSlug, async (slug) => {
@@ -133,7 +134,7 @@ watch(settingsVisible, async (v) => {
   }
 })
 
-function switchProject(p: any) {
+function switchProject(p) {
   switcherVisible.value = false
   const slug = p.code || p.id
   const suffix = projectSlug.value ? route.path.split(projectSlug.value)[1] || '/translations' : ''
@@ -155,7 +156,7 @@ async function saveSettings() {
 
 // ── API Keys ──
 const apikeyVisible = ref(false)
-const apiKeys = ref<any[]>([])
+const apiKeys = ref<ApiKey[]>([])
 const newKeyName = ref('')
 const newSecret = ref('')
 
@@ -164,10 +165,10 @@ async function createApiKey() {
   if (!newKeyName.value.trim()) { ElMessage.warning('请输入名称'); return }
   try { const { data: res } = await client.post('/apikey/me/keys', { name: newKeyName.value.trim() }); apiKeys.value.unshift(res.data); newSecret.value = res.data.secret; newKeyName.value = '' } catch { ElMessage.error('创建失败') }
 }
-async function toggleApiKey(row: any) {
+async function toggleApiKey(row: ApiKey) {
   try { await client.put('/apikey/me/keys/' + row.id, { enabled: !row.enabled }); row.enabled = !row.enabled } catch { ElMessage.error('操作失败') }
 }
-async function deleteApiKey(row: any) {
+async function deleteApiKey(row: ApiKey) {
   try { await client.delete('/apikey/me/keys/' + row.id); apiKeys.value = apiKeys.value.filter(k => k.id !== row.id); ElMessage.success('已删除') } catch { ElMessage.error('删除失败') }
 }
 </script>

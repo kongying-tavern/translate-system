@@ -54,6 +54,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useLoadingStore } from '@/stores/loading'
 import { storeToRefs } from 'pinia'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import type { GroupedRow } from '@/stores/translation'
 
 const auth = useAuthStore()
 const loadingStore = useLoadingStore()
@@ -129,7 +130,7 @@ async function load() {
     const lang = globalLang.value || projectLanguages.value[0]?.languageCode
     const isRowSearch = appliedSearch.value.startsWith('#')
     await transStore.fetchTranslations(projectSlug.value, { page: 1, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: isRowSearch ? undefined : appliedSearch.value })
-    if (isRowSearch) { const num = parseInt(appliedSearch.value.slice(1)); if (!isNaN(num)) rows.value = rows.value.filter((r: any) => r.rowIndex === num) }
+    if (isRowSearch) { const num = parseInt(appliedSearch.value.slice(1)); if (!isNaN(num)) rows.value = rows.value.filter((r: GroupedRow) => r.rowIndex === num) }
     buildCache(); syncRowLangs(); tableKey.value++; nextTick(() => { bindSortable(); document.querySelector('.el-table__body-wrapper')?.scrollTo(0, 0) })
   } finally { loadingStore.stop(); setTimeout(() => { resetting = false; loadingMore.value = false }, 600) }
 }
@@ -149,24 +150,24 @@ async function loadMore() {
 function onGlobalLangChange(lang: string) { rowLangs.value = rows.value.map(() => lang) }
 function onRowLangChange(index: number, lang: string) { rowLangs.value[index] = lang }
 
-async function onSave(row: any, langCode: string) {
+async function onSave(row: GroupedRow, langCode: string) {
   const ck = row.translationKey + '|' + langCode; const text = transCache[ck] ?? ''; const prev = row.translations[langCode]?.translatedText ?? ''
   if (text === prev) return
   try { await saveTranslation(projectSlug.value, row.translationKey, langCode, { translatedText: text }); if (row.translations[langCode]) row.translations[langCode].translatedText = text; else row.translations[langCode] = { id: '', translatedText: text }; console.log('[翻译]', { key: row.translationKey, lang: langCode, prev: prev || '(空)', new: text }); ElMessage.success(langCode + ': 译文已保存') } catch { ElMessage.error('保存失败') }
 }
 
-async function onCtxSave(row: any, text: string) { const prev = row.context; if (text === prev) return; try { await saveTranslation(projectSlug.value, row.translationKey, '', { context: text }); row.context = text; console.log('[备注]', { key: row.translationKey, prev, new: text }); ElMessage.success('备注已保存') } catch { ElMessage.error('保存失败') } }
+async function onCtxSave(row: GroupedRow, text: string) { const prev = row.context; if (text === prev) return; try { await saveTranslation(projectSlug.value, row.translationKey, '', { context: text }); row.context = text; console.log('[备注]', { key: row.translationKey, prev, new: text }); ElMessage.success('备注已保存') } catch { ElMessage.error('保存失败') } }
 
-async function onKeySave(row: any) {
+async function onKeySave(row: GroupedRow) {
   const oldKey = row.translationKey; const ek = editKey.value; const newKey = ek.get(oldKey)
   if (newKey === undefined || newKey === oldKey) return
   if (!newKey.trim()) { ElMessage.warning('Key 不能为空'); ek.delete(oldKey); return }
   try { await updateKey(projectSlug.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText); ek.delete(oldKey); editSource.value.delete(oldKey); for (const lang of Object.keys(row.translations)) { const oc = oldKey + '|' + lang; const nc = newKey + '|' + lang; if (oc in transCache) { transCache[nc] = transCache[oc]; delete transCache[oc] } }; row.translationKey = newKey.trim(); ElMessage.success('Key 已更新') } catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Key 更新失败'); ek.delete(oldKey) }
 }
 
-async function onSourceSave(row: any) { const oldKey = row.translationKey; const es = editSource.value; const newSrc = es.get(oldKey); if (newSrc === undefined || newSrc === row.sourceText) return; try { await updateKey(projectSlug.value, oldKey, oldKey, newSrc); es.delete(oldKey); row.sourceText = newSrc; ElMessage.success('原文已更新') } catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败'); es.delete(oldKey) } }
+async function onSourceSave(row: GroupedRow) { const oldKey = row.translationKey; const es = editSource.value; const newSrc = es.get(oldKey); if (newSrc === undefined || newSrc === row.sourceText) return; try { await updateKey(projectSlug.value, oldKey, oldKey, newSrc); es.delete(oldKey); row.sourceText = newSrc; ElMessage.success('原文已更新') } catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败'); es.delete(oldKey) } }
 
-async function onTagsChange(row: any, tags: string[]) { try { await saveTranslation(projectSlug.value, row.translationKey, '', { tags }); row.tags = tags; loadTags() } catch { ElMessage.error('保存失败') } }
+async function onTagsChange(row: GroupedRow, tags: string[]) { try { await saveTranslation(projectSlug.value, row.translationKey, '', { tags }); row.tags = tags; loadTags() } catch { ElMessage.error('保存失败') } }
 function openCreate() { Object.assign(form, { translationKey: '', sourceText: '', tags: [] }); showCreateDialog.value = true }
 
 async function handleCreate() {
@@ -176,7 +177,7 @@ async function handleCreate() {
   finally { saving.value = false }
 }
 
-async function handleDelete(row: any) {
+async function handleDelete(row: GroupedRow) {
   try { await ElMessageBox.confirm('确定要删除 Key ' + row.translationKey + ' 的所有翻译吗？', '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) } catch { return }
   try { await transStore.remove(projectSlug.value, row.keyId); ElMessage.success('删除成功'); loadTags(); load() } catch { ElMessage.error('删除失败') }
 }

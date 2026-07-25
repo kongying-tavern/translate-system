@@ -111,7 +111,7 @@ async function doTextImport() {
   if (mode.value === 'translate' && needLang.value && !importLang.value) { ElMessage.warning('请选择语言'); return }
   importing.value = true
   try {
-    const body: Record<string, unknown> = { data: textInput.value, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
+    const body = { data: textInput.value, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post('/projects/'+projectSlug.value+'/imports/execute', body)
     const d1 = res.data; ElMessage.success('导入完成: ' + d1.imported + ' 条' + (d1.created ? '，' + d1.created + ' 新增' : '') + (d1.skipped ? '，' + d1.skipped + ' 跳过（已有）' : ''))
     textInput.value = ''
@@ -125,7 +125,7 @@ async function doImport() {
   importing.value = true
   try {
     const text = await importFile.value.text()
-    const body: Record<string, unknown> = { data: text, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
+    const body = { data: text, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post('/projects/'+projectSlug.value+'/imports/execute', body)
     const d1 = res.data; ElMessage.success('导入完成: ' + d1.imported + ' 条' + (d1.created ? '，' + d1.created + ' 新增' : '') + (d1.skipped ? '，' + d1.skipped + ' 跳过（已有）' : ''))
     importFile.value = null

@@ -6,10 +6,28 @@ export interface GroupedRow {
   translations: Record<string, { id: string; translatedText: string; isReviewed?: boolean; reviewerComment?: string }>
 }
 
-export function getTranslations(projectId: string, params: Record<string, any>) {
+export interface CreateTranslationData {
+  translationKey: string
+  languageCode: string
+  sourceText: string
+  translatedText?: string
+  context?: string
+  tags?: string[]
+}
+
+export interface TranslationQuery {
+  page: number
+  pageSize: number
+  languageCode?: string
+  search?: string
+  tags?: string
+  untransOnly?: boolean
+}
+
+export function getTranslations(projectId: string, params: TranslationQuery) {
   return client.get<ApiResponse<PageData<GroupedRow>>>(`/projects/${projectId}/translations`, { params })
 }
-export function createTranslation(projectId: string, data: any) {
+export function createTranslation(projectId: string, data: CreateTranslationData) {
   return client.post<ApiResponse<any>>(`/projects/${projectId}/translations`, data)
 }
 export function saveTranslation(projectId: string, key: string, langCode: string, data: { translatedText?: string; tags?: string[]; context?: string }) {

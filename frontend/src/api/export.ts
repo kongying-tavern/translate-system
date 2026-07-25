@@ -5,13 +5,13 @@ import type { ExportTemplate } from '@/types/models'
 export function getExportTemplates(projectId: string) {
   return client.get<ApiResponse<ExportTemplate[]>>(`/projects/${projectId}/exports/templates`)
 }
-export function createExportTemplate(projectId: string, data: any) {
+export function createExportTemplate(projectId: string, data: Omit<ExportTemplate, 'id' | 'projectId'>) {
   return client.post<ApiResponse<ExportTemplate>>(`/projects/${projectId}/exports/templates`, data)
 }
 export function getExportTemplate(projectId: string, id: string) {
   return client.get<ApiResponse<ExportTemplate>>(`/projects/${projectId}/exports/templates/${id}`)
 }
-export function updateExportTemplate(projectId: string, id: string, data: any) {
+export function updateExportTemplate(projectId: string, id: string, data: Partial<Omit<ExportTemplate, 'id' | 'projectId'>>) {
   return client.put<ApiResponse<ExportTemplate>>(`/projects/${projectId}/exports/templates/${id}`, data)
 }
 export function deleteExportTemplate(projectId: string, id: string) {

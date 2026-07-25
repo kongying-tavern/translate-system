@@ -43,6 +43,7 @@ import client from '@/api/client'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { ElMessage } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import type { ProjectLanguage } from '@/types/models'
 
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
@@ -60,7 +61,7 @@ const sortedBaseLanguages = computed(() => [...baseLanguages.value].sort((a, b) 
 const loadingStore = useLoadingStore()
 function loadLangs() { loadingStore.start(); langStore.fetchProjectLanguages(projectSlug.value).finally(() => loadingStore.stop()) }
 
-async function onAliasSave(row: any) {
+async function onAliasSave(row: ProjectLanguage) {
   const alias = aliasCache[row.id]?.trim() ?? ''
   if (alias === (row.alias || '')) return
   try { await client.put('/projects/' + projectSlug.value + '/languages/' + row.id + '/alias', { alias }); row.alias = alias || null; ElMessage.success('已更新') } catch { ElMessage.error('更新失败') }
@@ -94,7 +95,7 @@ async function moveDown(index: number) {
   await saveOrder(cur); await saveOrder(next)
 }
 
-async function saveOrder(row: any) {
+async function saveOrder(row: ProjectLanguage) {
   await client.put('/projects/' + projectSlug.value + '/languages/' + row.id + '/sortOrder', { sortOrder: row.sortOrder }).catch(() => {})
 }
 </script>

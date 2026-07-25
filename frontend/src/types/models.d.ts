@@ -74,6 +74,26 @@ export interface ExportTemplate {
   config: unknown
 }
 
+export interface ProjectMember {
+  id: string
+  userId: string
+  username: string
+  email: string
+  role: string
+  projectRole: string
+  createdAt: string
+}
+
+export interface ApiKey {
+  id: string
+  name: string
+  apiKey: string
+  secret: string
+  enabled: boolean
+  lastUsed: string | null
+  createdAt: string
+}
+
 export interface AuthResponse {
   accessToken: string
   refreshToken: string

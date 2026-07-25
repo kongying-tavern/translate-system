@@ -1,5 +1,14 @@
 import { prisma } from '../index'
 
+export interface BatchUpsertItem {
+  translationKey: string
+  sourceText?: string
+  context?: string
+  tags?: string[]
+  languageCode: string
+  translatedText?: string
+}
+
 export async function listGrouped(projectId: string, query: {
   languageCode?: string; search?: string; tags?: string[]; untransOnly?: boolean; page: number; pageSize: number;
 }) {
@@ -116,12 +125,12 @@ export async function deleteTranslation(id: string) {
   return prisma.translationKey.delete({ where: { id } })
 }
 
-export async function batchUpsert(projectId: string, items: any[]) {
+export async function batchUpsert(projectId: string, items: BatchUpsertItem[]) {
   for (const item of items) {
     let key = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: item.translationKey } } })
     if (!key) {
       key = await prisma.translationKey.create({
-        data: { projectId, key: item.translationKey, sourceText: item.sourceText, context: item.context || '', tags: item.tags || [] }
+        data: { projectId, key: item.translationKey, sourceText: item.sourceText || '', context: item.context || '', tags: item.tags || [] }
       })
     }
     await prisma.translationValue.upsert({
