@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../index'
+import { AppError } from '../utils/AppError'
 
 export interface BatchUpsertItem {
   translationKey: string
@@ -44,10 +45,15 @@ export async function listGrouped(projectId: string, query: {
       if (query.tags?.length)
         return query.tags.some(t => k.tags?.includes(t))
       if (query.search) {
-        const s = query.search; if (s.startsWith('/') && s.endsWith('/') && s.length > 2) {
-          try { const re = new RegExp(s.slice(1, -1), 'i'); return re.test(k.key) || re.test(k.sourceText) || k.values.some(v => re.test(v.translatedText)) || re.test(k.context || '') }
+        const s = query.search
+        if (s.startsWith('/') && s.endsWith('/') && s.length > 2) {
+          try {
+            const re = new RegExp(s.slice(1, -1), 'i')
+            return re.test(k.key) || re.test(k.sourceText) || k.values.some(v => re.test(v.translatedText)) || re.test(k.context || '')
+          }
           catch {}
-        }; return k.key.toLowerCase().includes(s.toLowerCase()) || k.sourceText.toLowerCase().includes(s.toLowerCase()) || k.values.some(v => v.translatedText.toLowerCase().includes(s.toLowerCase())) || k.context?.toLowerCase().includes(s.toLowerCase())
+        }
+        return k.key.toLowerCase().includes(s.toLowerCase()) || k.sourceText.toLowerCase().includes(s.toLowerCase()) || k.values.some(v => v.translatedText.toLowerCase().includes(s.toLowerCase())) || k.context?.toLowerCase().includes(s.toLowerCase())
       }
       return true
     })
@@ -131,12 +137,12 @@ export async function saveForLang(projectId: string, translationKey: string, lan
 export async function updateKeyAndSource(projectId: string, oldKey: string, newKey: string, sourceText?: string) {
   const existing = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: oldKey } } })
   if (!existing)
-    throw { code: 1003, message: 'Key not found' }
+    throw new AppError(1003, 'Key not found')
 
   if (oldKey !== newKey) {
     const dup = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: newKey } } })
     if (dup)
-      throw { code: 1004, message: 'Key 已存在，不能重复' }
+      throw new AppError(1004, 'Key 已存在，不能重复')
   }
 
   const updateData: Prisma.TranslationKeyUpdateInput = { key: newKey }
@@ -167,7 +173,7 @@ export async function batchUpsert(projectId: string, items: BatchUpsertItem[]) {
   }
 }
 
-export async function getForExport(projectId: string, languageCodes: string[]): Promise<Prisma.TranslationKeyGetPayload<{ include: { values: true } }>[]> {
+export async function getForExport(projectId: string, _languageCodes: string[]): Promise<Prisma.TranslationKeyGetPayload<{ include: { values: true } }>[]> {
   const keys = await prisma.translationKey.findMany({
     where: { projectId },
     include: { values: true },

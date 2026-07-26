@@ -40,7 +40,7 @@ async function handleSave() {
       return
     }
 
-    const data = { name: form.name, templateId: form.templateId || undefined, overrideConfig: override }
+    const data = { name: form.name, templateId: form.templateId || '', overrideConfig: override }
     if (isEdit.value) {
       await updateConfig(projectSlug.value, configId.value, data)
     }

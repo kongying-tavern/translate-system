@@ -38,9 +38,10 @@ onMounted(async () => {
     form.description = res.data.description || ''
     form.formatType = res.data.formatType
     if (res.data.config) {
-      configForm.skipIdentical = !!res.data.config.skipIdentical
-      configForm.skipEmpty = !!res.data.config.skipEmpty
-      configForm.useCodeKey = !!res.data.config.useCodeKey
+      const cfg = res.data.config as Record<string, unknown>
+      configForm.skipIdentical = !!cfg.skipIdentical
+      configForm.skipEmpty = !!cfg.skipEmpty
+      configForm.useCodeKey = !!cfg.useCodeKey
     }
   }
 })

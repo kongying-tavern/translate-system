@@ -5,6 +5,7 @@ import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
 import { requireRole } from '../middleware/role'
 import * as authService from '../services/auth'
+import { AppError } from '../utils/AppError'
 
 export const authRoutes = Router()
 
@@ -28,7 +29,7 @@ export const authRoutes = Router()
  *     responses:
  *       200: { description: 成功, content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } } }
  */
-authRoutes.post('/register', async (req, res, next) => {
+authRoutes.post('/register', async (req, res) => {
   try {
     const { username, email, password } = req.body
     if (!username || !email || !password)
@@ -38,7 +39,10 @@ authRoutes.post('/register', async (req, res, next) => {
     const result = await authService.register(username, email, password)
     success(res, result)
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'register failed') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: 'register failed' }
+    error(res, err.code, err.message)
+  }
 })
 
 /**
@@ -60,7 +64,7 @@ authRoutes.post('/register', async (req, res, next) => {
  *     responses:
  *       200: { description: 返回 JWT token }
  */
-authRoutes.post('/login', async (req, res, next) => {
+authRoutes.post('/login', async (req, res) => {
   try {
     const { account, email, password } = req.body
     const loginAccount = account || email
@@ -69,7 +73,10 @@ authRoutes.post('/login', async (req, res, next) => {
     const result = await authService.login(loginAccount, password)
     success(res, result)
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'login failed') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: 'login failed' }
+    error(res, err.code, err.message)
+  }
 })
 
 /**
@@ -90,7 +97,7 @@ authRoutes.post('/login', async (req, res, next) => {
  *     responses:
  *       200: { description: 返回新的 token 对 }
  */
-authRoutes.post('/refresh', async (req, res, next) => {
+authRoutes.post('/refresh', async (req, res) => {
   try {
     const { refreshToken } = req.body
     if (!refreshToken)
@@ -98,7 +105,10 @@ authRoutes.post('/refresh', async (req, res, next) => {
     const result = await authService.refresh(refreshToken)
     success(res, result)
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'refresh failed') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: 'refresh failed' }
+    error(res, err.code, err.message)
+  }
 })
 
 /**
@@ -111,12 +121,17 @@ authRoutes.post('/refresh', async (req, res, next) => {
  *     responses:
  *       200: { description: 返回用户信息 }
  */
-authRoutes.get('/me', authMiddleware, async (req: AuthRequest, res, next) => {
-  try { success(res, await authService.getUser(req.userId!)) }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || 'failed') }
+authRoutes.get('/me', authMiddleware, async (req: AuthRequest, res) => {
+  try {
+    success(res, await authService.getUser(req.userId!))
+  }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: 'failed' }
+    error(res, err.code, err.message)
+  }
 })
 
-authRoutes.put('/me/password', authMiddleware, async (req: AuthRequest, res, next) => {
+authRoutes.put('/me/password', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { oldPassword, newPassword } = req.body
     if (!oldPassword || !newPassword)
@@ -126,21 +141,31 @@ authRoutes.put('/me/password', authMiddleware, async (req: AuthRequest, res, nex
     await authService.changeOwnPassword(req.userId!, oldPassword, newPassword)
     success(res, { updated: true })
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    error(res, err.code, err.message)
+  }
 })
 
 // ── User management (admin+) ──
-authRoutes.get('/users', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
-  try { success(res, await authService.listUsers()) }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+authRoutes.get('/users', authMiddleware, requireRole('admin'), async (req: AuthRequest, res) => {
+  try {
+    success(res, await authService.listUsers())
+  }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-authRoutes.put('/users/:id/role', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
-  try { success(res, await authService.updateUserRole(req.userId!, req.params.id, req.body.role)) }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+authRoutes.put('/users/:id/role', authMiddleware, requireRole('admin'), async (req: AuthRequest, res) => {
+  try {
+    success(res, await authService.updateUserRole(req.userId!, req.params.id, req.body.role))
+  }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    error(res, err.code, err.message)
+  }
 })
 
-authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
+authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: AuthRequest, res) => {
   try {
     const { username, email, password, role } = req.body
     if (!username || !email || !password)
@@ -149,15 +174,24 @@ authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: Auth
       return error(res, ErrCode.InvalidParams, '密码至少6位')
     success(res, await authService.createUser(username, email, password, role || 'member', req.userRole!))
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    error(res, err.code, err.message)
+  }
 })
 
-authRoutes.delete('/users/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
-  try { await authService.deleteUser(req.userId!, req.params.id); success(res, { deleted: true }) }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+authRoutes.delete('/users/:id', authMiddleware, requireRole('admin'), async (req: AuthRequest, res) => {
+  try {
+    await authService.deleteUser(req.userId!, req.params.id)
+    success(res, { deleted: true })
+  }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    error(res, err.code, err.message)
+  }
 })
 
-authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), async (req: AuthRequest, res, next) => {
+authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), async (req: AuthRequest, res) => {
   try {
     if (!req.body.password)
       return error(res, ErrCode.InvalidParams, '密码不能为空')
@@ -166,5 +200,8 @@ authRoutes.put('/users/:id/password', authMiddleware, requireRole('admin'), asyn
     await authService.changeUserPassword(req.userId!, req.params.id, req.body.password)
     success(res, { updated: true })
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    error(res, err.code, err.message)
+  }
 })

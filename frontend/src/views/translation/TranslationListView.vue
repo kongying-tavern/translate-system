@@ -80,12 +80,12 @@ function init() {
   load()
 }
 
-let sortable: unknown = null
+let sortable: { destroy: () => void } | null = null
 function bindSortable() {
   const el = document.querySelector('.el-table__body-wrapper tbody') as HTMLElement
   const hasFilter = appliedSearch.value || filterTags.value.length || untransOnly.value
   if (sortable) {
-    (sortable as { destroy: () => void }).destroy()
+    sortable.destroy()
     sortable = null
   }
   if (!el || auth.role === 'member' || hasFilter)

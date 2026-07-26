@@ -5,11 +5,12 @@ import { prisma } from '../index'
 import { ErrCode } from '../lib/errors'
 import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
+import { AppError } from '../utils/AppError'
 
 export const apiKeyRoutes = Router()
 
 // ── CRUD (JWT required) ──
-apiKeyRoutes.get('/me/keys', authMiddleware, async (req: AuthRequest, res, next) => {
+apiKeyRoutes.get('/me/keys', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const keys = await prisma.apiKey.findMany({
       where: { userId: req.userId! },
@@ -18,10 +19,10 @@ apiKeyRoutes.get('/me/keys', authMiddleware, async (req: AuthRequest, res, next)
     })
     success(res, keys)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-apiKeyRoutes.post('/me/keys', authMiddleware, async (req: AuthRequest, res, next) => {
+apiKeyRoutes.post('/me/keys', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { name } = req.body
     if (!name)
@@ -32,21 +33,21 @@ apiKeyRoutes.post('/me/keys', authMiddleware, async (req: AuthRequest, res, next
     const k = await prisma.apiKey.create({ data: { userId: req.userId!, name, apiKey, secret: secretHash } })
     success(res, { id: k.id, name: k.name, apiKey: k.apiKey, secret: rawSecret, createdAt: k.createdAt })
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-apiKeyRoutes.put('/me/keys/:id', authMiddleware, async (req: AuthRequest, res, next) => {
+apiKeyRoutes.put('/me/keys/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     await prisma.apiKey.update({ where: { id: req.params.id, userId: req.userId! }, data: { enabled: req.body.enabled } })
     success(res, null)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-apiKeyRoutes.delete('/me/keys/:id', authMiddleware, async (req: AuthRequest, res, next) => {
+apiKeyRoutes.delete('/me/keys/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     await prisma.apiKey.delete({ where: { id: req.params.id, userId: req.userId! } })
     success(res, null)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })

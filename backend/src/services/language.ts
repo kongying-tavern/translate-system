@@ -1,4 +1,5 @@
 import { prisma } from '../index'
+import { AppError } from '../utils/AppError'
 
 export async function getBaseLanguages() {
   return prisma.baseLanguage.findMany({ orderBy: { englishName: 'asc' } })
@@ -19,7 +20,7 @@ export async function listProjectLanguages(projectId: string) {
 export async function addProjectLanguage(projectId: string, languageCode: string) {
   const exists = await prisma.projectLanguage.findUnique({ where: { projectId_languageCode: { projectId, languageCode } } })
   if (exists)
-    throw { code: 1004, message: 'language already added to project' }
+    throw new AppError(1004, 'language already added to project')
   return prisma.projectLanguage.create({ data: { projectId, languageCode } })
 }
 

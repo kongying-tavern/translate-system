@@ -35,4 +35,6 @@ export function apiKeyAuth(requireRole?: string) {
   }
 }
 
-function sha256(s: string) { return crypto.createHash('sha256').update(s).digest('hex') }
+function sha256(s: string) {
+  return crypto.createHash('sha256').update(s).digest('hex')
+}

@@ -7,7 +7,9 @@ const PROJECT_ROLE_LEVEL: Record<string, number> = { admin: 3, maintainer: 2, me
 
 async function resolveProject(identifier: string) {
   let p = null
-  try { p = await prisma.project.findUnique({ where: { id: identifier } }) }
+  try {
+    p = await prisma.project.findUnique({ where: { id: identifier } })
+  }
   catch {}
   if (!p)
     p = await prisma.project.findUnique({ where: { code: identifier } })
@@ -26,7 +28,10 @@ export async function requireOwnership(req: AuthRequest, res: Response, next: Ne
     return next()
 
   // Project owner has full access
-  if (project.userId === req.userId!) { req.projectRole = 'admin'; return next() }
+  if (project.userId === req.userId!) {
+    req.projectRole = 'admin'
+    return next()
+  }
 
   // Check project membership
   const member = await prisma.projectMember.findUnique({

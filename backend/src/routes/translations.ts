@@ -6,11 +6,12 @@ import { error, success, successWithPage } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
 import * as transService from '../services/translation'
+import { AppError } from '../utils/AppError'
 
 export const translationRoutes = Router()
 
 // Grouped list - one row per key, all language translations embedded
-translationRoutes.get('/:projectSlug/translations', authMiddleware, requireOwnership, async (req, res, next) => {
+translationRoutes.get('/:projectSlug/translations', authMiddleware, requireOwnership, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string || '1'))
     const pageSize = Math.min(100, parseInt(req.query.pageSize as string || '20'))
@@ -24,19 +25,22 @@ translationRoutes.get('/:projectSlug/translations', authMiddleware, requireOwner
     })
     successWithPage(res, result.list, result.total, page, pageSize)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.post('/:projectSlug/translations', authMiddleware, requireOwnership, async (req, res, next) => {
+translationRoutes.post('/:projectSlug/translations', authMiddleware, requireOwnership, async (req, res) => {
   try {
     const t = await transService.createTranslation(req.params.projectSlug, req.body)
     success(res, t)
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    error(res, err.code, err.message)
+  }
 })
 
 // Update key and sourceText for all translations matching oldKey (MUST be before /:key/:langCode)
-translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware, requireOwnership, async (req, res, next) => {
+translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware, requireOwnership, async (req, res) => {
   try {
     const { translationKey, sourceText } = req.body
     if (!translationKey?.trim())
@@ -44,49 +48,56 @@ translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware, 
     const t = await transService.updateKeyAndSource(req.params.projectSlug, req.params.oldKey, translationKey.trim(), sourceText)
     success(res, t)
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; const status = err.code === ErrCode.Conflict ? 409 : 200; error(res, err.code || ErrCode.Internal, err.message || '', status) }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    const status = err.code === ErrCode.Conflict ? 409 : 200
+    error(res, err.code, err.message, status)
+  }
 })
 
 // Save translation for a specific key + language
-translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddleware, requireOwnership, async (req, res, next) => {
+translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddleware, requireOwnership, async (req, res) => {
   try {
     const t = await transService.saveForLang(req.params.projectSlug, req.params.key, req.params.langCode, req.body)
     success(res, t)
   }
-  catch (e: unknown) { const err = e as { code?: number, message?: string }; error(res, err.code || ErrCode.Internal, err.message || '') }
+  catch (e: unknown) {
+    const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }
+    error(res, err.code, err.message)
+  }
 })
 
 // All tags for a project
-translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware, requireOwnership, async (req, res, next) => {
+translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware, requireOwnership, async (req, res) => {
   try {
     const tags = await transService.getAllTags(req.params.projectSlug)
     success(res, tags)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware, requireOwnership, async (req, res, next) => {
+translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware, requireOwnership, async (req, res) => {
   try {
     await transService.deleteTranslation(req.params.translationId)
     success(res, null)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
+translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
   try {
     for (const o of req.body.orders) {
       await prisma.translationKey.update({ where: { id: o.keyId }, data: { sortOrder: o.sortOrder } })
     }
     success(res, null)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.post('/:projectSlug/translations/batch', authMiddleware, requireOwnership, async (req, res, next) => {
+translationRoutes.post('/:projectSlug/translations/batch', authMiddleware, requireOwnership, async (req, res) => {
   try {
     await transService.batchUpsert(req.params.projectSlug, req.body.translations)
     success(res, null)
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })

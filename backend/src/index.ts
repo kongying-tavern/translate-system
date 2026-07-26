@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
+import process from 'node:process'
 import { PrismaClient } from '@prisma/client'
 import cors from 'cors'
 import express from 'express'
@@ -66,6 +67,8 @@ app.use('/api/v1/apikey', apikeyProxy)
 app.use(errorHandler)
 
 app.listen(PORT, () => {
+  // eslint-disable-next-line no-console
   console.log(`Server running on http://localhost:${PORT}`)
+  // eslint-disable-next-line no-console
   console.log(`Swagger docs: http://localhost:${PORT}/api-docs`)
 })

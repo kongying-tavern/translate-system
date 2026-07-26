@@ -7,6 +7,7 @@ import { ErrCode } from '../lib/errors'
 import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
+import { AppError } from '../utils/AppError'
 
 interface ImportEntry {
   key: string
@@ -19,40 +20,50 @@ interface ImportEntry {
 
 export const importRoutes = Router()
 
-importRoutes.get('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
-  try { success(res, await prisma.importTemplate.findMany({ where: { projectId: req.params.projectSlug }, orderBy: { createdAt: 'desc' } })) }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+importRoutes.get('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+  try {
+    success(res, await prisma.importTemplate.findMany({ where: { projectId: req.params.projectSlug }, orderBy: { createdAt: 'desc' } }))
+  }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-importRoutes.post('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
+importRoutes.post('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
   try {
     const { name, description, formatType, config } = req.body
     if (!name)
       return error(res, ErrCode.InvalidParams, 'name is required')
     success(res, await prisma.importTemplate.create({ data: { projectId: req.params.projectSlug, name, description: description || '', formatType: formatType || 'flat-json', config: config || {} } }))
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-importRoutes.get('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
-  try { success(res, await prisma.importTemplate.findUnique({ where: { id: req.params.id } })) }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+importRoutes.get('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+  try {
+    success(res, await prisma.importTemplate.findUnique({ where: { id: req.params.id } }))
+  }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-importRoutes.put('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
-  try { success(res, await prisma.importTemplate.update({ where: { id: req.params.id }, data: req.body })) }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+importRoutes.put('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+  try {
+    success(res, await prisma.importTemplate.update({ where: { id: req.params.id }, data: req.body }))
+  }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-importRoutes.delete('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
-  try { await prisma.importTemplate.delete({ where: { id: req.params.id } }); success(res, null) }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+importRoutes.delete('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+  try {
+    await prisma.importTemplate.delete({ where: { id: req.params.id } })
+    success(res, null)
+  }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
 // Execute import (supports both template-based and direct mode)
-importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwnership, async (req: AuthRequest, res, next) => {
+importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
   try {
     const { templateId, languageCode, data, entriesOnly, overwrite, autoCreate } = req.body
+    // eslint-disable-next-line no-console
     console.log('[import] entriesOnly:', entriesOnly, 'overwrite:', overwrite, 'autoCreate:', autoCreate, 'lang:', languageCode)
     const raw = typeof data === 'string' ? data : JSON.stringify(data)
 
@@ -94,7 +105,9 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwners
       entries = xmlParse(raw)
     }
 
-    let count = 0; let created = 0; let skipped = 0
+    let count = 0
+    let created = 0
+    let skipped = 0
     for (const entry of entries) {
       const { key, translatedText, context, tags, sourceText, lang } = entry
       const langCode = lang || languageCode
@@ -125,7 +138,9 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwners
         else {
           const existing = await prisma.translationValue.findUnique({ where: { keyId_languageCode: { keyId: tk.id, languageCode: langCode } } })
           if (!existing || !existing.translatedText) {
-            if (existing) { await prisma.translationValue.update({ where: { id: existing.id }, data: { translatedText } }) }
+            if (existing) {
+              await prisma.translationValue.update({ where: { id: existing.id }, data: { translatedText } })
+            }
             else { await prisma.translationValue.create({ data: { keyId: tk.id, languageCode: langCode, translatedText } }) }
             created++
           }
@@ -136,10 +151,10 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwners
     }
     success(res, { imported: count, created, skipped })
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, (e as { message?: string }).message || '') }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-function flatJSONParse(data: Record<string, unknown>, languageCode: string): ImportEntry[] {
+function flatJSONParse(data: Record<string, unknown>, _languageCode: string): ImportEntry[] {
   // Detect nested: { "zh-Hans": { "key": "val" } } → flatten with lang
   const firstVal = Object.values(data)[0]
   if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal) && !('translatedText' in (firstVal as Record<string, unknown>)) && !('sourceText' in (firstVal as Record<string, unknown>))) {
@@ -190,7 +205,10 @@ function csvParse(data: string): ImportEntry[] {
       else if (h === 'context')
         entry.context = vals[idx]
     })
-    if (entry.key) { entry.sourceText = entry.sourceText || entry.key; entries.push(entry as ImportEntry) }
+    if (entry.key) {
+      entry.sourceText = entry.sourceText || entry.key
+      entries.push(entry as ImportEntry)
+    }
   }
   return entries
 }
@@ -244,32 +262,57 @@ function xmlParse(data: string): ImportEntry[] {
   const entries: ImportEntry[] = []
   const langRe = /<language\s+code="([^"]*)"[^>]*>([\s\S]*?)<\/language>/g
   let lm
-  while ((lm = langRe.exec(data))) {
+  while (true) {
+    lm = langRe.exec(data)
+    if (!lm)
+      break
     const langCode = lm[1]
-    const strRe = /<string\s+name="([^"]*)"(\s+sourceText="([^"]*)")?(\s+tags="([^"]*)")?(\s+context="([^"]*)")?[^>]*>([\s\S]*?)<\/string>/g
-    let sm; while ((sm = strRe.exec(lm[2]))) entries.push({ key: sm[1], sourceText: sm[3] || sm[1], translatedText: sm[8].trim(), tags: sm[5] ? sm[5].split(';').map((t: string) => t.trim()) : [], context: sm[7] || '', lang: langCode })
+    const strRe = /<string\s+name="([^"]*)"(?:\s+sourceText="([^"]*)")?(?:\s+tags="([^"]*)")?(?:\s+context="([^"]*)")?[^>]*>([\s\S]*?)<\/string>/g
+    let sm
+    while (true) {
+      sm = strRe.exec(lm[2])
+      if (!sm)
+        break
+      entries.push({ key: sm[1], sourceText: sm[2] || sm[1], translatedText: sm[5].trim(), tags: sm[3] ? sm[3].split(';').map((t: string) => t.trim()) : [], context: sm[4] || '', lang: langCode })
+    }
   }
   if (!entries.length) {
-    const re = /<string\s+name="([^"]*)"(\s+sourceText="([^"]*)")?(\s+tags="([^"]*)")?(\s+context="([^"]*)")?[^>]*>([\s\S]*?)<\/string>/g
-    let m; while ((m = re.exec(data))) entries.push({ key: m[1], sourceText: m[3] || m[1], translatedText: m[8].trim(), tags: m[5] ? m[5].split(';').map((t: string) => t.trim()) : [], context: m[7] || '' })
+    const re = /<string\s+name="([^"]*)"(?:\s+sourceText="([^"]*)")?(?:\s+tags="([^"]*)")?(?:\s+context="([^"]*)")?[^>]*>([\s\S]*?)<\/string>/g
+    let m
+    while (true) {
+      m = re.exec(data)
+      if (!m)
+        break
+      entries.push({ key: m[1], sourceText: m[2] || m[1], translatedText: m[5].trim(), tags: m[3] ? m[3].split(';').map((t: string) => t.trim()) : [], context: m[4] || '' })
+    }
   }
   return entries
 }
 
 function parseCSVLine(line: string) {
-  const r: string[] = []; let c = ''; let q = false
+  const r: string[] = []
+  let c = ''
+  let q = false
   for (const ch of line) {
     if (q) {
-      if (ch === '"')
-        q = false; else c += ch
+      if (ch === '"') {
+        q = false
+      }
+      else {
+        c += ch
+      }
     }
     else if (ch === '"') {
       q = true
     }
-    else if (ch === ',') { r.push(c.trim()); c = '' }
+    else if (ch === ',') {
+      r.push(c.trim())
+      c = ''
+    }
     else {
       c += ch
     }
   }
-  r.push(c.trim()); return r
+  r.push(c.trim())
+  return r
 }

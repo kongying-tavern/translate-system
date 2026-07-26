@@ -45,7 +45,7 @@ async function onAliasSave(row: ProjectLanguage) {
     return
   try {
     await client.put(`/projects/${projectSlug.value}/languages/${row.id}/alias`, { alias })
-    row.alias = alias || null
+    row.alias = alias || ''
     ElMessage.success('已更新')
   }
   catch { ElMessage.error('更新失败') }

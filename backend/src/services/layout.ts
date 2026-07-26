@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../index'
+import { AppError } from '../utils/AppError'
 
 // Templates
 export async function listTemplates(projectId: string) {
@@ -8,7 +9,7 @@ export async function listTemplates(projectId: string) {
 export async function getTemplate(id: string) {
   const t = await prisma.layoutTemplate.findUnique({ where: { id } })
   if (!t)
-    throw { code: 1003, message: 'template not found' }
+    throw new AppError(1003, 'template not found')
   return t
 }
 export async function createTemplate(projectId: string, data: Omit<Prisma.LayoutTemplateUncheckedCreateInput, 'id' | 'projectId'>) {
@@ -28,7 +29,7 @@ export async function listConfigs(projectId: string) {
 export async function getConfig(id: string) {
   const c = await prisma.layoutConfig.findUnique({ where: { id } })
   if (!c)
-    throw { code: 1003, message: 'config not found' }
+    throw new AppError(1003, 'config not found')
   return c
 }
 export async function createConfig(projectId: string, data: Omit<Prisma.LayoutConfigUncheckedCreateInput, 'id' | 'projectId'>) {
@@ -43,7 +44,7 @@ export async function deleteConfig(id: string) {
 export async function getResolvedConfig(id: string) {
   const c = await prisma.layoutConfig.findUnique({ where: { id } })
   if (!c)
-    throw { code: 1003, message: 'config not found' }
+    throw new AppError(1003, 'config not found')
   let result: Record<string, unknown> = {}
   if (c.templateId) {
     const t = await prisma.layoutTemplate.findUnique({ where: { id: c.templateId } })

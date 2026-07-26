@@ -1,4 +1,5 @@
 import * as fs from 'node:fs'
+import process from 'node:process'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -17,7 +18,10 @@ async function main() {
     project = await prisma.project.findUnique({ where: { id: projectSlug } })
   if (!project)
     project = await prisma.project.findUnique({ where: { code: projectSlug } })
-  if (!project) { console.error(`Project not found: ${projectSlug}`); process.exit(1) }
+  if (!project) {
+    console.error(`Project not found: ${projectSlug}`)
+    process.exit(1)
+  }
   const projectId = project.id
 
   const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))

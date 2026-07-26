@@ -1,4 +1,5 @@
 import { prisma } from '../index'
+import { AppError } from '../utils/AppError'
 
 export async function listProjects(userId: string, page: number, pageSize: number) {
   const memberProjectIds = await prisma.projectMember.findMany({ where: { userId }, select: { projectId: true } })
@@ -21,14 +22,14 @@ async function resolveProject(identifier: string) {
 export async function getProject(identifier: string) {
   const p = await resolveProject(identifier)
   if (!p)
-    throw { code: 1003, message: 'project not found' }
+    throw new AppError(1003, 'project not found')
   return p
 }
 
 export async function createProject(userId: string, data: { name: string, description?: string, sourceLanguage?: string, code: string }) {
   const existing = await prisma.project.findUnique({ where: { code: data.code } })
   if (existing)
-    throw { code: 1004, message: 'code already exists' }
+    throw new AppError(1004, 'code already exists')
   return prisma.project.create({
     data: {
       userId,
@@ -43,10 +44,11 @@ export async function createProject(userId: string, data: { name: string, descri
 export async function updateProject(identifier: string, data: { name: string, description?: string, sourceLanguage?: string, code?: string }) {
   const p = await resolveProject(identifier)
   if (!p)
-    throw { code: 1003, message: 'project not found' }
+    throw new AppError(1003, 'project not found')
   if (data.code && data.code !== p.code) {
     const existing = await prisma.project.findUnique({ where: { code: data.code } })
     if (existing)
+      // eslint-disable-next-line no-throw-literal
       throw { code: 1004, message: 'code already exists' }
   }
   return prisma.project.update({
@@ -63,6 +65,6 @@ export async function updateProject(identifier: string, data: { name: string, de
 export async function deleteProject(identifier: string) {
   const p = await resolveProject(identifier)
   if (!p)
-    throw { code: 1003, message: 'project not found' }
+    throw new AppError(1003, 'project not found')
   return prisma.project.delete({ where: { id: p.id } })
 }

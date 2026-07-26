@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiKey } from '@/types/models'
+import type { ApiKey, Project } from '@/types/models'
 import { ArrowDown, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
@@ -128,7 +128,7 @@ watch(settingsVisible, async (v) => {
   }
 })
 
-function switchProject(p) {
+function switchProject(p: Project) {
   switcherVisible.value = false
   const slug = p.code || p.id
   const suffix = projectSlug.value ? route.path.split(projectSlug.value)[1] || '/translations' : ''
