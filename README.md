@@ -7,7 +7,7 @@
 - **翻译管理** — Key 聚合视图，按语言切换编辑，支持全文搜索、标签筛选、未翻译过滤
 - **多语言** — BCP 47 标准语言代码，支持别名自定义
 - **批量导入** — 扁平 JSON 一键导入 `{ "原文": "译文" }`
-- **多格式导出** — 扁平 JSON / 嵌套 JSON / CSV / Properties / XML
+- **多格式导出** — JSON（扁平/嵌套）、YAML（扁平/嵌套）、Properties、XML（扁平/嵌套）、CSV
 - **标签 & 备注** — Key 级标签和备注，跨语言共享
 - **RBAC 权限** — 超管 / 高管 / 管理员 / 成员 四级角色
 - **项目成员** — 按项目邀请用户，角色隔离
@@ -160,7 +160,7 @@ curl -X POST /api/v1/projects \
 # 创建导出模板
 curl -X POST /api/v1/projects/my-project/exports/templates \
   -H "Authorization: Bearer <token>" \
-  -d '{"name":"配置文件","code":"config-json","formatType":"json"}'
+  -d '{"name":"配置文件","code":"config-json","formatType":"flat-json"}'
 ```
 
 **访问时可用 `code` 替代 UUID：**

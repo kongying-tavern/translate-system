@@ -149,6 +149,21 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 白名单配置在 `backend/src/index.ts` 的 `APIKEY_WHITELIST` 数组。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
 
+### 导出格式
+
+系统支持 8 种导出格式，定义在 `frontend/src/data/exportFormats.ts` 的 `EXPORT_FORMAT_MAP`：
+
+| 格式 | 文件后缀 | 单/多语言 | 说明 |
+|------|:------:|:--------:|------|
+| `flat-json` | `.json` | 单 | 扁平的 key-value 映射 |
+| `nested-json` | `.json` | 多 | 按语言嵌套的 key-value 映射 |
+| `flat-yaml` | `.yaml` | 单 | 扁平的 key-value 映射 |
+| `nested-yaml` | `.yaml` | 多 | 按语言嵌套的 key-value 映射 |
+| `properties` | `.properties` | 单 | Java 键值对格式，特殊字符自动转义 |
+| `flat-xml` | `.xml` | 单 | Android `resources/string` 标签结构 |
+| `nested-xml` | `.xml` | 多 | 按语言嵌套的 XML 标签结构 |
+| `csv` | `.csv` | 多 | 表格，key / source / 各语言各一列 |
+
 ### 导出模板 config 字段
 
 ```json
