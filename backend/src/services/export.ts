@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import crypto from 'node:crypto'
 import { XMLBuilder } from 'fast-xml-parser'
 import yaml from 'js-yaml'
 import { prisma } from '../index'
@@ -8,6 +9,9 @@ type ExportKey = Prisma.TranslationKeyGetPayload<{ include: { values: true } }>
 
 interface XmlString { '@_name': string, '#text': string }
 interface XmlLanguage { '@_code': string, 'string': XmlString | XmlString[] }
+
+interface SummaryStats { countTotal: number, countTranslated: number, ratioTranslated: number }
+interface LangSummary { langName: string, langCode: string, md5Hash: string, summary: SummaryStats }
 
 interface FlatTranslation {
   translationKey: string
@@ -86,6 +90,7 @@ export function exportTranslations(keys: ExportKey[], languageCodes: string[], f
   switch (formatType) {
     case 'flat-json': return [exportFlatJSON(translations, languageCodes, config), 'json']
     case 'nested-json': return [exportNestedJSON(translations, languageCodes, config), 'json']
+    case 'summary-json': return [exportSummaryJSON(keys, languageCodes, aliases), 'json']
     case 'flat-yaml': return [exportFlatYAML(translations, languageCodes, config), 'yaml']
     case 'nested-yaml': return [exportNestedYAML(translations, languageCodes, config), 'yaml']
     case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
@@ -109,7 +114,7 @@ function exportFlatJSON(translations: FlatTranslation[], langs: string[], _confi
     if (t.languageCode === lang)
       items[t.translationKey] = t.translatedText
   }
-  return JSON.stringify(items, null, 2)
+  return JSON.stringify(items)
 }
 
 function exportNestedJSON(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
@@ -122,7 +127,7 @@ function exportNestedJSON(translations: FlatTranslation[], langs: string[], conf
         result[name][t.translationKey] = t.translatedText
     }
   }
-  return JSON.stringify(result, null, 2)
+  return JSON.stringify(result)
 }
 
 function exportFlatYAML(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
@@ -228,4 +233,35 @@ function csvEscape(s: string) {
   if (/[,"\n\r]/.test(s))
     return `"${s.replace(/"/g, '""')}"`
   return s
+}
+
+function exportSummaryJSON(keys: ExportKey[], languageCodes: string[], aliases?: Record<string, string>) {
+  const result: LangSummary[] = []
+  for (const lang of languageCodes) {
+    let countTotal = 0
+    let countTranslated = 0
+    const texts: string[] = []
+    for (const k of keys) {
+      countTotal++
+      const v = k.values.find(v => v.languageCode === lang)
+      const t = v?.translatedText
+      if (t) {
+        countTranslated++
+        texts.push(t)
+      }
+    }
+    texts.sort()
+    const md5Hash = crypto.createHash('md5').update(texts.join('')).digest('hex')
+    result.push({
+      langName: aliases?.[lang] || lang,
+      langCode: lang,
+      md5Hash,
+      summary: {
+        countTotal,
+        countTranslated,
+        ratioTranslated: countTotal > 0 ? Number((countTranslated / countTotal * 100).toFixed(8)) : 0,
+      },
+    })
+  }
+  return JSON.stringify(result)
 }
