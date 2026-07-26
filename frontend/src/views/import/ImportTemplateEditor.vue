@@ -4,28 +4,41 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
 
-const route = useRoute(); const router = useRouter()
+const route = useRoute()
+const router = useRouter()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
-const saving = ref(false); const form = reactive({ name: '', description: '', formatType: 'flat-json' })
+const saving = ref(false)
+const form = reactive({ name: '', description: '', formatType: 'flat-json' })
 
 onMounted(async () => {
   if (isEdit.value) {
     const { data: res } = await client.get(`/projects/${projectSlug.value}/imports/templates/${templateId.value}`)
-    form.name = res.data.name; form.description = res.data.description || ''; form.formatType = res.data.formatType
+    form.name = res.data.name
+    form.description = res.data.description || ''
+    form.formatType = res.data.formatType
   }
 })
 
 async function handleSave() {
   saving.value = true
   try {
-    if (isEdit.value) { await client.put(`/projects/${projectSlug.value}/imports/templates/${templateId.value}`, { ...form }) }
-    else { await client.post(`/projects/${projectSlug.value}/imports/templates`, { ...form }) }
-    ElMessage.success('保存成功'); router.back()
+    if (isEdit.value) {
+      await client.put(`/projects/${projectSlug.value}/imports/templates/${templateId.value}`, { ...form })
+    }
+    else {
+      await client.post(`/projects/${projectSlug.value}/imports/templates`, { ...form })
+    }
+    ElMessage.success('保存成功')
+    router.back()
   }
-  catch { ElMessage.error('保存失败') }
-  finally { saving.value = false }
+  catch {
+    ElMessage.error('保存失败')
+  }
+  finally {
+    saving.value = false
+  }
 }
 </script>
 

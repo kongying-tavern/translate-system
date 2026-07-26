@@ -7,19 +7,28 @@ import client from '@/api/client'
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const projectLanguages = ref<any[]>([])
-const mode = ref('entries'); const fmt = ref('flat-json'); const importLang = ref('')
-const overwrite = ref(false); const autoCreate = ref(true); const importing = ref(false)
-const importFile = ref<File | null>(null); const exampleTab = ref('json'); const inputMode = ref('file'); const textInput = ref('')
+const mode = ref('entries')
+const fmt = ref('flat-json')
+const importLang = ref('')
+const overwrite = ref(false)
+const autoCreate = ref(true)
+const importing = ref(false)
+const importFile = ref<File | null>(null)
+const exampleTab = ref('json')
+const inputMode = ref('file')
+const textInput = ref('')
 
 const needLang = computed(() => mode.value === 'translate' && (fmt.value === 'flat-json' || fmt.value === 'properties'))
 const fileAccept = computed(() => {
   if (mode.value === 'entries')
     return '.json,.csv,.yaml,.yml,.xml'
   if (fmt.value === 'csv')
-    return '.csv'; if (fmt.value === 'yaml')
+    return '.csv'
+  if (fmt.value === 'yaml')
     return '.yaml,.yml'
   if (fmt.value === 'properties')
-    return '.properties'; if (fmt.value === 'xml')
+    return '.properties'
+  if (fmt.value === 'xml')
     return '.xml'
   return '.json'
 })
@@ -47,20 +56,31 @@ const exampleText = computed(() => {
 })
 
 onMounted(async () => {
-  const { data: res } = await client.get(`/projects/${projectSlug.value}/languages`); projectLanguages.value = res.data || []; if (projectLanguages.value.length)
+  const { data: res } = await client.get(`/projects/${projectSlug.value}/languages`)
+  projectLanguages.value = res.data || []
+  if (projectLanguages.value.length)
     importLang.value = projectLanguages.value[0].languageCode
 })
 
-function onFileChange(file: any) { importFile.value = file.raw }
+function onFileChange(file: any) {
+  importFile.value = file.raw
+}
 
 async function doTextImport() {
-  if (!textInput.value.trim()) { ElMessage.warning('请输入内容'); return }
-  if (mode.value === 'translate' && needLang.value && !importLang.value) { ElMessage.warning('请选择语言'); return }
+  if (!textInput.value.trim()) {
+    ElMessage.warning('请输入内容')
+    return
+  }
+  if (mode.value === 'translate' && needLang.value && !importLang.value) {
+    ElMessage.warning('请选择语言')
+    return
+  }
   importing.value = true
   try {
     const body = { data: textInput.value, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post(`/projects/${projectSlug.value}/imports/execute`, body)
-    const d1 = res.data; ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
+    const d1 = res.data
+    ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
     textInput.value = ''
   }
   catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '导入失败') }
@@ -68,14 +88,21 @@ async function doTextImport() {
 }
 
 async function doImport() {
-  if (!importFile.value) { ElMessage.warning('请选择文件'); return }
-  if (mode.value === 'translate' && needLang.value && !importLang.value) { ElMessage.warning('请选择语言'); return }
+  if (!importFile.value) {
+    ElMessage.warning('请选择文件')
+    return
+  }
+  if (mode.value === 'translate' && needLang.value && !importLang.value) {
+    ElMessage.warning('请选择语言')
+    return
+  }
   importing.value = true
   try {
     const text = await importFile.value.text()
     const body = { data: text, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post(`/projects/${projectSlug.value}/imports/execute`, body)
-    const d1 = res.data; ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
+    const d1 = res.data
+    ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
     importFile.value = null
   }
   catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '导入失败') }

@@ -14,7 +14,8 @@ onMounted(async () => {
   await store.fetchProjects()
   loading.value = false
   if (store.projects.length > 0) {
-    const p = store.projects[0]; router.replace(`/projects/${p.code || p.id}`)
+    const p = store.projects[0]
+    router.replace(`/projects/${p.code || p.id}`)
   }
   else {
     noProject.value = true

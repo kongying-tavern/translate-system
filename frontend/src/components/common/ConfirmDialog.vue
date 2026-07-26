@@ -1,6 +1,7 @@
 <script setup lang="ts">
-defineProps<{ visible: boolean, title: string, message: string }>()
+defineProps<{ title: string, message: string }>()
 defineEmits<{ confirm: [], cancel: [] }>()
+const visible = defineModel<boolean>('visible', { required: true })
 </script>
 
 <template>

@@ -31,8 +31,14 @@ async function handleSave() {
   saving.value = true
   try {
     let override: unknown
-    try { override = JSON.parse(overrideStr.value) }
-    catch { ElMessage.error('JSON格式错误'); saving.value = false; return }
+    try {
+      override = JSON.parse(overrideStr.value)
+    }
+    catch {
+      ElMessage.error('JSON格式错误')
+      saving.value = false
+      return
+    }
 
     const data = { name: form.name, templateId: form.templateId || undefined, overrideConfig: override }
     if (isEdit.value) {
@@ -44,8 +50,12 @@ async function handleSave() {
     ElMessage.success('保存成功')
     router.back()
   }
-  catch { ElMessage.error('保存失败') }
-  finally { saving.value = false }
+  catch {
+    ElMessage.error('保存失败')
+  }
+  finally {
+    saving.value = false
+  }
 }
 </script>
 

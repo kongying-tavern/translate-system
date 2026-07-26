@@ -46,8 +46,10 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setActiveProject(id: string, name: string, code?: string) {
     const slug = code || id
-    activeProjectSlug.value = slug; activeProjectName.value = name
-    localStorage.setItem('activeProjectSlug', slug); localStorage.setItem('activeProjectName', name)
+    activeProjectSlug.value = slug
+    activeProjectName.value = name
+    localStorage.setItem('activeProjectSlug', slug)
+    localStorage.setItem('activeProjectName', name)
   }
 
   return { user, isAuthenticated, role, activeProjectSlug, activeProjectName, setActiveProject, init, login, register, logout }

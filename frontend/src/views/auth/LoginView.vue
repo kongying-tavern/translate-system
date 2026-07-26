@@ -12,11 +12,22 @@ const showPwd = ref(false)
 const form = reactive({ account: '', password: '' })
 
 async function handleLogin() {
-  if (!form.account || !form.password) { ElMessage.warning('请填写用户名/邮箱和密码'); return }
+  if (!form.account || !form.password) {
+    ElMessage.warning('请填写用户名/邮箱和密码')
+    return
+  }
   loading.value = true
-  try { await auth.login(form.account, form.password); ElMessage.success('登录成功'); router.push('/') }
-  catch { ElMessage.error('用户名/邮箱或密码错误') }
-  finally { loading.value = false }
+  try {
+    await auth.login(form.account, form.password)
+    ElMessage.success('登录成功')
+    router.push('/')
+  }
+  catch {
+    ElMessage.error('用户名/邮箱或密码错误')
+  }
+  finally {
+    loading.value = false
+  }
 }
 </script>
 

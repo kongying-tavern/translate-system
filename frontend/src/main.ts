@@ -1,6 +1,5 @@
 import ElementPlus from 'element-plus'
-// @ts-ignore
-import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'

@@ -18,7 +18,8 @@ watch(projectSlug, () => {
 })
 async function loadLayouts() {
   const [tRes, cRes] = await Promise.all([getTemplates(projectSlug.value), getConfigs(projectSlug.value)])
-  templates.value = tRes.data.data; configs.value = cRes.data.data
+  templates.value = tRes.data.data
+  configs.value = cRes.data.data
 }
 
 async function handleDeleteTemplate(id: string) {

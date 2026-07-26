@@ -24,22 +24,64 @@ const settingsVisible = ref(false)
 const settingsSaving = ref(false)
 const settingsForm = reactive({ name: '', code: '', description: '' })
 
+// ── API Keys ──
+const apikeyVisible = ref(false)
+const apiKeys = ref<ApiKey[]>([])
+const newKeyName = ref('')
+const newSecret = ref('')
+
+async function loadApiKeys() {
+  try {
+    const { data: res } = await client.get('/apikey/me/keys')
+    apiKeys.value = res.data
+  }
+  catch {}
+}
+
 function handleCommand(cmd: string) {
-  if (cmd === 'logout') { auth.logout(); router.push('/auth/login') }
-  if (cmd === 'pwd') { pwdForm.oldPassword = ''; pwdForm.newPassword = ''; pwdForm.confirmPassword = ''; pwdVisible.value = true }
-  if (cmd === 'apikey') { loadApiKeys(); apikeyVisible.value = true }
+  if (cmd === 'logout') {
+    auth.logout()
+    router.push('/auth/login')
+  }
+  if (cmd === 'pwd') {
+    pwdForm.oldPassword = ''
+    pwdForm.newPassword = ''
+    pwdForm.confirmPassword = ''
+    pwdVisible.value = true
+  }
+  if (cmd === 'apikey') {
+    loadApiKeys()
+    apikeyVisible.value = true
+  }
 }
 
 async function handlePwd() {
-  if (!pwdForm.oldPassword || !pwdForm.newPassword || !pwdForm.confirmPassword) { ElMessage.warning('请填写完整'); return }
-  if (pwdForm.newPassword.length < 6) { ElMessage.warning('密码至少6位'); return }
-  if (pwdForm.newPassword !== pwdForm.confirmPassword) { ElMessage.warning('两次输入的新密码不一致'); return }
+  if (!pwdForm.oldPassword || !pwdForm.newPassword || !pwdForm.confirmPassword) {
+    ElMessage.warning('请填写完整')
+    return
+  }
+  if (pwdForm.newPassword.length < 6) {
+    ElMessage.warning('密码至少6位')
+    return
+  }
+  if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+    ElMessage.warning('两次输入的新密码不一致')
+    return
+  }
   try {
     const res = await client.put('/auth/me/password', { oldPassword: pwdForm.oldPassword, newPassword: pwdForm.newPassword })
-    if (res.data.code !== 0) { ElMessage.error(res.data.message || '修改失败'); return }
-    pwdVisible.value = false; ElMessage.success('密码已修改，请重新登录'); auth.logout(); router.push('/auth/login')
+    if (res.data.code !== 0) {
+      ElMessage.error(res.data.message || '修改失败')
+      return
+    }
+    pwdVisible.value = false
+    ElMessage.success('密码已修改，请重新登录')
+    auth.logout()
+    router.push('/auth/login')
   }
-  catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '修改失败') }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '修改失败')
+  }
 }
 
 const filteredProjects = computed(() => {
@@ -51,22 +93,37 @@ const filteredProjects = computed(() => {
 
 watch(projectSlug, async (slug) => {
   if (slug) {
-    try { const { data: res } = await getProject(slug); projectName.value = res.data.name; auth.setActiveProject(res.data.id, res.data.name, res.data.code) }
-    catch { projectName.value = slug }
+    try {
+      const { data: res } = await getProject(slug)
+      projectName.value = res.data.name
+      auth.setActiveProject(res.data.id, res.data.name, res.data.code)
+    }
+    catch {
+      projectName.value = slug
+    }
   }
-  else { projectName.value = '' }
+  else {
+    projectName.value = ''
+  }
 }, { immediate: true })
 
 watch(switcherVisible, async (v) => {
   if (v) {
-    searchProject.value = ''; try { const { data: res } = await getProjects(1, 100); allProjects.value = res.data.list }
+    searchProject.value = ''
+    try {
+      const { data: res } = await getProjects(1, 100)
+      allProjects.value = res.data.list
+    }
     catch {}
   }
 })
 
 watch(settingsVisible, async (v) => {
   if (v && projectSlug.value) {
-    try { const { data: res } = await getProject(projectSlug.value); Object.assign(settingsForm, { name: res.data.name, code: res.data.code || '', description: res.data.description || '' }) }
+    try {
+      const { data: res } = await getProject(projectSlug.value)
+      Object.assign(settingsForm, { name: res.data.name, code: res.data.code || '', description: res.data.description || '' })
+    }
     catch {}
   }
 })
@@ -77,45 +134,85 @@ function switchProject(p) {
   const suffix = projectSlug.value ? route.path.split(projectSlug.value)[1] || '/translations' : ''
   router.push(`/projects/${slug}${suffix}`)
 }
-function goCreateProject() { switcherVisible.value = false; router.push('/projects/new') }
+function goCreateProject() {
+  switcherVisible.value = false
+  router.push('/projects/new')
+}
 
 async function handleDeleteProject() {
-  try { await ElMessageBox.confirm(`确定要删除项目「${projectName.value}」吗？该操作不可恢复。`, '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' }) }
-  catch { return }
-  try { await deleteProject(projectSlug.value!); settingsVisible.value = false; localStorage.removeItem('activeProjectSlug'); localStorage.removeItem('activeProjectName'); router.push('/'); ElMessage.success('项目已删除') }
-  catch { ElMessage.error('删除失败') }
+  try {
+    await ElMessageBox.confirm(`确定要删除项目「${projectName.value}」吗？该操作不可恢复。`, '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch {
+    return
+  }
+  try {
+    await deleteProject(projectSlug.value!)
+    settingsVisible.value = false
+    localStorage.removeItem('activeProjectSlug')
+    localStorage.removeItem('activeProjectName')
+    router.push('/')
+    ElMessage.success('项目已删除')
+  }
+  catch {
+    ElMessage.error('删除失败')
+  }
 }
 
 async function saveSettings() {
-  if (!settingsForm.name.trim()) { ElMessage.warning('名称不能为空'); return }
+  if (!settingsForm.name.trim()) {
+    ElMessage.warning('名称不能为空')
+    return
+  }
   settingsSaving.value = true
-  try { await updateProject(projectSlug.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description }); settingsVisible.value = false; projectName.value = settingsForm.name; auth.setActiveProject(projectSlug.value!, settingsForm.name, settingsForm.code); ElMessage.success('已保存') }
-  catch { ElMessage.error('保存失败') }
-  finally { settingsSaving.value = false }
+  try {
+    await updateProject(projectSlug.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description })
+    settingsVisible.value = false
+    projectName.value = settingsForm.name
+    auth.setActiveProject(projectSlug.value!, settingsForm.name, settingsForm.code)
+    ElMessage.success('已保存')
+  }
+  catch {
+    ElMessage.error('保存失败')
+  }
+  finally {
+    settingsSaving.value = false
+  }
 }
 
-// ── API Keys ──
-const apikeyVisible = ref(false)
-const apiKeys = ref<ApiKey[]>([])
-const newKeyName = ref('')
-const newSecret = ref('')
-
-async function loadApiKeys() {
-  try { const { data: res } = await client.get('/apikey/me/keys'); apiKeys.value = res.data }
-  catch {}
-}
 async function createApiKey() {
-  if (!newKeyName.value.trim()) { ElMessage.warning('请输入名称'); return }
-  try { const { data: res } = await client.post('/apikey/me/keys', { name: newKeyName.value.trim() }); apiKeys.value.unshift(res.data); newSecret.value = res.data.secret; newKeyName.value = '' }
-  catch { ElMessage.error('创建失败') }
+  if (!newKeyName.value.trim()) {
+    ElMessage.warning('请输入名称')
+    return
+  }
+  try {
+    const { data: res } = await client.post('/apikey/me/keys', { name: newKeyName.value.trim() })
+    apiKeys.value.unshift(res.data)
+    newSecret.value = res.data.secret
+    newKeyName.value = ''
+  }
+  catch {
+    ElMessage.error('创建失败')
+  }
 }
 async function toggleApiKey(row: ApiKey) {
-  try { await client.put(`/apikey/me/keys/${row.id}`, { enabled: !row.enabled }); row.enabled = !row.enabled }
-  catch { ElMessage.error('操作失败') }
+  try {
+    await client.put(`/apikey/me/keys/${row.id}`, { enabled: !row.enabled })
+    row.enabled = !row.enabled
+  }
+  catch {
+    ElMessage.error('操作失败')
+  }
 }
 async function deleteApiKey(row: ApiKey) {
-  try { await client.delete(`/apikey/me/keys/${row.id}`); apiKeys.value = apiKeys.value.filter(k => k.id !== row.id); ElMessage.success('已删除') }
-  catch { ElMessage.error('删除失败') }
+  try {
+    await client.delete(`/apikey/me/keys/${row.id}`)
+    apiKeys.value = apiKeys.value.filter(k => k.id !== row.id)
+    ElMessage.success('已删除')
+  }
+  catch {
+    ElMessage.error('删除失败')
+  }
 }
 </script>
 

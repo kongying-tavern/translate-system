@@ -37,15 +37,23 @@ onMounted(async () => {
     form.code = res.data.code || ''
     form.description = res.data.description || ''
     form.formatType = res.data.formatType
-    if (res.data.config) { configForm.skipIdentical = !!res.data.config.skipIdentical; configForm.skipEmpty = !!res.data.config.skipEmpty; configForm.useCodeKey = !!res.data.config.useCodeKey }
+    if (res.data.config) {
+      configForm.skipIdentical = !!res.data.config.skipIdentical
+      configForm.skipEmpty = !!res.data.config.skipEmpty
+      configForm.useCodeKey = !!res.data.config.useCodeKey
+    }
   }
 })
 
 async function handleSave() {
   if (!formRef.value)
     return
-  try { await formRef.value.validate() }
-  catch { return }
+  try {
+    await formRef.value.validate()
+  }
+  catch {
+    return
+  }
   saving.value = true
   try {
     const config = { ...configForm }
@@ -59,8 +67,12 @@ async function handleSave() {
     ElMessage.success('保存成功')
     router.back()
   }
-  catch { ElMessage.error('保存失败') }
-  finally { saving.value = false }
+  catch {
+    ElMessage.error('保存失败')
+  }
+  finally {
+    saving.value = false
+  }
 }
 </script>
 

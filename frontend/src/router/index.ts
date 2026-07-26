@@ -46,7 +46,10 @@ const router = createRouter({
 let initDone = false
 router.beforeEach(async (to, _from, next) => {
   const token = getAccessToken()
-  if (token && !initDone) { initDone = true; await useAuthStore().init() }
+  if (token && !initDone) {
+    initDone = true
+    await useAuthStore().init()
+  }
   if (to.meta.requiresAuth && !token)
     next('/auth/login')
   else if (to.meta.guest && token)

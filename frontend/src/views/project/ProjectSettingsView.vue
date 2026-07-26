@@ -22,11 +22,22 @@ onMounted(async () => {
 })
 
 async function handleSave() {
-  if (!form.name.trim()) { ElMessage.warning('项目名称不能为空'); return }
+  if (!form.name.trim()) {
+    ElMessage.warning('项目名称不能为空')
+    return
+  }
   saving.value = true
-  try { await updateProject(projectSlug.value, { name: form.name, code: form.code, description: form.description, sourceLanguage: form.sourceLanguage }); ElMessage.success('保存成功'); router.back() }
-  catch { ElMessage.error('保存失败') }
-  finally { saving.value = false }
+  try {
+    await updateProject(projectSlug.value, { name: form.name, code: form.code, description: form.description, sourceLanguage: form.sourceLanguage })
+    ElMessage.success('保存成功')
+    router.back()
+  }
+  catch {
+    ElMessage.error('保存失败')
+  }
+  finally {
+    saving.value = false
+  }
 }
 </script>
 

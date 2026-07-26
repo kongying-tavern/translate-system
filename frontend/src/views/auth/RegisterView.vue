@@ -12,13 +12,30 @@ const showPwd = ref(false)
 const form = reactive({ username: '', email: '', password: '' })
 
 async function handleRegister() {
-  if (!form.username || !form.email || !form.password) { ElMessage.warning('请填写完整信息'); return }
-  if (form.username.length < 3) { ElMessage.warning('用户名至少3个字符'); return }
-  if (form.password.length < 6) { ElMessage.warning('密码至少6位'); return }
+  if (!form.username || !form.email || !form.password) {
+    ElMessage.warning('请填写完整信息')
+    return
+  }
+  if (form.username.length < 3) {
+    ElMessage.warning('用户名至少3个字符')
+    return
+  }
+  if (form.password.length < 6) {
+    ElMessage.warning('密码至少6位')
+    return
+  }
   loading.value = true
-  try { await auth.register(form.username, form.email, form.password); ElMessage.success('注册成功'); router.push('/') }
-  catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '注册失败') }
-  finally { loading.value = false }
+  try {
+    await auth.register(form.username, form.email, form.password)
+    ElMessage.success('注册成功')
+    router.push('/')
+  }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '注册失败')
+  }
+  finally {
+    loading.value = false
+  }
 }
 </script>
 

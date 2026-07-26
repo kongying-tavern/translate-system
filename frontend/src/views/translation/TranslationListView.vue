@@ -24,50 +24,70 @@ const langStore = useLanguageStore()
 const { rows, total, loading } = storeToRefs(transStore)
 const { projectLanguages } = storeToRefs(langStore)
 
-const page = ref(1); const pageSize = ref(20); const filters = reactive({ search: '' }); const loadingMore = ref(false)
-const filterTags = ref<string[]>([]); const allTags = ref<string[]>([]); const untransOnly = ref(false)
-const globalLang = ref(''); const rowLangs = ref<string[]>([]); const tableKey = ref(0)
-const showCreateDialog = ref(false); const saving = ref(false); const form = reactive({ translationKey: '', sourceText: '', tags: [] as string[] })
+const page = ref(1)
+const pageSize = ref(20)
+const filters = reactive({ search: '' })
+const loadingMore = ref(false)
+const filterTags = ref<string[]>([])
+const allTags = ref<string[]>([])
+const untransOnly = ref(false)
+const globalLang = ref('')
+const rowLangs = ref<string[]>([])
+const tableKey = ref(0)
+const showCreateDialog = ref(false)
+const saving = ref(false)
+const form = reactive({ translationKey: '', sourceText: '', tags: [] as string[] })
 const transCache = reactive<Record<string, string>>({})
 const editKey = ref<Map<string, string>>(new Map())
 const editSource = ref<Map<string, string>>(new Map())
 
+const appliedSearch = ref('')
+const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
+
 function buildCache() {
   for (const row of rows.value) {
     for (const [lang, t] of Object.entries(row.translations)) {
-      const ck = `${row.translationKey}|${lang}`; if (!(ck in transCache))
+      const ck = `${row.translationKey}|${lang}`
+      if (!(ck in transCache))
         transCache[ck] = t.translatedText
     }
   }
 }
 async function loadTags() {
-  try { const { data: res } = await getTags(projectSlug.value); allTags.value = res.data }
+  try {
+    const { data: res } = await getTags(projectSlug.value)
+    allTags.value = res.data
+  }
   catch {}
 }
-onMounted(() => { init() })
+onMounted(() => {
+  init()
+})
 watch(projectSlug, () => {
   if (projectSlug.value)
     init()
 })
 
-function doSearch() { if (filters.search !== appliedSearch.value) { appliedSearch.value = filters.search; load() } }
-function init() { langStore.fetchProjectLanguages(projectSlug.value); loadTags(); load() }
-
-function onScroll(e: Event) {
-  const target = e.target as HTMLElement
-  if (!target)
-    return
-  const { scrollTop, scrollHeight, clientHeight } = target
-  if (scrollTop + clientHeight >= scrollHeight - 100 && hasMore.value && !loadingMore.value) {
-    loadMore()
+function doSearch() {
+  if (filters.search !== appliedSearch.value) {
+    appliedSearch.value = filters.search
+    load()
   }
+}
+function init() {
+  langStore.fetchProjectLanguages(projectSlug.value)
+  loadTags()
+  load()
 }
 
 let sortable: unknown = null
 function bindSortable() {
   const el = document.querySelector('.el-table__body-wrapper tbody') as HTMLElement
   const hasFilter = appliedSearch.value || filterTags.value.length || untransOnly.value
-  if (sortable) { (sortable as { destroy: () => void }).destroy(); sortable = null }
+  if (sortable) {
+    (sortable as { destroy: () => void }).destroy()
+    sortable = null
+  }
   if (!el || auth.role === 'member' || hasFilter)
     return
   sortable = Sortable.create(el, {
@@ -80,7 +100,9 @@ function bindSortable() {
       const [moved] = clone.splice(oldIndex, 1)
       clone.splice(newIndex, 0, moved)
       rows.value = clone
-      rows.value.forEach((r, i) => { r.rowIndex = i + 1 })
+      rows.value.forEach((r, i) => {
+        r.rowIndex = i + 1
+      })
       // Update moved row's sortOrder between neighbors' actual sortOrders
       const prev = newIndex > 0 ? rows.value[newIndex - 1] : null
       const nxt = newIndex < rows.value.length - 1 ? rows.value[newIndex + 1] : null
@@ -91,16 +113,22 @@ function bindSortable() {
     },
   })
 }
-watch(projectLanguages, (langs) => { if (langs.length && !globalLang.value) { globalLang.value = langs[0].languageCode; load() } })
-function syncRowLangs() { rowLangs.value = rows.value.map(() => globalLang.value || projectLanguages.value[0]?.languageCode || '') }
-
-const appliedSearch = ref('')
-const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
-const hasMore = computed(() => rows.value.length < total.value)
+watch(projectLanguages, (langs) => {
+  if (langs.length && !globalLang.value) {
+    globalLang.value = langs[0].languageCode
+    load()
+  }
+})
+function syncRowLangs() {
+  rowLangs.value = rows.value.map(() => globalLang.value || projectLanguages.value[0]?.languageCode || '')
+}
 
 let resetting = false
 async function load() {
-  page.value = 1; resetting = true; loadingStore.start(); loadingMore.value = true
+  page.value = 1
+  resetting = true
+  loadingStore.start()
+  loadingMore.value = true
   try {
     const lang = globalLang.value || projectLanguages.value[0]?.languageCode
     const isRowSearch = appliedSearch.value.startsWith('#')
@@ -134,7 +162,10 @@ async function load() {
       rows.value = rows.value.filter((r: any) => isRange ? (r.rowIndex >= rowStart && r.rowIndex <= rowEnd) : r.rowIndex === rowStart)
       total.value = isRange ? (rowEnd - rowStart + 1) : 1
     }
-    buildCache(); syncRowLangs(); tableKey.value++; await nextTick()
+    buildCache()
+    syncRowLangs()
+    tableKey.value++
+    await nextTick()
     // Viewport fill for range search: calc visible rows, load enough to overflow
     if (isRowSearch && isRange && !isNaN(rowStart)) {
       const pageEl = document.querySelector('.trans-page') as HTMLElement
@@ -153,92 +184,200 @@ async function load() {
         if (!filtered.length)
           break
         rows.value.push(...filtered)
-        pg++; page.value = pg
+        pg++
+        page.value = pg
         await nextTick()
       }
     }
-    nextTick(() => { bindSortable(); document.querySelector('.el-table__body-wrapper')?.scrollTo(0, 0) })
+    nextTick(() => {
+      bindSortable()
+      document.querySelector('.el-table__body-wrapper')?.scrollTo(0, 0)
+    })
   }
-  finally { loadingStore.stop(); setTimeout(() => { resetting = false; loadingMore.value = false }, 600) }
+  finally {
+    loadingStore.stop()
+    setTimeout(() => {
+      resetting = false
+      loadingMore.value = false
+    }, 600)
+  }
 }
 
 async function loadMore() {
   const isSingleRow = appliedSearch.value.startsWith('#') && !appliedSearch.value.includes('-')
   if (loading.value || loadingMore.value || resetting || isSingleRow)
     return
-  page.value++; loadingMore.value = true
+  page.value++
+  loadingMore.value = true
   try {
     const lang = globalLang.value || projectLanguages.value[0]?.languageCode
     const isRowSearch = appliedSearch.value.startsWith('#')
     const { data: res } = await getTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: isRowSearch ? undefined : appliedSearch.value })
     rows.value.push(...res.data.list)
     if (isRowSearch && appliedSearch.value.includes('-')) {
-      const s = parseInt(appliedSearch.value.slice(1).split('-')[0]); const e = parseInt(appliedSearch.value.split('-')[1]) || 99999
+      const s = parseInt(appliedSearch.value.slice(1).split('-')[0])
+      const e = parseInt(appliedSearch.value.split('-')[1]) || 99999
       if (!isNaN(s))
         rows.value = rows.value.filter((r: any) => r.rowIndex >= s && r.rowIndex <= e)
     }
     else {
       total.value = res.data.total
     }
-    buildCache(); syncRowLangs(); nextTick(() => bindSortable())
+    buildCache()
+    syncRowLangs()
+    nextTick(() => bindSortable())
   }
-  finally { loadingMore.value = false }
+  finally {
+    loadingMore.value = false
+  }
 }
 
-function onGlobalLangChange(lang: string) { rowLangs.value = rows.value.map(() => lang) }
-function onRowLangChange(index: number, lang: string) { rowLangs.value[index] = lang }
+function onGlobalLangChange(lang: string) {
+  rowLangs.value = rows.value.map(() => lang)
+}
+function onRowLangChange(index: number, lang: string) {
+  rowLangs.value[index] = lang
+}
 
 async function onSave(row: GroupedRow, langCode: string) {
-  const ck = `${row.translationKey}|${langCode}`; const text = transCache[ck] ?? ''; const prev = row.translations[langCode]?.translatedText ?? ''
+  const ck = `${row.translationKey}|${langCode}`
+  const text = transCache[ck] ?? ''
+  const prev = row.translations[langCode]?.translatedText ?? ''
   if (text === prev)
     return
   try {
-    await saveTranslation(projectSlug.value, row.translationKey, langCode, { translatedText: text }); if (row.translations[langCode])
-      row.translations[langCode].translatedText = text; else row.translations[langCode] = { id: '', translatedText: text }; console.log('[翻译]', { key: row.translationKey, lang: langCode, prev: prev || '(空)', new: text }); ElMessage.success(`${langCode}: 译文已保存`)
+    await saveTranslation(projectSlug.value, row.translationKey, langCode, { translatedText: text })
+    if (row.translations[langCode])
+      row.translations[langCode].translatedText = text
+    else
+      row.translations[langCode] = { id: '', translatedText: text }
+    // eslint-disable-next-line no-console
+    console.log('[翻译]', { key: row.translationKey, lang: langCode, prev: prev || '(空)', new: text })
+    ElMessage.success(`${langCode}: 译文已保存`)
   }
-  catch { ElMessage.error('保存失败') }
+  catch {
+    ElMessage.error('保存失败')
+  }
 }
 
 async function onCtxSave(row: GroupedRow, text: string) {
-  const prev = row.context; if (text === prev)
-    return; try { await saveTranslation(projectSlug.value, row.translationKey, '', { context: text }); row.context = text; console.log('[备注]', { key: row.translationKey, prev, new: text }); ElMessage.success('备注已保存') }
-  catch { ElMessage.error('保存失败') }
+  const prev = row.context
+  if (text === prev)
+    return
+  try {
+    await saveTranslation(projectSlug.value, row.translationKey, '', { context: text })
+    row.context = text
+    // eslint-disable-next-line no-console
+    console.log('[备注]', { key: row.translationKey, prev, new: text })
+    ElMessage.success('备注已保存')
+  }
+  catch {
+    ElMessage.error('保存失败')
+  }
 }
 
 async function onKeySave(row: GroupedRow) {
-  const oldKey = row.translationKey; const ek = editKey.value; const newKey = ek.get(oldKey)
+  const oldKey = row.translationKey
+  const ek = editKey.value
+  const newKey = ek.get(oldKey)
   if (newKey === undefined || newKey === oldKey)
     return
-  if (!newKey.trim()) { ElMessage.warning('Key 不能为空'); ek.delete(oldKey); return }
-  try { await updateKey(projectSlug.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText); ek.delete(oldKey); editSource.value.delete(oldKey); for (const lang of Object.keys(row.translations)) { const oc = `${oldKey}|${lang}`; const nc = `${newKey}|${lang}`; if (oc in transCache) { transCache[nc] = transCache[oc]; delete transCache[oc] } }; row.translationKey = newKey.trim(); ElMessage.success('Key 已更新') }
-  catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Key 更新失败'); ek.delete(oldKey) }
+  if (!newKey.trim()) {
+    ElMessage.warning('Key 不能为空')
+    ek.delete(oldKey)
+    return
+  }
+  try {
+    await updateKey(projectSlug.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText)
+    ek.delete(oldKey)
+    editSource.value.delete(oldKey)
+    for (const lang of Object.keys(row.translations)) {
+      const oc = `${oldKey}|${lang}`
+      const nc = `${newKey}|${lang}`
+      if (oc in transCache) {
+        transCache[nc] = transCache[oc]
+        delete transCache[oc]
+      }
+    }
+    row.translationKey = newKey.trim()
+    ElMessage.success('Key 已更新')
+  }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Key 更新失败')
+    ek.delete(oldKey)
+  }
 }
 
 async function onSourceSave(row: GroupedRow) {
-  const oldKey = row.translationKey; const es = editSource.value; const newSrc = es.get(oldKey); if (newSrc === undefined || newSrc === row.sourceText)
-    return; try { await updateKey(projectSlug.value, oldKey, oldKey, newSrc); es.delete(oldKey); row.sourceText = newSrc; ElMessage.success('原文已更新') }
-  catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败'); es.delete(oldKey) }
+  const oldKey = row.translationKey
+  const es = editSource.value
+  const newSrc = es.get(oldKey)
+  if (newSrc === undefined || newSrc === row.sourceText)
+    return
+  try {
+    await updateKey(projectSlug.value, oldKey, oldKey, newSrc)
+    es.delete(oldKey)
+    row.sourceText = newSrc
+    ElMessage.success('原文已更新')
+  }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败')
+    es.delete(oldKey)
+  }
 }
 
 async function onTagsChange(row: GroupedRow, tags: string[]) {
-  try { await saveTranslation(projectSlug.value, row.translationKey, '', { tags }); row.tags = tags; loadTags() }
-  catch { ElMessage.error('保存失败') }
+  try {
+    await saveTranslation(projectSlug.value, row.translationKey, '', { tags })
+    row.tags = tags
+    loadTags()
+  }
+  catch {
+    ElMessage.error('保存失败')
+  }
 }
-function openCreate() { Object.assign(form, { translationKey: '', sourceText: '', tags: [] }); showCreateDialog.value = true }
+function openCreate() {
+  Object.assign(form, { translationKey: '', sourceText: '', tags: [] })
+  showCreateDialog.value = true
+}
 
 async function handleCreate() {
-  if (!form.translationKey.trim() || !form.sourceText.trim()) { ElMessage.warning('Key 和原文为必填'); return }
+  if (!form.translationKey.trim() || !form.sourceText.trim()) {
+    ElMessage.warning('Key 和原文为必填')
+    return
+  }
   saving.value = true
-  try { await transStore.create(projectSlug.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, sourceText: form.sourceText.trim(), translatedText: '', tags: form.tags }); ElMessage.success('创建成功'); showCreateDialog.value = false; loadTags(); load() }
-  catch { ElMessage.error('创建失败') }
-  finally { saving.value = false }
+  try {
+    await transStore.create(projectSlug.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, sourceText: form.sourceText.trim(), translatedText: '', tags: form.tags })
+    ElMessage.success('创建成功')
+    showCreateDialog.value = false
+    loadTags()
+    load()
+  }
+  catch {
+    ElMessage.error('创建失败')
+  }
+  finally {
+    saving.value = false
+  }
 }
 
 async function handleDelete(row: GroupedRow) {
-  try { await ElMessageBox.confirm(`确定要删除 Key ${row.translationKey} 的所有翻译吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }) }
-  catch { return }
-  try { await transStore.remove(projectSlug.value, row.keyId); ElMessage.success('删除成功'); loadTags(); load() }
-  catch { ElMessage.error('删除失败') }
+  try {
+    await ElMessageBox.confirm(`确定要删除 Key ${row.translationKey} 的所有翻译吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
+  }
+  catch {
+    return
+  }
+  try {
+    await transStore.remove(projectSlug.value, row.keyId)
+    ElMessage.success('删除成功')
+    loadTags()
+    load()
+  }
+  catch {
+    ElMessage.error('删除失败')
+  }
 }
 </script>
 
@@ -274,7 +413,7 @@ async function handleDelete(row: GroupedRow) {
         </el-button>
       </el-form-item>
     </el-form>
-    <el-table ref="tableRef" :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" stripe row-key="translationKey" height="100%">
+    <el-table :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" stripe row-key="translationKey" height="100%">
       <el-table-column v-if="!hasFilter" width="44" fixed="left" class-name="drag-handle-col">
         <template #default>
           <span class="drag-handle">⋮⋮</span>
@@ -296,7 +435,7 @@ async function handleDelete(row: GroupedRow) {
         </template>
       </el-table-column>
       <el-table-column label="语言" width="130">
-        <template #default="{ row, $index }">
+        <template #default="{ $index }">
           <el-select v-model="rowLangs[$index]" style="width:100px" @change="(v: string) => onRowLangChange($index, v)">
             <el-option v-for="l in projectLanguages" :key="l.languageCode" :label="l.alias || l.languageCode" :value="l.languageCode" />
           </el-select>

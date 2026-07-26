@@ -13,17 +13,30 @@ const auth = useAuthStore()
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const members = ref<ProjectMember[]>([])
-const selectedUserId = ref(''); const newMemberRole = ref('member')
-const userOptions = ref<User[]>([]); const searching = ref(false)
+const selectedUserId = ref('')
+const newMemberRole = ref('member')
+const userOptions = ref<User[]>([])
+const searching = ref(false)
 
-function roleLabel(r: string) { return { super_admin: '超管', admin: '管理员', member: '成员' }[r] || r }
+function roleLabel(r: string) {
+  return { super_admin: '超管', admin: '管理员', member: '成员' }[r] || r
+}
 
-onMounted(async () => { const { data: res } = await getMembers(projectSlug.value); members.value = res.data })
+onMounted(async () => {
+  const { data: res } = await getMembers(projectSlug.value)
+  members.value = res.data
+})
 
 async function searchUsers(q: string) {
-  if (!q) { userOptions.value = []; return }
+  if (!q) {
+    userOptions.value = []
+    return
+  }
   searching.value = true
-  try { const { data: res } = await getUsers(); userOptions.value = res.data.filter(u => u.username.includes(q) || u.email.includes(q)).slice(0, 10) }
+  try {
+    const { data: res } = await getUsers()
+    userOptions.value = res.data.filter(u => u.username.includes(q) || u.email.includes(q)).slice(0, 10)
+  }
   catch {}
   finally { searching.value = false }
 }
@@ -34,17 +47,31 @@ async function handleAdd(userId: string) {
   const u = userOptions.value.find(o => o.id === userId)
   if (!u)
     return
-  try { const { data: res } = await addMember(projectSlug.value, u.email, newMemberRole.value); members.value.push(res.data); selectedUserId.value = ''; userOptions.value = []; ElMessage.success('已添加') }
+  try {
+    const { data: res } = await addMember(projectSlug.value, u.email, newMemberRole.value)
+    members.value.push(res.data)
+    selectedUserId.value = ''
+    userOptions.value = []
+    ElMessage.success('已添加')
+  }
   catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 
 async function handleRemove(row: ProjectMember) {
-  try { await removeMember(projectSlug.value, row.id); members.value = members.value.filter(m => m.id !== row.id); ElMessage.success('已移除') }
+  try {
+    await removeMember(projectSlug.value, row.id)
+    members.value = members.value.filter(m => m.id !== row.id)
+    ElMessage.success('已移除')
+  }
   catch { ElMessage.error('失败') }
 }
 
 async function changeProjectRole(row: ProjectMember, newRole: string) {
-  try { await client.put(`/projects/${projectSlug.value}/members/${row.id}/role`, { projectRole: newRole }); row.projectRole = newRole; ElMessage.success('已更新') }
+  try {
+    await client.put(`/projects/${projectSlug.value}/members/${row.id}/role`, { projectRole: newRole })
+    row.projectRole = newRole
+    ElMessage.success('已更新')
+  }
   catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
 </script>

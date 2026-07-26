@@ -12,9 +12,17 @@ const rules = { name: [{ required: true, message: '请输入项目名称', trigg
 
 async function handleCreate() {
   loading.value = true
-  try { const p = await store.create(form.name, form.code, form.description, form.sourceLanguage); ElMessage.success('项目创建成功'); router.push(`/projects/${p.id}`) }
-  catch { ElMessage.error('创建失败') }
-  finally { loading.value = false }
+  try {
+    const p = await store.create(form.name, form.code, form.description, form.sourceLanguage)
+    ElMessage.success('项目创建成功')
+    router.push(`/projects/${p.id}`)
+  }
+  catch {
+    ElMessage.error('创建失败')
+  }
+  finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -23,7 +31,7 @@ async function handleCreate() {
     <div class="page-header">
       <h2>新建项目</h2>
     </div>
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:600px">
+    <el-form :model="form" :rules="rules" label-width="100px" style="max-width:600px">
       <el-form-item label="项目名称" prop="name">
         <el-input v-model="form.name" placeholder="请输入项目名称" />
       </el-form-item>

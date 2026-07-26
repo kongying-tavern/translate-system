@@ -14,7 +14,8 @@ const projectSlug = computed(() => route.params.projectSlug as string)
 const templates = ref<ExportTemplate[]>([])
 const projectLanguages = ref<any[]>([])
 const selectedTemplate = ref('')
-const selectedLangs = ref<string[]>([]); const exportFilterTags = ref<string[]>([])
+const selectedLangs = ref<string[]>([])
+const exportFilterTags = ref<string[]>([])
 const allTags = ref<string[]>([])
 const previewVisible = ref(false)
 const previewContent = ref('')
@@ -30,7 +31,9 @@ async function loadExports() {
     getProjectLanguages(projectSlug.value),
     getTags(projectSlug.value).catch(() => ({ data: { data: [] } })),
   ])
-  templates.value = tRes.data.data; projectLanguages.value = lRes.data.data; allTags.value = tagRes.data.data
+  templates.value = tRes.data.data
+  projectLanguages.value = lRes.data.data
+  allTags.value = tagRes.data.data
 }
 
 async function doPreview() {

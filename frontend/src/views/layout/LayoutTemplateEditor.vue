@@ -30,8 +30,14 @@ async function handleSave() {
   saving.value = true
   try {
     let config: unknown
-    try { config = JSON.parse(configStr.value) }
-    catch { ElMessage.error('JSON格式错误'); saving.value = false; return }
+    try {
+      config = JSON.parse(configStr.value)
+    }
+    catch {
+      ElMessage.error('JSON格式错误')
+      saving.value = false
+      return
+    }
 
     const data = { ...form, config }
     if (isEdit.value) {
@@ -43,8 +49,12 @@ async function handleSave() {
     ElMessage.success('保存成功')
     router.back()
   }
-  catch { ElMessage.error('保存失败') }
-  finally { saving.value = false }
+  catch {
+    ElMessage.error('保存失败')
+  }
+  finally {
+    saving.value = false
+  }
 }
 </script>
 
