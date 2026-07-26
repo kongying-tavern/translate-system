@@ -51,6 +51,7 @@ const languages = [
 ]
 
 async function main() {
+  // eslint-disable-next-line no-console
   console.log('Seeding languages...')
   for (const lang of languages) {
     await prisma.baseLanguage.upsert({
@@ -59,6 +60,7 @@ async function main() {
       create: lang,
     })
   }
+  // eslint-disable-next-line no-console
   console.log(`Done - ${languages.length} languages seeded.`)
 }
 

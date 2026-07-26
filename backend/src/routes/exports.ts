@@ -59,8 +59,8 @@ exportRoutes.post('/:projectSlug/exports/preview', authMiddleware, requireOwners
   try {
     const { templateSlug, languageCodes, filterTags } = req.body
     const t = await exportService.getTemplate(templateSlug, req.params.projectSlug)
-    const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
-    const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as Record<string, unknown>, filterTags)
+    const [translations, langInfo] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
+    const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, langInfo.aliases, t.config as Record<string, unknown>, filterTags)
     success(res, { content, format, ...(encoding ? { encoding } : {}) })
   }
   catch (e: unknown) {
@@ -73,8 +73,8 @@ exportRoutes.post('/:projectSlug/exports/generate', authMiddleware, requireOwner
   try {
     const { templateSlug, languageCodes, filterTags } = req.body
     const t = await exportService.getTemplate(templateSlug, req.params.projectSlug)
-    const [translations, aliases] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
-    const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, aliases, t.config as Record<string, unknown>, filterTags)
+    const [translations, langInfo] = await Promise.all([transService.getForExport(req.params.projectSlug, languageCodes), langService.getLanguageDisplayMap(req.params.projectSlug)])
+    const [content, format, encoding] = exportService.exportTranslations(translations, languageCodes, t.formatType, langInfo.aliases, t.config as Record<string, unknown>, filterTags)
     success(res, { content, format, ...(encoding ? { encoding } : {}) })
   }
   catch (e: unknown) {
