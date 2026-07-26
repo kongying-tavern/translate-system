@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { XMLBuilder } from 'fast-xml-parser'
 import yaml from 'js-yaml'
 import { prisma } from '../index'
 import { AppError } from '../utils/AppError'
@@ -85,7 +86,7 @@ export function exportTranslations(keys: ExportKey[], languageCodes: string[], f
     case 'flat-yaml': return [exportFlatYAML(translations, languageCodes, config), 'yaml']
     case 'nested-yaml': return [exportNestedYAML(translations, languageCodes, config), 'yaml']
     case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
-    case 'xml': return [exportXML(translations, languageCodes, config), 'xml']
+    case 'nested-xml': return [exportXML(translations, languageCodes, config), 'xml']
     case 'csv': return [exportCSV(translations, languageCodes, config), 'csv']
     default: return [exportFlatJSON(translations, languageCodes, config), 'json']
   }
@@ -165,17 +166,23 @@ function propsEscapeValue(s: string) {
 }
 
 function exportXML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
-  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<resources>\n'
+  const builder = new XMLBuilder({
+    format: true,
+    indentBy: '  ',
+    ignoreAttributes: false,
+    suppressEmptyNode: true,
+  })
+  const resources: Record<string, any> = { language: [] }
   for (const lang of langs) {
     const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
-    xml += `  <language code="${xmlEscape(name)}">\n`
+    const strings: any[] = []
     for (const t of translations) {
       if (t.languageCode === lang)
-        xml += `    <string name="${xmlEscape(t.translationKey)}">${xmlEscape(t.translatedText)}</string>\n`
+        strings.push({ '@_name': t.translationKey, '#text': t.translatedText })
     }
-    xml += '  </language>\n'
+    resources.language.push({ '@_code': name, 'string': strings.length === 1 ? strings[0] : strings })
   }
-  xml += '</resources>\n'
+  const xml = builder.build({ '?xml': { '@_version': '1.0', '@_encoding': 'UTF-8' }, resources })
   return xml
 }
 
@@ -199,7 +206,4 @@ function csvEscape(s: string) {
   if (/[,"\n]/.test(s))
     return `"${s.replace(/"/g, '""')}"`
   return s
-}
-function xmlEscape(s: string) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
