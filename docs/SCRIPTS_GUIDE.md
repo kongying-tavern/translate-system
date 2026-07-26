@@ -45,6 +45,39 @@
 
 ---
 
+### download_translations_multi.ps1 / download_translations_multi.sh
+
+一次性导出全部语言到单个文件。仅适用于以下格式（白名单），若模板格式不在其中则脚本报错退出：
+- `nested-json`
+- `nested-yaml`
+- `nested-xml`
+- `csv`
+
+#### 参数
+
+| PS1 参数 | Sh 参数 | 说明 |
+|----------|---------|------|
+| `-Endpoint` | `-e` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
+| `-ProjectSlug` | `-p` | 项目 Slug（UUID 或 code） |
+| `-TemplateSlug` | `-t` | 导出模板 Slug（UUID 或 code） |
+| `-OutputFile` | `-o` | 输出文件路径 |
+| `-Languages` | `-l` | 过滤语言，逗号分隔，不传则导出全部 |
+| `-Delete` | `-d` | 导出前删除已存在的输出文件 |
+
+#### 前置条件
+
+- 在项目 Web 端创建一个**多语言导出模板**，拿到其 Slug
+- 在用户设置中创建 **API Key + Secret**
+
+#### Shell 依赖
+
+`download_translations_multi.sh` 需要安装 [Node.js](https://nodejs.org/) 解析 JSON。
+
+---
+
 ### deploy.ps1 / deploy.sh
 
 SSH 部署脚本：连接服务器 → 拉取指定分支 → `docker compose up -d --build`。
