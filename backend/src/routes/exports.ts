@@ -69,7 +69,7 @@ exportRoutes.post('/:projectSlug/exports/preview', authMiddleware, requireOwners
   }
 })
 
-exportRoutes.post('/:projectSlug/exports/preview', authMiddleware, requireOwnership, async (req, res) => {
+exportRoutes.post('/:projectSlug/exports/generate', authMiddleware, requireOwnership, async (req, res) => {
   try {
     const { templateSlug, languageCodes, filterTags } = req.body
     const t = await exportService.getTemplate(templateSlug, req.params.projectSlug)
