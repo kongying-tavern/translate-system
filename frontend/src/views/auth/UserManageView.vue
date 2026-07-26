@@ -7,11 +7,11 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 
 const auth = useAuthStore()
-const users = ref<any[]>([])
+const users = ref<User[]>([])
 const createVisible = ref(false)
 const createForm = reactive({ username: '', email: '', password: '', role: 'member' })
 const pwdVisible = ref(false)
-const pwdTarget = ref<any>(null)
+const pwdTarget = ref<User | null>(null)
 const pwdForm = reactive({ password: '', confirmPassword: '' })
 
 onMounted(async () => {
@@ -98,6 +98,8 @@ async function handlePwdSave() {
     ElMessage.warning('两次输入的密码不一致')
     return
   }
+  if (!pwdTarget.value)
+    return
   try {
     await changePassword(pwdTarget.value.id, pwdForm.password)
     pwdVisible.value = false

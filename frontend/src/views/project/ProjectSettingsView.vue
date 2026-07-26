@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ProjectLanguage } from '@/types/models'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -8,7 +9,7 @@ import { getProject, updateProject } from '@/api/project'
 const route = useRoute()
 const router = useRouter()
 const projectSlug = computed(() => route.params.projectSlug as string)
-const projectLanguages = ref<any[]>([])
+const projectLanguages = ref<ProjectLanguage[]>([])
 const saving = ref(false)
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en' })
 

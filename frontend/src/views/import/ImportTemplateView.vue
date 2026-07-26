@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { UploadFile } from 'element-plus'
+import type { ProjectLanguage } from '@/types/models'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -6,7 +8,7 @@ import client from '@/api/client'
 
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
-const projectLanguages = ref<any[]>([])
+const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
 const fmt = ref('flat-json')
 const importLang = ref('')
@@ -62,8 +64,8 @@ onMounted(async () => {
     importLang.value = projectLanguages.value[0].languageCode
 })
 
-function onFileChange(file: any) {
-  importFile.value = file.raw
+function onFileChange(file: UploadFile) {
+  importFile.value = file.raw ?? null
 }
 
 async function doTextImport() {

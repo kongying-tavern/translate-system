@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ExportTemplate } from '@/types/models'
+import type { ExportTemplate, ProjectLanguage } from '@/types/models'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -12,7 +12,7 @@ import { getFormatMeta } from '@/data/exportFormats'
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const templates = ref<ExportTemplate[]>([])
-const projectLanguages = ref<any[]>([])
+const projectLanguages = ref<ProjectLanguage[]>([])
 const selectedTemplate = ref('')
 const selectedLangs = ref<string[]>([])
 const exportFilterTags = ref<string[]>([])

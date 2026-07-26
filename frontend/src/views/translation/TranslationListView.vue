@@ -93,7 +93,7 @@ function bindSortable() {
   sortable = Sortable.create(el, {
     handle: '.drag-handle',
     animation: 200,
-    onEnd({ oldIndex, newIndex }: any) {
+    onEnd({ oldIndex, newIndex }: { oldIndex: number, newIndex: number }) {
       if (oldIndex === newIndex)
         return
       const clone = [...rows.value]
@@ -140,26 +140,26 @@ async function load() {
     let pg = isRowSearch && !isNaN(rowStart) ? Math.ceil(rowStart / PZ) : 1
     if (isRowSearch && isRange && !isNaN(rowStart)) {
       // Load enough pages to get at least 20 filtered rows for range search
-      const allRows: any[] = []
-      while (allRows.filter((r: any) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd).length < PZ && allRows.length < (rowEnd - rowStart + PZ)) {
+      const allRows: GroupedRow[] = []
+      while (allRows.filter((r: GroupedRow) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd).length < PZ && allRows.length < (rowEnd - rowStart + PZ)) {
         const { data: r } = await getTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
         allRows.push(...r.data.list)
         pg++
       }
-      rows.value = allRows.filter((r: any) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd)
+      rows.value = allRows.filter((r: GroupedRow) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd)
       total.value = rowEnd - rowStart + 1
       page.value = pg // remember next page for loadMore
     }
     else if (isRowSearch && !isNaN(rowStart)) {
       await transStore.fetchTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
-      rows.value = rows.value.filter((r: any) => r.rowIndex === rowStart)
+      rows.value = rows.value.filter((r: GroupedRow) => r.rowIndex === rowStart)
       total.value = 1
     }
     else {
       await transStore.fetchTranslations(projectSlug.value, { page: 1, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: appliedSearch.value })
     }
     if (isRowSearch && !isNaN(rowStart)) {
-      rows.value = rows.value.filter((r: any) => isRange ? (r.rowIndex >= rowStart && r.rowIndex <= rowEnd) : r.rowIndex === rowStart)
+      rows.value = rows.value.filter((r: GroupedRow) => isRange ? (r.rowIndex >= rowStart && r.rowIndex <= rowEnd) : r.rowIndex === rowStart)
       total.value = isRange ? (rowEnd - rowStart + 1) : 1
     }
     buildCache()
@@ -180,7 +180,7 @@ async function load() {
       const needed = visible + 5
       while (rows.value.length < needed && rows.value.length < total.value) {
         const { data: r } = await getTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
-        const filtered = r.data.list.filter((row: any) => row.rowIndex >= rowStart && row.rowIndex <= rowEnd)
+        const filtered = r.data.list.filter((row: GroupedRow) => row.rowIndex >= rowStart && row.rowIndex <= rowEnd)
         if (!filtered.length)
           break
         rows.value.push(...filtered)
@@ -218,7 +218,7 @@ async function loadMore() {
       const s = parseInt(appliedSearch.value.slice(1).split('-')[0])
       const e = parseInt(appliedSearch.value.split('-')[1]) || 99999
       if (!isNaN(s))
-        rows.value = rows.value.filter((r: any) => r.rowIndex >= s && r.rowIndex <= e)
+        rows.value = rows.value.filter((r: GroupedRow) => r.rowIndex >= s && r.rowIndex <= e)
     }
     else {
       total.value = res.data.total
