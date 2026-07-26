@@ -136,18 +136,24 @@ function exportCSV(translations: FlatTranslation[], langs: string[], config?: Re
   return lines.join('\n')
 }
 
-function exportProperties(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
-  const result: Record<string, string> = {}
-  for (const lang of langs) {
-    const lines: string[] = []
-    for (const t of translations) {
-      if (t.languageCode === lang)
-        lines.push(`${t.translationKey}=${t.translatedText}`)
-    }
-    const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
-    result[name] = lines.join('\n')
+function exportProperties(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
+  if (!langs.length)
+    return ''
+  const lang = langs[0]
+  const lines: string[] = []
+  for (const t of translations) {
+    if (t.languageCode === lang)
+      lines.push(`${propsEscapeKey(t.translationKey)}=${propsEscapeValue(t.translatedText)}`)
   }
-  return JSON.stringify(result, null, 2)
+  return lines.join('\n')
+}
+
+function propsEscapeKey(s: string) {
+  return s.replace(/\\/g, '\\\\').replace(/[=:]/g, '\\$&').replace(/^[#!]/gm, '\\$&')
+}
+function propsEscapeValue(s: string) {
+  return s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
+    .replace(/^[#!]/gm, '\\$&').replace(/[=:]/g, '\\$&')
 }
 
 function exportXML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
