@@ -6,6 +6,9 @@ import { AppError } from '../utils/AppError'
 
 type ExportKey = Prisma.TranslationKeyGetPayload<{ include: { values: true } }>
 
+interface XmlString { '@_name': string, '#text': string }
+interface XmlLanguage { '@_code': string, 'string': XmlString | XmlString[] }
+
 interface FlatTranslation {
   translationKey: string
   languageCode: string
@@ -82,11 +85,12 @@ export function exportTranslations(keys: ExportKey[], languageCodes: string[], f
   }
   switch (formatType) {
     case 'flat-json': return [exportFlatJSON(translations, languageCodes, config), 'json']
-    case 'nested-json': return [exportJSON(translations, languageCodes, config), 'json']
+    case 'nested-json': return [exportNestedJSON(translations, languageCodes, config), 'json']
     case 'flat-yaml': return [exportFlatYAML(translations, languageCodes, config), 'yaml']
     case 'nested-yaml': return [exportNestedYAML(translations, languageCodes, config), 'yaml']
     case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
-    case 'nested-xml': return [exportXML(translations, languageCodes, config), 'xml']
+    case 'flat-xml': return [exportFlatXML(translations, languageCodes, config), 'xml']
+    case 'nested-xml': return [exportNestedXML(translations, languageCodes, config), 'xml']
     case 'csv': return [exportCSV(translations, languageCodes, config), 'csv']
     default: return [exportFlatJSON(translations, languageCodes, config), 'json']
   }
@@ -108,7 +112,7 @@ function exportFlatJSON(translations: FlatTranslation[], langs: string[], _confi
   return JSON.stringify(items, null, 2)
 }
 
-function exportJSON(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
+function exportNestedJSON(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   const result: Record<string, Record<string, string>> = {}
   for (const lang of langs) {
     const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
@@ -165,17 +169,35 @@ function propsEscapeValue(s: string) {
   return s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t').replace(/^[#!]/gm, '\\$&').replace(/[=:]/g, '\\$&')
 }
 
-function exportXML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
+function exportFlatXML(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
+  if (!langs.length)
+    return ''
+  const lang = langs[0]
+  const builder = new XMLBuilder({
+    format: true,
+    indentBy: '    ',
+    ignoreAttributes: false,
+    suppressEmptyNode: true,
+  })
+  const strings: XmlString[] = []
+  for (const t of translations) {
+    if (t.languageCode === lang)
+      strings.push({ '@_name': t.translationKey, '#text': t.translatedText })
+  }
+  return builder.build({ '?xml': { '@_version': '1.0', '@_encoding': 'UTF-8' }, 'resources': { string: strings.length === 1 ? strings[0] : strings } })
+}
+
+function exportNestedXML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   const builder = new XMLBuilder({
     format: true,
     indentBy: '  ',
     ignoreAttributes: false,
     suppressEmptyNode: true,
   })
-  const resources: Record<string, any> = { language: [] }
+  const resources: { language: XmlLanguage[] } = { language: [] }
   for (const lang of langs) {
     const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
-    const strings: any[] = []
+    const strings: XmlString[] = []
     for (const t of translations) {
       if (t.languageCode === lang)
         strings.push({ '@_name': t.translationKey, '#text': t.translatedText })

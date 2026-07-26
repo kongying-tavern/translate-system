@@ -9,6 +9,7 @@ export const EXPORT_FORMAT_MAP: Record<string, ExportFormatMeta> = {
   'flat-yaml': { format: 'yaml', tags: ['单语言', 'K-V 映射'] },
   'nested-yaml': { format: 'yaml', tags: ['多语言', 'K-V 映射'] },
   'properties': { format: 'properties', tags: ['单语言', '键值对'] },
+  'flat-xml': { format: 'xml', tags: ['单语言', '标签结构'] },
   'nested-xml': { format: 'xml', tags: ['多语言', '标签结构'] },
   'csv': { format: 'csv', tags: ['多语言', '表格'] },
 }
