@@ -4,7 +4,7 @@
 
 基于已部署服务（Docker 接口、前端页面）的运维与集成操作。
 
-### download_translations.ps1 / download_translations.sh
+### download_translations_single.ps1 / download_translations_single.sh
 
 从服务器导出翻译文件，每语言一个单独文件。
 
@@ -23,14 +23,14 @@
 | PS1 参数 | Sh 参数 | 说明 |
 |----------|---------|------|
 | `-Endpoint` | `-e` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
 | `-ProjectSlug` | `-p` | 项目 Slug（UUID 或 code） |
-| `-ApiKey` | `-k` | API Key，以 `ak_` 开头 |
-| `-ApiSecret` | `-s` | API Secret |
 | `-TemplateSlug` | `-t` | 导出模板 Slug（UUID 或 code） |
 | `-OutputDir` | `-o` | 输出目录 |
-| `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
-| `-NoAlias` | `-n` | 输出文件名及字段名使用语言代码而非别名 |
 | `-Languages` | `-l` | 过滤语言，逗号分隔，支持 code 或 alias（如 `zh-Hans,简体中文`），不传则导出全部 |
+| `-NoAlias` | `-n` | 输出文件名及字段名使用语言代码而非别名 |
 | `-Delete` | `-d` | 写文件前若有则删除（`file` 模式）或导出前删整个目录（`folder` 模式） |
 | `-DeleteMode` | `-m` | 清理模式：`file` 写文件前删除同路径旧文件，`folder` 删整个目录，默认 `file` |
 
@@ -41,7 +41,7 @@
 
 #### Shell 依赖
 
-`download_translations.sh` 需要安装 [Node.js](https://nodejs.org/) 解析 JSON。
+`download_translations_single.sh` 需要安装 [Node.js](https://nodejs.org/) 解析 JSON。
 
 ---
 

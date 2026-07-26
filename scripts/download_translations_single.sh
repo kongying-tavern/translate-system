@@ -7,17 +7,17 @@ usage() {
 
 必填:
   -e, --endpoint <url>        服务器地址，如 http://localhost:20080
-  -p, --project <slug>        项目 Slug (UUID 或 code)
   -k, --api-key <key>         API Key (ak_xxx)
   -s, --api-secret <secret>   API Secret
+  -p, --project <slug>        项目 Slug (UUID 或 code)
   -t, --template <slug>       导出模板 Slug (UUID 或 code)
   -o, --output <dir>          输出目录
 
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
-  -n, --no-alias              不使用语言别名作为文件名，改用语言代码
   -l, --languages <list>      过滤语言，逗号分隔（如 zh-Hans,en-US），默认全部
-  -d, --delete                导出前清理已有文件
+  -n, --no-alias              不使用语言别名作为文件名，改用语言代码
+  -d, --delete                写文件前若有则删除（file 模式）或导出前删整个目录（folder 模式）
   -m, --delete-mode <mode>    清理模式: file|folder (默认 file)
   -h, --help                  显示此帮助
 EOF
@@ -56,14 +56,14 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; NC
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -e|--endpoint)     ENDPOINT="$2"; shift 2 ;;
-    -p|--project)      PROJECT_SLUG="$2"; shift 2 ;;
     -k|--api-key)      API_KEY="$2"; shift 2 ;;
     -s|--api-secret)   API_SECRET="$2"; shift 2 ;;
+    -a|--auth-config)  AUTH_CONFIG="$2"; shift 2 ;;
+    -p|--project)      PROJECT_SLUG="$2"; shift 2 ;;
     -t|--template)     TEMPLATE_SLUG="$2"; shift 2 ;;
     -o|--output)       OUTPUT_DIR="$2"; shift 2 ;;
-    -a|--auth-config)  AUTH_CONFIG="$2"; shift 2 ;;
-    -n|--no-alias)     NO_ALIAS=true; shift ;;
     -l|--languages)    LANGUAGES="$2"; shift 2 ;;
+    -n|--no-alias)     NO_ALIAS=true; shift ;;
     -d|--delete)       DELETE=true; shift ;;
     -m|--delete-mode)  DELETE_MODE="$2"; shift 2 ;;
     -h|--help)         usage ;;
