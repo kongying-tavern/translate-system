@@ -61,17 +61,10 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 
-# ── 清理 ──
-if ($Delete) {
-    if (Test-Path $OutputDir) {
-        if ($DeleteMode -eq "folder") {
-            Remove-Item $OutputDir -Recurse -Force
-            Write-Host "已删除目录: $OutputDir" -ForegroundColor Yellow
-        } else {
-            Remove-Item "$OutputDir\*.json" -Force -ErrorAction SilentlyContinue
-            Write-Host "已删除 $OutputDir 下所有 .json 文件" -ForegroundColor Yellow
-        }
-    }
+# ── 清理（folder 模式） ──
+if ($Delete -and $DeleteMode -eq "folder" -and (Test-Path $OutputDir)) {
+    Remove-Item $OutputDir -Recurse -Force
+    Write-Host "已删除目录: $OutputDir" -ForegroundColor Yellow
 }
 
 # 确保输出目录存在
@@ -121,6 +114,26 @@ if ([string]::IsNullOrWhiteSpace($Languages)) {
 if ($langCodes.Count -eq 0) { Write-Host "错误: 没有匹配的语言可供导出" -ForegroundColor Red; exit 1 }
 Write-Host "发现 $($langCodes.Count) 种语言: $($langCodes -join ', ')" -ForegroundColor Cyan
 
+# ── 模板检查 ──
+$downloadableFormats = @('flat-json', 'nested-json', 'flat-yaml', 'nested-yaml', 'properties', 'flat-xml', 'nested-xml', 'csv')
+$templateUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/exports/templates/$TemplateSlug"
+try {
+    $wc = New-Object System.Net.WebClient
+    $wc.Headers.Add("x-api-key", $ApiKey)
+    $wc.Headers.Add("x-api-secret", $ApiSecret)
+    $tmplRaw = $wc.DownloadString($templateUrl)
+    $tmplObj = $tmplRaw | ConvertFrom-Json
+    if ($tmplObj.code -ne 0) { throw $tmplObj.message }
+    $tmplFormat = $tmplObj.data.formatType
+    if ($downloadableFormats -notcontains $tmplFormat) {
+        Write-Host "错误: 模板格式 '$tmplFormat' 不适用于逐语言下载，支持的格式: $($downloadableFormats -join ', ')" -ForegroundColor Red
+        exit 1
+    }
+} catch {
+    Write-Host "获取模板信息失败: $_" -ForegroundColor Red
+    exit 1
+}
+
 # ── 逐语言导出 ──
 $exportUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/exports/generate"
 $succeeded = 0
@@ -154,6 +167,10 @@ foreach ($code in $langCodes) {
             $encoding = $respObj.data.encoding
             $content = $respObj.data.content
             $outFile = Join-Path $OutputDir "$name.$format"
+            if ($Delete -and $DeleteMode -eq "file" -and (Test-Path $outFile)) {
+                Remove-Item $outFile -Force
+                Write-Host "已删除旧文件: $outFile" -ForegroundColor Yellow
+            }
             if ($encoding -eq 'base64') {
                 [Convert]::FromBase64String($content) | Set-Content -Path $outFile -Encoding Byte
             } else {

@@ -6,7 +6,17 @@
 
 ### download_translations.ps1 / download_translations.sh
 
-从服务器导出翻译文件，每语言一个 JSON 文件。
+从服务器导出翻译文件，每语言一个单独文件。
+
+> 仅适用于以下格式（白名单），若模板格式不在其中则脚本报错退出：
+> - `flat-json`
+> - `nested-json`
+> - `flat-yaml`
+> - `nested-yaml`
+> - `properties`
+> - `flat-xml`
+> - `nested-xml`
+> - `csv`
 
 #### 参数
 
@@ -21,8 +31,8 @@
 | `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
 | `-NoAlias` | `-n` | 输出文件名及字段名使用语言代码而非别名 |
 | `-Languages` | `-l` | 过滤语言，逗号分隔，支持 code 或 alias（如 `zh-Hans,简体中文`），不传则导出全部 |
-| `-Delete` | `-d` | 导出前清理输出目录 |
-| `-DeleteMode` | `-m` | 清理模式：`file` 仅删 `.json`，`folder` 删整个目录，默认 `file` |
+| `-Delete` | `-d` | 写文件前若有则删除（`file` 模式）或导出前删整个目录（`folder` 模式） |
+| `-DeleteMode` | `-m` | 清理模式：`file` 写文件前删除同路径旧文件，`folder` 删整个目录，默认 `file` |
 
 #### 前置条件
 

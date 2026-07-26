@@ -96,17 +96,9 @@ if ! command -v node &>/dev/null; then
   exit 1
 fi
 
-# ── 清理 ──
-if [[ "${DELETE:-false}" = true ]]; then
-  if [[ -d "$OUTPUT_DIR" ]]; then
-    if [[ "$DELETE_MODE" = "folder" ]]; then
-      rm -rf "$OUTPUT_DIR"
-      echo -e "${YELLOW}已删除目录: $OUTPUT_DIR${NC}"
-    else
-      rm -f "$OUTPUT_DIR"/*.json
-      echo -e "${YELLOW}已删除 $OUTPUT_DIR 下所有 .json 文件${NC}"
-    fi
-  fi
+if [[ "${DELETE:-false}" = true && "$DELETE_MODE" = "folder" && -d "$OUTPUT_DIR" ]]; then
+  rm -rf "$OUTPUT_DIR"
+  echo -e "${YELLOW}已删除目录: $OUTPUT_DIR${NC}"
 fi
 
 mkdir -p "$OUTPUT_DIR"
@@ -160,6 +152,28 @@ fi
 if [[ ${#LANG_CODES[@]} -eq 0 ]]; then echo -e "${RED}没有匹配的语言可供导出${NC}"; exit 1; fi
 echo -e "${CYAN}发现语言: ${LANG_CODES[*]}${NC}"
 
+# ── 模板检查 ──
+DOWNLOADABLE_FORMATS="flat-json,nested-json,flat-yaml,nested-yaml,properties,flat-xml,nested-xml,csv"
+TEMPLATE_URL="$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/exports/templates/$TEMPLATE_SLUG"
+TMPL_RESP=$(curl -s -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" "$TEMPLATE_URL")
+TMPL_CODE=$(echo "$TMPL_RESP" | json_field '.code')
+if [[ "$TMPL_CODE" != "0" ]]; then
+  TMPL_MSG=$(echo "$TMPL_RESP" | json_field '.message')
+  echo -e "${RED}获取模板信息失败: $TMPL_MSG${NC}" >&2
+  exit 1
+fi
+TMPL_FORMAT=$(echo "$TMPL_RESP" | json_field '.data.formatType')
+VALID=false
+IFS=',' read -ra FMTS <<< "$DOWNLOADABLE_FORMATS"
+for f in "${FMTS[@]}"; do
+  [[ "$f" == "$TMPL_FORMAT" ]] && { VALID=true; break; }
+done
+if ! $VALID; then
+  echo -e "${RED}错误: 模板格式 '$TMPL_FORMAT' 不适用于逐语言下载${NC}" >&2
+  echo -e "${YELLOW}支持的格式: $DOWNLOADABLE_FORMATS${NC}" >&2
+  exit 1
+fi
+
 # ── 逐语言导出 ──
 EXPORT_URL="$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/exports/generate"
 SUCCEEDED=0
@@ -186,6 +200,10 @@ for CODE in "${LANG_CODES[@]}"; do
     FORMAT=$(echo "$RESP" | json_field '.data.format')
     ENCODING=$(echo "$RESP" | json_field '.data.encoding')
     OUT_FILE="$OUTPUT_DIR/$NAME.$FORMAT"
+    if [[ "${DELETE:-false}" = true && "$DELETE_MODE" = "file" && -f "$OUT_FILE" ]]; then
+      rm -f "$OUT_FILE"
+      echo -e "${YELLOW}已删除旧文件: $OUT_FILE${NC}"
+    fi
     if [[ "$ENCODING" = "base64" ]]; then
       echo "$RESP" | json_field '.data.content' | base64 -d > "$OUT_FILE"
     else

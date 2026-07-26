@@ -44,6 +44,7 @@ const APIKEY_WHITELIST = [
   { method: 'GET', path: /^\/projects\/[^/]+\/translations$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/translations\/tags\/list$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/languages$/ },
+  { method: 'GET', path: /^\/projects\/[^/]+\/exports\/templates\/[^/]+$/ },
   { method: 'POST', path: /^\/projects\/[^/]+\/exports\/preview$/ },
   { method: 'POST', path: /^\/projects\/[^/]+\/exports\/generate$/ },
 ]
