@@ -36,9 +36,13 @@ export async function updateLanguageSortOrder(id: string, sortOrder: number) {
   return prisma.projectLanguage.update({ where: { id }, data: { sortOrder } })
 }
 
-export async function getLanguageDisplayMap(projectId: string): Promise<Record<string, string>> {
+export async function getLanguageDisplayMap(projectId: string): Promise<{ aliases: Record<string, string>, languageOrder: string[] }> {
   const langs = await prisma.projectLanguage.findMany({ where: { projectId }, orderBy: [{ sortOrder: 'asc' }, { languageCode: 'asc' }] })
-  const map: Record<string, string> = {}
-  for (const l of langs) map[l.languageCode] = l.alias || l.languageCode
-  return map
+  const aliases: Record<string, string> = {}
+  const languageOrder: string[] = []
+  for (const l of langs) {
+    aliases[l.languageCode] = l.alias || l.languageCode
+    languageOrder.push(l.languageCode)
+  }
+  return { aliases, languageOrder }
 }

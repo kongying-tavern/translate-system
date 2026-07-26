@@ -84,9 +84,9 @@ export function exportTranslations(keys: ExportKey[], languageCodes: string[], f
     case 'nested-json': return [exportJSON(translations, languageCodes, config), 'json']
     case 'flat-yaml': return [exportFlatYAML(translations, languageCodes, config), 'yaml']
     case 'nested-yaml': return [exportNestedYAML(translations, languageCodes, config), 'yaml']
-    case 'csv': return [exportCSV(translations, languageCodes, config), 'csv']
     case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
     case 'xml': return [exportXML(translations, languageCodes, config), 'xml']
+    case 'csv': return [exportCSV(translations, languageCodes, config), 'csv']
     default: return [exportFlatJSON(translations, languageCodes, config), 'json']
   }
 }
@@ -120,57 +120,6 @@ function exportJSON(translations: FlatTranslation[], langs: string[], config?: R
   return JSON.stringify(result, null, 2)
 }
 
-function exportCSV(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
-  const rows: Record<string, { source: string, langs: Record<string, string> }> = {}
-  for (const t of translations) {
-    if (!rows[t.translationKey])
-      rows[t.translationKey] = { source: t.sourceText, langs: {} }
-    rows[t.translationKey].langs[t.languageCode] = t.translatedText
-  }
-  const headerNames = langs.map(l => getLangKey(translations.find(t => t.languageCode === l) || { languageCode: l }, config))
-  const header = ['key', 'source', ...headerNames].join(',')
-  const lines = [header]
-  for (const [key, row] of Object.entries(rows)) {
-    lines.push([csvEscape(key), csvEscape(row.source), ...langs.map(l => csvEscape(row.langs[l] || ''))].join(','))
-  }
-  return lines.join('\n')
-}
-
-function exportProperties(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
-  if (!langs.length)
-    return ''
-  const lang = langs[0]
-  const lines: string[] = []
-  for (const t of translations) {
-    if (t.languageCode === lang)
-      lines.push(`${propsEscapeKey(t.translationKey)}=${propsEscapeValue(t.translatedText)}`)
-  }
-  return lines.join('\n')
-}
-
-function propsEscapeKey(s: string) {
-  return s.replace(/\\/g, '\\\\').replace(/[=:]/g, '\\$&').replace(/^[#!]/gm, '\\$&')
-}
-function propsEscapeValue(s: string) {
-  return s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')
-    .replace(/^[#!]/gm, '\\$&').replace(/[=:]/g, '\\$&')
-}
-
-function exportXML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
-  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<resources>\n'
-  for (const lang of langs) {
-    const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
-    xml += `  <language code="${xmlEscape(name)}">\n`
-    for (const t of translations) {
-      if (t.languageCode === lang)
-        xml += `    <string name="${xmlEscape(t.translationKey)}">${xmlEscape(t.translatedText)}</string>\n`
-    }
-    xml += '  </language>\n'
-  }
-  xml += '</resources>\n'
-  return xml
-}
-
 function exportFlatYAML(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
   if (!langs.length)
     return ''
@@ -194,6 +143,56 @@ function exportNestedYAML(translations: FlatTranslation[], langs: string[], conf
     }
   }
   return yaml.dump(result, { noRefs: true, quotingType: '"', forceQuotes: false, lineWidth: -1 })
+}
+
+function exportProperties(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
+  if (!langs.length)
+    return ''
+  const lang = langs[0]
+  const lines: string[] = []
+  for (const t of translations) {
+    if (t.languageCode === lang)
+      lines.push(`${propsEscapeKey(t.translationKey)}=${propsEscapeValue(t.translatedText)}`)
+  }
+  return lines.join('\n')
+}
+
+function propsEscapeKey(s: string) {
+  return s.replace(/\\/g, '\\\\').replace(/[=:]/g, '\\$&').replace(/^[#!]/gm, '\\$&')
+}
+function propsEscapeValue(s: string) {
+  return s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t').replace(/^[#!]/gm, '\\$&').replace(/[=:]/g, '\\$&')
+}
+
+function exportXML(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<resources>\n'
+  for (const lang of langs) {
+    const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
+    xml += `  <language code="${xmlEscape(name)}">\n`
+    for (const t of translations) {
+      if (t.languageCode === lang)
+        xml += `    <string name="${xmlEscape(t.translationKey)}">${xmlEscape(t.translatedText)}</string>\n`
+    }
+    xml += '  </language>\n'
+  }
+  xml += '</resources>\n'
+  return xml
+}
+
+function exportCSV(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
+  const rows: Record<string, { source: string, langs: Record<string, string> }> = {}
+  for (const t of translations) {
+    if (!rows[t.translationKey])
+      rows[t.translationKey] = { source: t.sourceText, langs: {} }
+    rows[t.translationKey].langs[t.languageCode] = t.translatedText
+  }
+  const headerNames = langs.map(l => getLangKey(translations.find(t => t.languageCode === l) || { languageCode: l }, config))
+  const header = ['key', 'source', ...headerNames].join(',')
+  const lines = [header]
+  for (const [key, row] of Object.entries(rows)) {
+    lines.push([csvEscape(key), csvEscape(row.source), ...langs.map(l => csvEscape(row.langs[l] || ''))].join(','))
+  }
+  return lines.join('\n')
 }
 
 function csvEscape(s: string) {
