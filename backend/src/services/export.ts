@@ -216,7 +216,7 @@ function exportCSV(translations: FlatTranslation[], langs: string[], config?: Re
     rows[t.translationKey].langs[t.languageCode] = t.translatedText
   }
   const headerNames = langs.map(l => getLangKey(translations.find(t => t.languageCode === l) || { languageCode: l }, config))
-  const header = ['key', 'source', ...headerNames].join(',')
+  const header = [csvEscape('key'), csvEscape('source'), ...headerNames.map(csvEscape)].join(',')
   const lines = [header]
   for (const [key, row] of Object.entries(rows)) {
     lines.push([csvEscape(key), csvEscape(row.source), ...langs.map(l => csvEscape(row.langs[l] || ''))].join(','))
@@ -225,7 +225,7 @@ function exportCSV(translations: FlatTranslation[], langs: string[], config?: Re
 }
 
 function csvEscape(s: string) {
-  if (/[,"\n]/.test(s))
+  if (/[,"\n\r]/.test(s))
     return `"${s.replace(/"/g, '""')}"`
   return s
 }
