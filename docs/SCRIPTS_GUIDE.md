@@ -41,7 +41,7 @@
 
 #### Shell 依赖
 
-`download_translations_single.sh` 需要安装 [Node.js](https://nodejs.org/) 解析 JSON。
+`download_translations_single.sh` 需要安装 [jq](https://jqlang.github.io/jq/) 解析 JSON。
 
 ---
 
@@ -74,7 +74,7 @@
 
 #### Shell 依赖
 
-`download_translations_multi.sh` 需要安装 [Node.js](https://nodejs.org/) 解析 JSON。
+`download_translations_multi.sh` 需要安装 [jq](https://jqlang.github.io/jq/) 解析 JSON。
 
 ---
 
@@ -106,7 +106,7 @@
 
 #### Shell 依赖
 
-`summarize_translations.sh` 需要安装 [Node.js](https://nodejs.org/)。
+`summarize_translations.sh` 需要安装 [jq](https://jqlang.github.io/jq/)。输入/输出含 YAML 需 [yq](https://github.com/mikefarah/yq)，含 XML 需 [xmlstarlet](http://xmlstar.sourceforge.net/)。
 
 ---
 

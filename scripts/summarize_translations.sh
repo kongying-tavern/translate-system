@@ -66,21 +66,19 @@ fi
 IN_EXT="$INPUT_FORMAT"
 OUT_EXT="$OUTPUT_FORMAT"
 
+if ! command -v jq &>/dev/null; then echo "错误: 需要 jq" >&2; exit 1; fi
+if { [[ "$IN_EXT" == "yaml" || "$OUT_EXT" == "yaml" ]] && ! command -v yq &>/dev/null; } then
+  echo "错误: YAML 格式需要 yq" >&2; exit 1
+fi
+if { [[ "$IN_EXT" == "xml" || "$OUT_EXT" == "xml" ]] && ! command -v xmlstarlet &>/dev/null; } then
+  echo "错误: XML 格式需要 xmlstarlet" >&2; exit 1
+fi
+
 # ── 加载鉴权配置 ──
 if [[ -n "$AUTH_CONFIG" ]]; then
   if [[ ! -f "$AUTH_CONFIG" ]]; then echo "错误: 鉴权文件不存在: $AUTH_CONFIG" >&2; exit 1; fi
-  if [[ -z "$API_KEY" ]]; then API_KEY=$(node -e "$(cat <<'NODEJS'
-var fs = require('fs');
-var cfg = JSON.parse(fs.readFileSync(process.argv[1], 'utf-8'));
-console.log(cfg.apiKey || '');
-NODEJS
-)" "$AUTH_CONFIG"); fi
-  if [[ -z "$API_SECRET" ]]; then API_SECRET=$(node -e "$(cat <<'NODEJS'
-var fs = require('fs');
-var cfg = JSON.parse(fs.readFileSync(process.argv[1], 'utf-8'));
-console.log(cfg.apiSecret || '');
-NODEJS
-)" "$AUTH_CONFIG"); fi
+  if [[ -z "$API_KEY" ]]; then API_KEY=$(jq -r '.apiKey // ""' "$AUTH_CONFIG"); fi
+  if [[ -z "$API_SECRET" ]]; then API_SECRET=$(jq -r '.apiSecret // ""' "$AUTH_CONFIG"); fi
   echo "已加载鉴权信息" >&2
 fi
 
@@ -100,193 +98,151 @@ LANGS_RAW=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/languages" \
 echo "正在获取翻译总数..." >&2
 COUNT_RESP=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/translations/count" \
   -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET")
-TOTAL=$(node -e "$(cat <<'NODEJS'
-var d = JSON.parse(process.argv[1]);
-console.log((d.data || {}).total || 0);
-NODEJS
-)" "$COUNT_RESP" || echo 0)
+TOTAL=$(jq -r '.data.total // 0' <<< "$COUNT_RESP")
 echo "总条目数: $TOTAL" >&2
 
 if [[ -z "$OUTPUT" ]]; then
   OUTPUT="${INPUT_DIR%/}/summary.$OUT_EXT"
 fi
 
-# 构建配置 JSON 传给 node
-CONFIG_JSON=$(node -e "$(cat <<'NODEJS'
-console.log(JSON.stringify({
-  inputDir: process.argv[1],
-  inExt: process.argv[2],
-  outExt: process.argv[3],
-  total: parseInt(process.argv[4],10)||0,
-  noAlias: process.argv[5]==='true',
-  langFilter: process.argv[6]?process.argv[6].split(',').map(function(s){return s.trim()}).filter(Boolean):[],
-  outputFile: process.argv[7],
-  langData: JSON.parse(process.argv[8]||'[]')
-}));
-NODEJS
-)" "$INPUT_DIR" "$IN_EXT" "$OUT_EXT" "$TOTAL" "${NO_ALIAS:-false}" "$LANGUAGES" "$OUTPUT" "$LANGS_RAW")
+# 构建配置 JSON
+CONFIG_JSON=$(jq -n -c \
+  --arg inputDir "$INPUT_DIR" \
+  --arg inExt "$IN_EXT" \
+  --arg outExt "$OUT_EXT" \
+  --arg total "${TOTAL:-0}" \
+  --arg noAlias "${NO_ALIAS:-false}" \
+  --arg langFilter "$LANGUAGES" \
+  --arg outputFile "$OUTPUT" \
+  --argjson langData "${LANGS_RAW:-null}" \
+  '{
+    inputDir: $inputDir,
+    inExt: $inExt,
+    outExt: $outExt,
+    total: ($total | tonumber),
+    noAlias: ($noAlias == "true"),
+    langFilter: (if $langFilter == "" then [] else ($langFilter | split(",") | map(sub("^ +";"") | sub(" +$";"")) | map(select(. != ""))) end),
+    outputFile: $outputFile,
+    langData: $langData
+  }')
 
-node -e "$(cat <<'NODEJS'
-var fs = require('fs');
-var crypto = require('crypto');
-var cfg = JSON.parse(process.argv[1]);
+# ── 解析配置 ──
+INPUT_DIR=$(jq -r '.inputDir' <<< "$CONFIG_JSON")
+IN_EXT=$(jq -r '.inExt' <<< "$CONFIG_JSON")
+OUT_EXT=$(jq -r '.outExt' <<< "$CONFIG_JSON")
+TOTAL=$(jq -r '.total' <<< "$CONFIG_JSON")
+NO_ALIAS=$(jq -r '.noAlias' <<< "$CONFIG_JSON")
+OUTPUT_FILE=$(jq -r '.outputFile' <<< "$CONFIG_JSON")
+LANG_FILTER=$(jq -r '.langFilter // []' <<< "$CONFIG_JSON")
 
-var langList = (cfg.langData.data || cfg.langData).map(function(l){
-  return { code: l.languageCode, alias: l.alias || l.languageCode };
-});
+# ── 解析语言列表 ──
+LANG_LIST=$(jq -r '.langData.data // .langData | .[] | "\(.languageCode)|\(.alias // "")"' <<< "$CONFIG_JSON")
+[[ -z "$LANG_LIST" ]] && { echo "没有可处理的语言" >&2; exit 1; }
 
-var aliasToCode = {};
-langList.forEach(function(l){ if (l.alias !== l.code) aliasToCode[l.alias] = l.code; });
+# 如果指定了 langFilter，用 jq 过滤（支持 code 和 alias 匹配）
+if [[ "$LANG_FILTER" != "[]" ]]; then
+  TARGETS=$(jq -r --argjson filter "$LANG_FILTER" \
+    '[.langData.data // .langData | .[] | select(. as $l | $filter | index($l.languageCode) or (if $l.alias then index($l.alias) else false end)) | "\(.languageCode)|\(.alias // "")"] | .[]' \
+    <<< "$CONFIG_JSON")
+else
+  TARGETS="$LANG_LIST"
+fi
+[[ -z "$TARGETS" ]] && { echo "没有可处理的语言" >&2; exit 1; }
 
-var targets = [];
-if (cfg.langFilter.length > 0) {
-  cfg.langFilter.forEach(function(f){
-    var found = langList.filter(function(x){ return x.code === f; });
-    if (found.length > 0) { targets.push(found[0]); return; }
-    var code = aliasToCode[f];
-    if (code) { targets.push(langList.filter(function(x){ return x.code === code; })[0]); return; }
-    console.error('跳过未找到的语言: ' + f);
-  });
-} else {
-  targets = langList;
-}
-if (targets.length === 0) { console.error('没有可处理的语言'); process.exit(1); }
+# ── 逐语言处理 ──
+xml_esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
 
-function parseJSON(text) { return JSON.parse(text); }
-function parseYAML(text) {
-  var obj = {};
-  text.split(/\r?\n/).forEach(function(line){
-    var m = line.match(/^\s*([^#:]+?):\s*(.*)/);
-    if (!m) return;
-    var k = m[1].trim();
-    var v = m[2].trim();
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))
-      v = v.slice(1, -1);
-    obj[k] = v;
-  });
-  return obj;
-}
-function parseXML(text) {
-  function decode(s) {
-    return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,function(_,c){return String.fromCharCode(c)});
-  }
-  var obj = {};
-  var re = /<string\s+name="([^"]*)"[^>]*>(.*?)<\/string>/g;
-  var m;
-  while ((m = re.exec(text)) !== null) {
-    var val = m[2];
-    var cd = val.match(/^\s*<!\[CDATA\[([\s\S]*?)\]\]>\s*$/);
-    obj[m[1]] = decode(cd ? cd[1] : val);
-  }
-  return obj;
-}
-function parseProperties(text) {
-  function unescape(s) {
-    return s.replace(/\\(.)/g, function(_,c){ return c === 'n' ? '\n' : c === 'r' ? '\r' : c === 't' ? '\t' : c; });
-  }
-  var obj = {};
-  text.split(/\r?\n/).forEach(function(line){
-    line = line.trim();
-    if (!line || line[0] === '#' || line[0] === '!') return;
-    var idx = line.indexOf('=');
-    if (idx < 0) idx = line.indexOf(':');
-    if (idx < 0) return;
-    obj[line.slice(0, idx).trim()] = unescape(line.slice(idx + 1).trim());
-  });
-  return obj;
-}
-function parseCSV(text) {
-  var obj = {};
-  var lines = text.split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return obj;
-  var headers = parseCSVLine(lines[0]);
-  var keyIdx = headers.indexOf('key');
-  var valIdx = headers.length - 1;
-  keyIdx = keyIdx >= 0 ? keyIdx : 0;
-  for (var i = 1; i < lines.length; i++) {
-    var row = parseCSVLine(lines[i]);
-    if (row.length > keyIdx) obj[row[keyIdx]] = row.length > valIdx ? row[valIdx] : '';
-  }
-  return obj;
-}
-function parseCSVLine(line) {
-  var result = [], cur = '', inQ = false;
-  for (var i = 0; i < line.length; i++) {
-    var c = line[i];
-    if (inQ) { if (c === '"') { if (line[i+1] === '"') { cur += '"'; i++; } else { inQ = false; } } else { cur += c; } }
-    else if (c === '"') { inQ = true; }
-    else if (c === ',') { result.push(cur); cur = ''; }
-    else { cur += c; }
-  }
-  result.push(cur);
-  return result;
-}
+RESULT_JSON="["
+FIRST=true
 
-var PARSERS = { json: parseJSON, yaml: parseYAML, xml: parseXML, properties: parseProperties, csv: parseCSV };
-var parseInput = PARSERS[cfg.inExt] || parseJSON;
+while IFS='|' read -r code alias; do
+  logicLangCode="$code"
+  [[ "$NO_ALIAS" != "true" && -n "$alias" ]] && logicLangCode="$alias"
 
-var result = [];
-targets.forEach(function(lang){
-  var logicLangCode = cfg.noAlias ? lang.code : (lang.alias || lang.code);
-  var filePath = cfg.inputDir + '/' + logicLangCode + '.' + cfg.inExt;
-  if (!fs.existsSync(filePath)) { console.error('文件不存在，跳过: ' + filePath); return; }
-  var content = parseInput(fs.readFileSync(filePath, 'utf-8'));
-  var keys = Object.keys(content);
-  var translated = 0;
-  var texts = [];
-  keys.forEach(function(k){
-    var v = content[k];
-    if (v && v.trim()) { translated++; texts.push(v.trim()); }
-  });
-  texts.sort();
-  var md5Hash = crypto.createHash('md5').update(texts.join('')).digest('hex');
-  result.push({
-    langName: lang.code,
-    langCode: logicLangCode,
-    md5Hash: md5Hash,
-    summary: {
-      countTotal: cfg.total,
-      countTranslated: translated,
-      ratioTranslated: cfg.total > 0 ? Number((translated / cfg.total * 100).toFixed(8)) : 0
-    }
-  });
-});
+  file="${INPUT_DIR}/${logicLangCode}.${IN_EXT}"
+  if [[ ! -f "$file" ]]; then
+    echo "文件不存在，跳过: $file" >&2
+    continue
+  fi
 
-function serializeToYAML(data) {
-  var lines = [];
-  data.forEach(function(r){
-    lines.push('- langName: ' + JSON.stringify(r.langName));
-    lines.push('  langCode: ' + JSON.stringify(r.langCode));
-    lines.push('  md5Hash: ' + JSON.stringify(r.md5Hash));
-    lines.push('  summary:');
-    lines.push('    countTotal: ' + r.summary.countTotal);
-    lines.push('    countTranslated: ' + r.summary.countTranslated);
-    lines.push('    ratioTranslated: ' + r.summary.ratioTranslated);
-  });
-  return lines.join('\n') + '\n';
-}
-function serializeToXML(data) {
-  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-  var lines = ['<?xml version="1.0" encoding="UTF-8"?>','<languages>'];
-  data.forEach(function(r){
-    lines.push('  <language code="' + esc(r.langCode) + '">');
-    lines.push('    <langName>' + esc(r.langName) + '</langName>');
-    lines.push('    <md5Hash>' + esc(r.md5Hash) + '</md5Hash>');
-    lines.push('    <summary>');
-    lines.push('      <countTotal>' + r.summary.countTotal + '</countTotal>');
-    lines.push('      <countTranslated>' + r.summary.countTranslated + '</countTranslated>');
-    lines.push('      <ratioTranslated>' + r.summary.ratioTranslated + '</ratioTranslated>');
-    lines.push('    </summary>');
-    lines.push('  </language>');
-  });
-  lines.push('</languages>');
-  return lines.join('\n') + '\n';
-}
-var outContent = '';
-if (cfg.outExt === 'yaml') outContent = serializeToYAML(result);
-else if (cfg.outExt === 'xml') outContent = serializeToXML(result);
-else outContent = JSON.stringify(result);
-fs.writeFileSync(cfg.outputFile, outContent, 'utf-8');
-console.error('已生成: ' + cfg.outputFile);
-NODEJS
-)" "$CONFIG_JSON"
+  TRANSLATED=0
+  VALUES=""
+
+  case "$IN_EXT" in
+    json)
+      VALUES=$(jq -r 'to_entries[] | select(.value != null) | .value' "$file")
+      TRANSLATED=$(jq -r '[to_entries[] | select(.value != null and .value != "")] | length' "$file")
+      ;;
+    yaml)
+      VALUES=$(yq eval '. | to_entries[] | select(.value != null and .value != "") | .value' "$file" 2>/dev/null)
+      TRANSLATED=$(yq eval '[. | to_entries[] | select(.value != null and .value != "")] | length' "$file" 2>/dev/null)
+      ;;
+    xml)
+      VALUES=$(xmlstarlet sel -t -m "//string" -v "text()" -n "$file" 2>/dev/null | sed '/^[[:space:]]*$/d')
+      TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
+      ;;
+    properties)
+      VALUES=$(grep -v '^[#!]' "$file" | grep '=' 2>/dev/null | sed 's/^[^=]*=//' | sed 's/\\([nrt])/\\1/g' | grep -v '^[[:space:]]*$')
+      TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
+      ;;
+    csv)
+      VALUES=$(awk -F',' 'NR>1 {
+        val = $NF
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+        if (val != "") print val
+      }' "$file" 2>/dev/null)
+      TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
+      ;;
+  esac
+
+  MD5=$(echo "$VALUES" | LC_ALL=C sort | md5sum | cut -d' ' -f1)
+  RATIO=0
+  if [[ "$TOTAL" -gt 0 ]]; then
+    RATIO=$(awk "BEGIN{printf \"%.8f\", $TRANSLATED / $TOTAL * 100}")
+  fi
+
+  ITEM=$(jq -n -c \
+    --arg langName "$code" \
+    --arg langCode "$logicLangCode" \
+    --arg md5Hash "$MD5" \
+    --argjson countTotal "$TOTAL" \
+    --argjson countTranslated "$TRANSLATED" \
+    --argjson ratio "$RATIO" \
+    '{
+      langName: $langName,
+      langCode: $langCode,
+      md5Hash: $md5Hash,
+      summary: {
+        countTotal: $countTotal,
+        countTranslated: $countTranslated,
+        ratioTranslated: $ratio
+      }
+    }')
+
+  [[ "$FIRST" == "true" ]] && FIRST=false || RESULT_JSON+=","
+  RESULT_JSON+="$ITEM"
+done <<< "$TARGETS"
+RESULT_JSON+="]"
+
+# ── 输出结果 ──
+case "$OUT_EXT" in
+  yaml)
+    echo "$RESULT_JSON" | yq eval -P - > "$OUTPUT_FILE"
+    ;;
+  xml)
+    {
+      printf '<?xml version="1.0" encoding="UTF-8"?>\n<languages>\n'
+      echo "$RESULT_JSON" | jq -r '.[] | [.langCode, .langName, .md5Hash, (.summary.countTotal|tostring), (.summary.countTranslated|tostring), (.summary.ratioTranslated|tostring)] | @tsv' | \
+      while IFS=$'\t' read -r lc ln md5 ct ctr rt; do
+        printf '  <language code="%s">\n    <langName>%s</langName>\n    <md5Hash>%s</md5Hash>\n    <summary>\n      <countTotal>%s</countTotal>\n      <countTranslated>%s</countTranslated>\n      <ratioTranslated>%s</ratioTranslated>\n    </summary>\n  </language>\n' \
+          "$(echo "$lc" | xml_esc)" "$(echo "$ln" | xml_esc)" "$md5" "$ct" "$ctr" "$rt"
+      done
+      printf '</languages>\n'
+    } > "$OUTPUT_FILE"
+    ;;
+  *)
+    printf '%s' "$RESULT_JSON" > "$OUTPUT_FILE"
+    ;;
+esac
+
+echo "已生成: $OUTPUT_FILE" >&2

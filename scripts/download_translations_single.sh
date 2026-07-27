@@ -25,32 +25,14 @@ EOF
 }
 
 json_field() {
-  local input; input=$(cat)
-  [[ -z "$input" ]] && { echo ""; return 1; }
-  node -e "$(cat <<'NODEJS'
-    var d = JSON.parse(process.argv[1]);
-    var keys = process.argv[2].replace(/^\./, '').split('.');
-    var v = d;
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      if (k.endsWith('[]')) {
-        v = v[k.slice(0, -2)];
-        if (i + 1 < keys.length) {
-          var rest = keys.slice(i + 1).join('.');
-          v.forEach(function(x) { console.log(x[rest]); });
-          process.exit(0);
-        }
-        v.forEach(function(x) { console.log(x); });
-        process.exit(0);
-      }
-      v = v[k];
-    }
-    if (Array.isArray(v)) v.forEach(function(x) { console.log(x); });
-    else console.log(v);
-NODEJS
-)" "$input" "$1" || echo ""
+  jq -r "$1 // \"\"" 2>/dev/null || echo ""
+}
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
 # ── 解析参数 ──
 while [[ $# -gt 0 ]]; do
@@ -91,8 +73,8 @@ for var in ENDPOINT PROJECT_SLUG API_KEY API_SECRET TEMPLATE_SLUG OUTPUT_DIR; do
   if [[ -z "${!var:-}" ]]; then echo -e "${RED}缺少必填参数: $var${NC}"; usage; fi
 done
 
-if ! command -v node &>/dev/null; then
-  echo -e "${RED}错误: 需要 node 来解析 JSON 响应${NC}" >&2
+if ! command -v jq &>/dev/null; then
+  echo -e "${RED}错误: 需要 jq 来解析 JSON 响应${NC}" >&2
   exit 1
 fi
 
@@ -114,11 +96,7 @@ fi
 
 declare -A ALIAS_MAP CODE_MAP IS_CODE
 ALL_CODES=()
-LANG_LIST=$(node -e "$(cat <<'NODEJS'
-  var d = JSON.parse(process.argv[1]).data || [];
-  d.forEach(function(x){console.log(x.languageCode+'|'+(x.alias||''))});
-NODEJS
-)" "$LANG_RESP")
+LANG_LIST=$(jq -r '.data[] | "\(.languageCode)|\(.alias // "")"' <<< "$LANG_RESP")
 while IFS='|' read -r code alias; do
   ALL_CODES+=("$code")
   IS_CODE["$code"]=1
@@ -203,15 +181,9 @@ for CODE in "${LANG_CODES[@]}"; do
       echo -e "${YELLOW}已删除旧文件: $OUT_FILE${NC}"
     fi
     if [[ "$ENCODING" = "base64" ]]; then
-      node -e "$(cat <<'NODEJS'
-process.stdout.write(JSON.parse(process.argv[1]).data.content)
-NODEJS
-)" "$RESP" | base64 -d > "$OUT_FILE"
+      jq -j '.data.content // ""' <<< "$RESP" | base64 -d > "$OUT_FILE"
     else
-      node -e "$(cat <<'NODEJS'
-process.stdout.write(JSON.parse(process.argv[1]).data.content)
-NODEJS
-)" "$RESP" > "$OUT_FILE"
+      jq -j '.data.content // ""' <<< "$RESP" > "$OUT_FILE"
     fi
     echo -e "${GREEN} -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)${NC}"
     ((++SUCCEEDED))
