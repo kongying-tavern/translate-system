@@ -12,14 +12,19 @@ export async function listTemplates(projectId: string) {
   return prisma.exportTemplate.findMany({ where: { projectId }, orderBy: { createdAt: 'desc' } })
 }
 
-export async function getTemplate(id: string, projectId?: string) {
+export async function resolveTemplate(templateSlug: string, projectSlug?: string) {
   let t = null
   try {
-    t = await prisma.exportTemplate.findUnique({ where: { id } })
+    t = await prisma.exportTemplate.findUnique({ where: { id: templateSlug } })
   }
   catch {}
-  if (!t && projectId)
-    t = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId, code: id } } })
+  if (!t && projectSlug)
+    t = await prisma.exportTemplate.findUnique({ where: { projectId_code: { projectId: projectSlug, code: templateSlug } } })
+  return t
+}
+
+export async function getTemplate(templateSlug: string, projectSlug?: string) {
+  const t = await resolveTemplate(templateSlug, projectSlug)
   if (!t)
     throw new AppError(1003, 'template not found')
   return t

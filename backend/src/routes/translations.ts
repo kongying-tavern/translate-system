@@ -67,6 +67,15 @@ translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddlewar
   }
 })
 
+// Translation count (lightweight)
+translationRoutes.get('/:projectSlug/translations/count', authMiddleware, requireOwnership, async (req, res) => {
+  try {
+    const data = await transService.getTranslationCount(req.params.projectSlug, req.query.languageCode as string)
+    success(res, data)
+  }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
+})
+
 // All tags for a project
 translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware, requireOwnership, async (req, res) => {
   try {

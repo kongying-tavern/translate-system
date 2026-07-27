@@ -12,15 +12,15 @@ export async function listProjects(userId: string, page: number, pageSize: numbe
   return { projects, total }
 }
 
-async function resolveProject(identifier: string) {
-  let p = await prisma.project.findUnique({ where: { id: identifier } })
+export async function resolveProject(projectSlug: string) {
+  let p = await prisma.project.findUnique({ where: { id: projectSlug } })
   if (!p)
-    p = await prisma.project.findUnique({ where: { code: identifier } })
+    p = await prisma.project.findUnique({ where: { code: projectSlug } })
   return p
 }
 
-export async function getProject(identifier: string) {
-  const p = await resolveProject(identifier)
+export async function getProject(projectSlug: string) {
+  const p = await resolveProject(projectSlug)
   if (!p)
     throw new AppError(1003, 'project not found')
   return p
@@ -41,8 +41,8 @@ export async function createProject(userId: string, data: { name: string, descri
   })
 }
 
-export async function updateProject(identifier: string, data: { name: string, description?: string, sourceLanguage?: string, code?: string }) {
-  const p = await resolveProject(identifier)
+export async function updateProject(projectSlug: string, data: { name: string, description?: string, sourceLanguage?: string, code?: string }) {
+  const p = await resolveProject(projectSlug)
   if (!p)
     throw new AppError(1003, 'project not found')
   if (data.code && data.code !== p.code) {
@@ -62,8 +62,8 @@ export async function updateProject(identifier: string, data: { name: string, de
   })
 }
 
-export async function deleteProject(identifier: string) {
-  const p = await resolveProject(identifier)
+export async function deleteProject(projectSlug: string) {
+  const p = await resolveProject(projectSlug)
   if (!p)
     throw new AppError(1003, 'project not found')
   return prisma.project.delete({ where: { id: p.id } })

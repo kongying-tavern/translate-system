@@ -42,6 +42,7 @@ app.use('/api/v1/projects', importRoutes)
 // API Key proxy: whitelist of exposed routes
 const APIKEY_WHITELIST = [
   { method: 'GET', path: /^\/projects\/[^/]+\/translations$/ },
+  { method: 'GET', path: /^\/projects\/[^/]+\/translations\/count$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/translations\/tags\/list$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/languages$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/exports\/templates\/[^/]+$/ },

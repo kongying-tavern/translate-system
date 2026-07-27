@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../index'
 import { AppError } from '../utils/AppError'
+import { resolveProject } from './project'
 
 export interface BatchUpsertItem {
   translationKey: string
@@ -180,6 +181,20 @@ export async function getForExport(projectId: string, _languageCodes: string[]):
     orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
   })
   return keys
+}
+
+export async function getTranslationCount(projectSlug: string, languageCode?: string) {
+  const project = await resolveProject(projectSlug)
+  if (!project)
+    throw new AppError(404, 'project not found')
+
+  const total = await prisma.translationKey.count({ where: { projectId: project.id } })
+  if (!languageCode)
+    return { total, translated: 0, languageCode: '*' }
+  const translated = await prisma.translationValue.count({
+    where: { key: { projectId: project.id }, languageCode, translatedText: { not: '' } },
+  })
+  return { total, translated, languageCode }
 }
 
 export async function getAllTags(projectId: string) {
