@@ -237,6 +237,8 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 **文档同步**：新增或修改脚本后，同步更新 `docs/SCRIPTS_GUIDE.md`，包括用法说明、依赖变更和示例。
 
+**API 脚本参数规范**：涉及 API 调用的扩展脚本，必填参数包含 `Endpoint` + `ApiKey`/`ApiSecret`（或 `AuthConfig` 文件），且鉴权参数排列在项目/模板参数之前。具体顺序参考已有脚本或 `docs/SCRIPTS_GUIDE.md` 表格。
+
 #### 扩展脚本
 
 - 无特殊前缀
