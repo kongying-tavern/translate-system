@@ -174,9 +174,9 @@ RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
 if [[ "$(echo "$RESP" | json_field '.code')" = "0" ]]; then
   ENCODING=$(echo "$RESP" | json_field '.data.encoding')
   if [[ "$ENCODING" = "base64" ]]; then
-    echo "$RESP" | json_field '.data.content' | base64 -d > "$OUTPUT_FILE"
+    echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" | base64 -d > "$OUTPUT_FILE"
   else
-    echo "$RESP" | json_field '.data.content' > "$OUTPUT_FILE"
+    echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" > "$OUTPUT_FILE"
   fi
   echo -e "${GREEN} -> $OUTPUT_FILE ($(wc -c < "$OUTPUT_FILE") 字节)${NC}"
   echo -e "${GREEN}完成${NC}"

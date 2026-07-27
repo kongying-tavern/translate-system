@@ -174,7 +174,7 @@ foreach ($code in $langCodes) {
             if ($encoding -eq 'base64') {
                 [Convert]::FromBase64String($content) | Set-Content -Path $outFile -Encoding Byte
             } else {
-                $content | Out-File -FilePath $outFile -Encoding utf8
+                [System.IO.File]::WriteAllText($outFile, $content)
             }
             $fileSize = if ($encoding -eq 'base64') { [Convert]::FromBase64String($content).Length } else { $content.Length }
             Write-Host " -> $outFile ($fileSize 字节)" -ForegroundColor Green

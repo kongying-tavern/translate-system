@@ -205,9 +205,9 @@ for CODE in "${LANG_CODES[@]}"; do
       echo -e "${YELLOW}已删除旧文件: $OUT_FILE${NC}"
     fi
     if [[ "$ENCODING" = "base64" ]]; then
-      echo "$RESP" | json_field '.data.content' | base64 -d > "$OUT_FILE"
+      echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" | base64 -d > "$OUT_FILE"
     else
-      echo "$RESP" | json_field '.data.content' > "$OUT_FILE"
+      echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" > "$OUT_FILE"
     fi
     echo -e "${GREEN} -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)${NC}"
     ((++SUCCEEDED))
