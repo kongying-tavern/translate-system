@@ -3,7 +3,7 @@ import type { ExportKey, FlatTranslation } from './types'
 import { prisma } from '../../index'
 import { AppError } from '../../utils/AppError'
 import { exportCSV } from './csv'
-import { exportFlatJSON, exportNestedJSON, exportSummaryJSON } from './json'
+import { exportFlatJSON, exportNestedJSON } from './json'
 import { exportProperties } from './properties'
 import { exportFlatXML, exportNestedXML } from './xml'
 import { exportFlatYAML, exportNestedYAML } from './yaml'
@@ -77,7 +77,6 @@ export function exportTranslations(keys: ExportKey[], languageCodes: string[], f
   switch (formatType) {
     case 'flat-json': return [exportFlatJSON(translations, languageCodes, config), 'json']
     case 'nested-json': return [exportNestedJSON(translations, languageCodes, config), 'json']
-    case 'summary-json': return [exportSummaryJSON(keys, languageCodes, aliases), 'json']
     case 'flat-yaml': return [exportFlatYAML(translations, languageCodes, config), 'yaml']
     case 'nested-yaml': return [exportNestedYAML(translations, languageCodes, config), 'yaml']
     case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
