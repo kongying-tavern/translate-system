@@ -25,7 +25,7 @@ EOF
 json_field() {
   local input; input=$(cat)
   [[ -z "$input" ]] && { echo ""; return 1; }
-  node -e "
+  node -e "$(cat <<'NODEJS'
     var d = JSON.parse(process.argv[1]);
     var keys = process.argv[2].replace(/^\./, '').split('.');
     var v = d;
@@ -45,8 +45,8 @@ json_field() {
     }
     if (Array.isArray(v)) v.forEach(function(x) { console.log(x); });
     else console.log(v);
-  " "$input" "$1" || echo ""
-}
+NODEJS
+)" "$input" "$1" || echo ""
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
@@ -107,17 +107,15 @@ fi
 
 declare -A IS_CODE
 ALL_CODES=()
+LANG_LIST=$(node -e "$(cat <<'NODEJS'
+  var d = JSON.parse(process.argv[1]).data || [];
+  d.forEach(function(x){console.log(x.languageCode+'|'+(x.alias||''))});
+NODEJS
+)" "$LANG_RESP")
 while IFS='|' read -r code alias; do
   ALL_CODES+=("$code")
   IS_CODE["$code"]=1
-done < <(echo "$LANG_RESP" | node -e "
-  var input = '';
-  process.stdin.on('data',function(c){input+=c});
-  process.stdin.on('end',function(){
-    var d=JSON.parse(input).data||[];
-    d.forEach(function(x){console.log(x.languageCode+'|'+(x.alias||''))});
-  });
-")
+done <<< "$LANG_LIST"
 if [[ ${#ALL_CODES[@]} -eq 0 ]]; then echo -e "${RED}项目没有配置任何语言${NC}"; exit 1; fi
 
 # 解析目标语言（仅支持 code 匹配）
@@ -174,9 +172,15 @@ RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
 if [[ "$(echo "$RESP" | json_field '.code')" = "0" ]]; then
   ENCODING=$(echo "$RESP" | json_field '.data.encoding')
   if [[ "$ENCODING" = "base64" ]]; then
-    echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" | base64 -d > "$OUTPUT_FILE"
+    node -e "$(cat <<'NODEJS'
+process.stdout.write(JSON.parse(process.argv[1]).data.content)
+NODEJS
+)" "$RESP" | base64 -d > "$OUTPUT_FILE"
   else
-    echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" > "$OUTPUT_FILE"
+    node -e "$(cat <<'NODEJS'
+process.stdout.write(JSON.parse(process.argv[1]).data.content)
+NODEJS
+)" "$RESP" > "$OUTPUT_FILE"
   fi
   echo -e "${GREEN} -> $OUTPUT_FILE ($(wc -c < "$OUTPUT_FILE") 字节)${NC}"
   echo -e "${GREEN}完成${NC}"

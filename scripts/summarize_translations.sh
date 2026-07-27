@@ -69,8 +69,18 @@ OUT_EXT="$OUTPUT_FORMAT"
 # ── 加载鉴权配置 ──
 if [[ -n "$AUTH_CONFIG" ]]; then
   if [[ ! -f "$AUTH_CONFIG" ]]; then echo "错误: 鉴权文件不存在: $AUTH_CONFIG" >&2; exit 1; fi
-  if [[ -z "$API_KEY" ]]; then API_KEY=$(node -p "JSON.parse(require('fs').readFileSync('$AUTH_CONFIG','utf-8')).apiKey||''"); fi
-  if [[ -z "$API_SECRET" ]]; then API_SECRET=$(node -p "JSON.parse(require('fs').readFileSync('$AUTH_CONFIG','utf-8')).apiSecret||''"); fi
+  if [[ -z "$API_KEY" ]]; then API_KEY=$(node -e "$(cat <<'NODEJS'
+var fs = require('fs');
+var cfg = JSON.parse(fs.readFileSync(process.argv[1], 'utf-8'));
+console.log(cfg.apiKey || '');
+NODEJS
+)" "$AUTH_CONFIG"); fi
+  if [[ -z "$API_SECRET" ]]; then API_SECRET=$(node -e "$(cat <<'NODEJS'
+var fs = require('fs');
+var cfg = JSON.parse(fs.readFileSync(process.argv[1], 'utf-8'));
+console.log(cfg.apiSecret || '');
+NODEJS
+)" "$AUTH_CONFIG"); fi
   echo "已加载鉴权信息" >&2
 fi
 
@@ -88,8 +98,13 @@ LANGS_RAW=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/languages" \
 
 # ── 获取总 key 数 ──
 echo "正在获取翻译总数..." >&2
-TOTAL=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/translations/count" \
-  -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" | node -e "var d='';process.stdin.on('data',function(c){d+=c});process.stdin.on('end',function(){try{console.log(JSON.parse(d).data.total||0)}catch(e){console.log(0)}})" || echo 0)
+COUNT_RESP=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/translations/count" \
+  -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET")
+TOTAL=$(node -e "$(cat <<'NODEJS'
+var d = JSON.parse(process.argv[1]);
+console.log((d.data || {}).total || 0);
+NODEJS
+)" "$COUNT_RESP" || echo 0)
 echo "总条目数: $TOTAL" >&2
 
 if [[ -z "$OUTPUT" ]]; then
@@ -97,21 +112,24 @@ if [[ -z "$OUTPUT" ]]; then
 fi
 
 # 构建配置 JSON 传给 node
-CONFIG_JSON=$(node -e "console.log(JSON.stringify({
-  inputDir: process.argv[2],
-  inExt: process.argv[3],
-  outExt: process.argv[4],
-  total: parseInt(process.argv[5],10)||0,
-  noAlias: process.argv[6]==='true',
-  langFilter: process.argv[7]?process.argv[7].split(',').map(function(s){return s.trim()}).filter(Boolean):[],
-  outputFile: process.argv[8],
-  langData: JSON.parse(process.argv[9]||'[]')
-}))" "$INPUT_DIR" "$IN_EXT" "$OUT_EXT" "$TOTAL" "${NO_ALIAS:-false}" "$LANGUAGES" "$OUTPUT" "$LANGS_RAW")
+CONFIG_JSON=$(node -e "$(cat <<'NODEJS'
+console.log(JSON.stringify({
+  inputDir: process.argv[1],
+  inExt: process.argv[2],
+  outExt: process.argv[3],
+  total: parseInt(process.argv[4],10)||0,
+  noAlias: process.argv[5]==='true',
+  langFilter: process.argv[6]?process.argv[6].split(',').map(function(s){return s.trim()}).filter(Boolean):[],
+  outputFile: process.argv[7],
+  langData: JSON.parse(process.argv[8]||'[]')
+}));
+NODEJS
+)" "$INPUT_DIR" "$IN_EXT" "$OUT_EXT" "$TOTAL" "${NO_ALIAS:-false}" "$LANGUAGES" "$OUTPUT" "$LANGS_RAW")
 
-node /dev/stdin "$CONFIG_JSON" <<'NODEJS'
+node -e "$(cat <<'NODEJS'
 var fs = require('fs');
 var crypto = require('crypto');
-var cfg = JSON.parse(process.argv[2]);
+var cfg = JSON.parse(process.argv[1]);
 
 var langList = (cfg.langData.data || cfg.langData).map(function(l){
   return { code: l.languageCode, alias: l.alias || l.languageCode };
@@ -271,3 +289,4 @@ else outContent = JSON.stringify(result);
 fs.writeFileSync(cfg.outputFile, outContent, 'utf-8');
 console.error('已生成: ' + cfg.outputFile);
 NODEJS
+)" "$CONFIG_JSON"

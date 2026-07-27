@@ -27,7 +27,7 @@ EOF
 json_field() {
   local input; input=$(cat)
   [[ -z "$input" ]] && { echo ""; return 1; }
-  node -e "
+  node -e "$(cat <<'NODEJS'
     var d = JSON.parse(process.argv[1]);
     var keys = process.argv[2].replace(/^\./, '').split('.');
     var v = d;
@@ -47,8 +47,8 @@ json_field() {
     }
     if (Array.isArray(v)) v.forEach(function(x) { console.log(x); });
     else console.log(v);
-  " "$input" "$1" || echo ""
-}
+NODEJS
+)" "$input" "$1" || echo ""
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; CYAN='\033[0;36m'; NC='\033[0m'
 
@@ -114,6 +114,11 @@ fi
 
 declare -A ALIAS_MAP CODE_MAP IS_CODE
 ALL_CODES=()
+LANG_LIST=$(node -e "$(cat <<'NODEJS'
+  var d = JSON.parse(process.argv[1]).data || [];
+  d.forEach(function(x){console.log(x.languageCode+'|'+(x.alias||''))});
+NODEJS
+)" "$LANG_RESP")
 while IFS='|' read -r code alias; do
   ALL_CODES+=("$code")
   IS_CODE["$code"]=1
@@ -121,14 +126,7 @@ while IFS='|' read -r code alias; do
     ALIAS_MAP["$code"]="$alias"
     CODE_MAP["$alias"]="$code"
   fi
-done < <(echo "$LANG_RESP" | node -e "
-  var input = '';
-  process.stdin.on('data',function(c){input+=c});
-  process.stdin.on('end',function(){
-    var d=JSON.parse(input).data||[];
-    d.forEach(function(x){console.log(x.languageCode+'|'+(x.alias||''))});
-  });
-")
+done <<< "$LANG_LIST"
 if [[ ${#ALL_CODES[@]} -eq 0 ]]; then echo -e "${RED}项目没有配置任何语言${NC}"; exit 1; fi
 
 # 解析目标语言（支持 code 和 alias 匹配）
@@ -205,9 +203,15 @@ for CODE in "${LANG_CODES[@]}"; do
       echo -e "${YELLOW}已删除旧文件: $OUT_FILE${NC}"
     fi
     if [[ "$ENCODING" = "base64" ]]; then
-      echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" | base64 -d > "$OUT_FILE"
+      node -e "$(cat <<'NODEJS'
+process.stdout.write(JSON.parse(process.argv[1]).data.content)
+NODEJS
+)" "$RESP" | base64 -d > "$OUT_FILE"
     else
-      echo "$RESP" | node -e "process.stdout.write(JSON.parse(process.argv[1]).data.content)" > "$OUT_FILE"
+      node -e "$(cat <<'NODEJS'
+process.stdout.write(JSON.parse(process.argv[1]).data.content)
+NODEJS
+)" "$RESP" > "$OUT_FILE"
     fi
     echo -e "${GREEN} -> $OUT_FILE ($(wc -c < "$OUT_FILE") 字节)${NC}"
     ((++SUCCEEDED))
