@@ -110,6 +110,48 @@
 
 ---
 
+### folder_lock.ps1 / folder_lock.sh
+
+伪锁定方案：在临时目录中处理文件，完成后同步到目标目录，避免目标目录出现中间状态文件。
+
+#### 参数
+
+| PS1 | Sh | 说明 |
+|-----|----|------|
+| `-Target` | `-t, --target <目录>` | 目标目录（必填） |
+| `-Delete` | `-d, --delete` | lock 时清空目标目录；unlock 时移动而非复制 |
+
+#### `lock [--delete]`
+
+创建临时目录并写入 `.staging_lock` 标记文件，输出临时目录路径。`--delete` 清空目标目录后再创建。
+
+`lock` 输出临时目录路径（如 `/tmp/staging.abc123/`），用 `$(...)` 捕获到变量后传给后续命令。
+
+```bash
+STAGING=$(./scripts/folder_lock.sh --target ./translations lock --delete)
+./scripts/download_translations_single.sh ... -o "$STAGING"
+```
+
+#### `unlock [--delete]`
+
+将临时目录中所有文件同步到目标目录，移除标记文件。缺省为**复制**（保留临时目录），`--delete` 为**移动**（删除临时目录中源文件）。
+
+```bash
+./scripts/folder_lock.sh --target ./translations unlock
+# 或移动模式
+./scripts/folder_lock.sh --target ./translations unlock --delete
+```
+
+#### `status`
+
+查看锁定状态。输出 `locked: <临时目录路径>` 或 `unlocked`。
+
+```bash
+./scripts/folder_lock.sh --target ./translations status
+```
+
+---
+
 ### deploy.ps1 / deploy.sh
 
 SSH 部署脚本：连接服务器 → 拉取指定分支 → `docker compose up -d --build`。
