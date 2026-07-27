@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m'
+
 usage() {
   cat <<EOF
 用法: $0 --target <目录> <命令> [选项]
@@ -65,8 +69,8 @@ case "$COMMAND" in
   lock)
     if [[ -f "$LOCK_FILE" ]]; then
       existing=$(cat "$LOCK_FILE")
-      echo "错误: 目标目录已锁定 (临时目录: $existing)" >&2
-      echo "如要强制重建，请先运行: $0 --target $TARGET_DIR unlock" >&2
+      echo -e "${RED}错误: 目标目录已锁定 (临时目录: $existing)${NC}" >&2
+      echo -e "${RED}如要强制重建，请先运行: $0 --target $TARGET_DIR unlock${NC}" >&2
       exit 1
     fi
     if [[ -n "$DELETE" && -d "$TARGET_DIR" ]]; then
@@ -75,20 +79,22 @@ case "$COMMAND" in
     mkdir -p "$TARGET_DIR"
     STAGING_DIR=$(mktemp -d -t "staging.XXXXXX")
     echo "$STAGING_DIR" > "$LOCK_FILE"
+    echo -e "${CYAN}已锁定: $TARGET_DIR → $STAGING_DIR${NC}" >&2
     echo "$STAGING_DIR"
     ;;
 
   unlock)
     if [[ ! -f "$LOCK_FILE" ]]; then
-      echo "错误: 目标目录未锁定" >&2
+      echo -e "${RED}错误: 目标目录未锁定${NC}" >&2
       exit 1
     fi
     STAGING_DIR=$(cat "$LOCK_FILE")
     if [[ ! -d "$STAGING_DIR" ]]; then
-      echo "错误: 临时目录不存在: $STAGING_DIR" >&2
+      echo -e "${RED}错误: 临时目录不存在: $STAGING_DIR${NC}" >&2
       rm -f "$LOCK_FILE"
       exit 1
     fi
+    echo -e "${CYAN}同步文件到: $TARGET_DIR${NC}" >&2
     shopt -s dotglob nullglob
     for f in "$STAGING_DIR"/*; do
       [ -e "$f" ] || continue
@@ -103,7 +109,7 @@ case "$COMMAND" in
     if [[ -n "$DELETE" ]]; then
       rm -rf "$STAGING_DIR"
     fi
-    echo "已同步到: $TARGET_DIR" >&2
+    echo -e "${CYAN}已解锁: $STAGING_DIR → $TARGET_DIR${NC}" >&2
     ;;
 
   status)

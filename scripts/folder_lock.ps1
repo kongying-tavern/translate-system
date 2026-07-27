@@ -29,6 +29,7 @@ switch ($Command) {
         $stagingDir = Join-Path ([System.IO.Path]::GetTempPath()) "staging_$(Get-Random)"
         New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
         Set-Content -Path $lockFile -Value $stagingDir -NoNewline
+        Write-Host "已锁定: $Target → $stagingDir" -ForegroundColor Cyan
         Write-Output $stagingDir
     }
 
@@ -43,6 +44,7 @@ switch ($Command) {
             Remove-Item $lockFile -Force -ErrorAction SilentlyContinue
             exit 1
         }
+        Write-Host "同步文件到: $Target" -ForegroundColor Cyan
         Get-ChildItem -Path $stagingDir | ForEach-Object {
             $dest = Join-Path $Target $_.Name
             if ($Delete) {
@@ -55,7 +57,7 @@ switch ($Command) {
         if ($Delete) {
             Remove-Item $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
         }
-        Write-Host "已同步到: $Target" -ForegroundColor Cyan
+        Write-Host "已解锁: $stagingDir → $Target" -ForegroundColor Cyan
     }
 
     "status" {
