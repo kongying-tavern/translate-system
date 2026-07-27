@@ -106,6 +106,14 @@ layouts/AppLayout — 主界面布局
 
 项目 owner 自动拥有项目 admin 权限。系统 super_admin 对所有项目拥有全部权限。
 
+### Slug
+
+`:projectSlug`、`:templateSlug` 等路径参数统称为 Slug，**同时接受 UUID（id）和 `code`**：接口内先按 UUID 查，未命中再按 code 查。记录 `code` 字段可选，创建时会自动生成。
+
+显示时优先展示 code（可读标识符），如 `my-project`；没有 code 时才回退到 UUID。
+
+Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifier)`。模板 slug 同理，使用 `services/export/index.ts` 导出的 `resolveTemplate(templateSlug, projectSlug)`。
+
 ### API 路由
 
 所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。
