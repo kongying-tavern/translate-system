@@ -78,6 +78,38 @@
 
 ---
 
+### summarize_translations.ps1 / summarize_translations.sh
+
+读取 `download_translations_single` 导出的文件目录，生成各语言的翻译统计汇总 JSON。
+
+#### 参数
+
+| PS1 参数 | Sh 参数 | 说明 |
+|----------|---------|------|
+| `-Endpoint` | `-e` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
+| `-ProjectSlug` | `-p` | 项目 Slug（UUID 或 code） |
+| `-Languages` | `-l` | 过滤语言，逗号分隔，支持 code 或 alias，不传则全部 |
+| `-NoAlias` | `-n` | 文件名和输出的 langCode 使用语言代码而非别名 |
+| `-InputFormat` | `-f` | 输入文件类型: json/yaml/xml/properties/csv，默认 `json` |
+| `-OutputFormat` | `-t` | 输出文件类型: json/yaml/xml，默认 `json` |
+| `-InputDir` | `-i` | 包含翻译文件的目录（必填） |
+| `-OutputFile` | `-o` | 输出文件路径，默认 `<InputDir>/summary.json` |
+
+#### 输出示例
+
+```json
+[{"langName":"zh-Hans","langCode":"简体中文","md5Hash":"...","summary":{"countTotal":100,"countTranslated":80,"ratioTranslated":80.0}}]
+```
+
+#### Shell 依赖
+
+`summarize_translations.sh` 需要安装 [Node.js](https://nodejs.org/)。
+
+---
+
 ### deploy.ps1 / deploy.sh
 
 SSH 部署脚本：连接服务器 → 拉取指定分支 → `docker compose up -d --build`。
