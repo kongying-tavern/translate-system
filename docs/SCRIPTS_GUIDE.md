@@ -22,17 +22,17 @@
 
 | PS1 参数 | Sh 参数 | 说明 |
 |----------|---------|------|
-| `-Endpoint` | `-e` | 服务器地址，如 `http://localhost:20080` |
-| `-ApiKey` | `-k` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
-| `-ApiSecret` | `-s` | API Secret，与 `-AuthConfig` 二选一 |
-| `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
-| `-ProjectSlug` | `-p` | 项目 Slug（UUID 或 code） |
-| `-TemplateSlug` | `-t` | 导出模板 Slug（UUID 或 code） |
-| `-OutputDir` | `-o` | 输出目录 |
-| `-Languages` | `-l` | 过滤语言，逗号分隔，支持 code 或 alias（如 `zh-Hans,简体中文`），不传则导出全部 |
-| `-NoAlias` | `-n` | 输出文件名及字段名使用语言代码而非别名 |
-| `-Delete` | `-d` | 写文件前若有则删除（`file` 模式）或导出前删整个目录（`folder` 模式） |
-| `-DeleteMode` | `-m` | 清理模式：`file` 写文件前删除同路径旧文件，`folder` 删整个目录，默认 `file` |
+| `-Endpoint` | `-e, --endpoint` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k, --api-key` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s, --api-secret` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a, --auth-config` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
+| `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
+| `-TemplateSlug` | `-t, --template` | 导出模板 Slug（UUID 或 code） |
+| `-OutputDir` | `-o, --output-dir` | 输出目录 |
+| `-Languages` | `-l, --languages` | 过滤语言，逗号分隔，支持 code 或 alias（如 `zh-Hans,简体中文`），不传则导出全部 |
+| `-NoAlias` | `-n, --no-alias` | 输出文件名及字段名使用语言代码而非别名 |
+| `-Delete` | `-d, --delete` | 写文件前若有则删除（`file` 模式）或导出前删整个目录（`folder` 模式） |
+| `-DeleteMode` | `-m, --delete-mode` | 清理模式：`file` 写文件前删除同路径旧文件，`folder` 删整个目录，默认 `file` |
 
 #### 前置条件
 
@@ -57,15 +57,15 @@
 
 | PS1 参数 | Sh 参数 | 说明 |
 |----------|---------|------|
-| `-Endpoint` | `-e` | 服务器地址，如 `http://localhost:20080` |
-| `-ApiKey` | `-k` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
-| `-ApiSecret` | `-s` | API Secret，与 `-AuthConfig` 二选一 |
-| `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
-| `-ProjectSlug` | `-p` | 项目 Slug（UUID 或 code） |
-| `-TemplateSlug` | `-t` | 导出模板 Slug（UUID 或 code） |
-| `-OutputFile` | `-o` | 输出文件路径 |
-| `-Languages` | `-l` | 过滤语言，逗号分隔，不传则导出全部 |
-| `-Delete` | `-d` | 导出前删除已存在的输出文件 |
+| `-Endpoint` | `-e, --endpoint` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k, --api-key` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s, --api-secret` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a, --auth-config` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
+| `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
+| `-TemplateSlug` | `-t, --template` | 导出模板 Slug（UUID 或 code） |
+| `-OutputFile` | `-o, --output-file` | 输出文件路径 |
+| `-Languages` | `-l, --languages` | 过滤语言，逗号分隔，不传则导出全部 |
+| `-Delete` | `-d, --delete` | 导出前删除已存在的输出文件 |
 
 #### 前置条件
 
@@ -86,17 +86,17 @@
 
 | PS1 参数 | Sh 参数 | 说明 |
 |----------|---------|------|
-| `-Endpoint` | `-e` | 服务器地址，如 `http://localhost:20080` |
-| `-ApiKey` | `-k` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
-| `-ApiSecret` | `-s` | API Secret，与 `-AuthConfig` 二选一 |
-| `-AuthConfig` | `-a` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
-| `-ProjectSlug` | `-p` | 项目 Slug（UUID 或 code） |
-| `-Languages` | `-l` | 过滤语言，逗号分隔，支持 code 或 alias，不传则全部 |
-| `-NoAlias` | `-n` | 文件名和输出的 langCode 使用语言代码而非别名 |
-| `-InputFormat` | `-f` | 输入文件类型: json/yaml/xml/properties/csv，默认 `json` |
-| `-OutputFormat` | `-t` | 输出文件类型: json/yaml/xml，默认 `json` |
-| `-InputDir` | `-i` | 包含翻译文件的目录（必填） |
-| `-OutputFile` | `-o` | 输出文件路径，默认 `<InputDir>/summary.json` |
+| `-Endpoint` | `-e, --endpoint` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k, --api-key` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s, --api-secret` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a, --auth-config` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
+| `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
+| `-Languages` | `-l, --languages` | 过滤语言，逗号分隔，支持 code 或 alias，不传则全部 |
+| `-NoAlias` | `-n, --no-alias` | 文件名和输出的 langCode 使用语言代码而非别名 |
+| `-InputFormat` | `-f, --input-format` | 输入文件类型: json/yaml/xml/properties/csv，默认 `json` |
+| `-OutputFormat` | `-t, --output-format` | 输出文件类型: json/yaml/xml，默认 `json` |
+| `-InputDir` | `-i, --input-dir` | 包含翻译文件的目录（必填） |
+| `-OutputFile` | `-o, --output` | 输出文件路径，默认 `<InputDir>/summary.json` |
 
 #### 输出示例
 
@@ -160,11 +160,11 @@ SSH 部署脚本：连接服务器 → 拉取指定分支 → `docker compose up
 
 | PS1 参数 | Sh 参数 | 说明 |
 |----------|---------|------|
-| `-Host` | `-h` | 服务器地址 |
-| `-Port` | `-P` | SSH 端口，默认 `22` |
-| `-User` | `-u` | SSH 用户名 |
-| `-Dir` | `-d` | 服务器上项目部署路径 |
-| `-Branch` | `-b` | 发布分支 |
+| `-Host` | `-h, --host` | 服务器地址 |
+| `-Port` | `-P, --port` | SSH 端口，默认 `22` |
+| `-User` | `-u, --user` | SSH 用户名 |
+| `-Dir` | `-d, --dir` | 服务器上项目部署路径 |
+| `-Branch` | `-b, --branch` | 发布分支 |
 
 #### 示例
 
