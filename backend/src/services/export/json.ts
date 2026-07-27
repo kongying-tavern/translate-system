@@ -1,28 +1,20 @@
 import type { ExportKey, FlatTranslation, LangSummary } from './types'
 import crypto from 'node:crypto'
-import { getLangKey } from './types'
+import { getLangKey, groupByLanguage } from './utils'
 
 export function exportFlatJSON(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
   if (!langs.length)
     return '{}'
-  const lang = langs[0]
-  const items: Record<string, string> = {}
-  for (const t of translations) {
-    if (t.languageCode === lang)
-      items[t.translationKey] = t.translatedText
-  }
-  return JSON.stringify(items)
+  const grouped = groupByLanguage(translations)
+  return JSON.stringify(grouped[langs[0]] || {})
 }
 
 export function exportNestedJSON(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
+  const grouped = groupByLanguage(translations)
   const result: Record<string, Record<string, string>> = {}
   for (const lang of langs) {
-    const name = getLangKey(translations.find(t => t.languageCode === lang) || { languageCode: lang }, config)
-    result[name] = {}
-    for (const t of translations) {
-      if (t.languageCode === lang)
-        result[name][t.translationKey] = t.translatedText
-    }
+    const name = getLangKey({ languageCode: lang, alias: translations.find(t => t.languageCode === lang)?.alias }, config)
+    result[name] = grouped[lang] || {}
   }
   return JSON.stringify(result)
 }

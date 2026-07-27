@@ -15,7 +15,3 @@ export interface XmlLanguage { '@_code': string, 'string': XmlString | XmlString
 
 export interface SummaryStats { countTotal: number, countTranslated: number, ratioTranslated: number }
 export interface LangSummary { langName: string, langCode: string, md5Hash: string, summary: SummaryStats }
-
-export function getLangKey(t: { languageCode: string, alias?: string }, config?: Record<string, unknown>) {
-  return config?.useCodeKey ? t.languageCode : (t.alias || t.languageCode)
-}

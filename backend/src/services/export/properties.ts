@@ -1,14 +1,14 @@
 import type { FlatTranslation } from './types'
+import { groupByLanguage } from './utils'
 
 export function exportProperties(translations: FlatTranslation[], langs: string[], _config?: Record<string, unknown>) {
   if (!langs.length)
     return ''
   const lang = langs[0]
+  const grouped = groupByLanguage(translations)
   const lines: string[] = []
-  for (const t of translations) {
-    if (t.languageCode === lang)
-      lines.push(`${propsEscapeKey(t.translationKey)}=${propsEscapeValue(t.translatedText)}`)
-  }
+  for (const [key, text] of Object.entries(grouped[lang] || {}))
+    lines.push(`${propsEscapeKey(key)}=${propsEscapeValue(text)}`)
   return lines.join('\n')
 }
 

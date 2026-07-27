@@ -1,5 +1,5 @@
 import type { FlatTranslation } from './types'
-import { getLangKey } from './types'
+import { getLangKey } from './utils'
 
 export function exportCSV(translations: FlatTranslation[], langs: string[], config?: Record<string, unknown>) {
   const rows: Record<string, { source: string, langs: Record<string, string> }> = {}
