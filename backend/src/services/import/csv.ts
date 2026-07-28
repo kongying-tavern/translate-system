@@ -1,58 +1,122 @@
 import type { ImportEntry } from './types'
 
-export function csvParse(data: string): ImportEntry[] {
-  const lines = data.split('\n').filter(l => l.trim())
-  if (!lines.length)
-    return []
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
-  const entries: ImportEntry[] = []
-  for (let i = 1; i < lines.length; i++) {
-    const vals = parseCSVLine(lines[i])
-    const entry: Partial<ImportEntry> & { key?: string } = { tags: [], context: '' }
-    headers.forEach((h, idx) => {
-      if (h === 'key')
-        entry.key = vals[idx]
-      else if (h === 'sourcetext' || h === 'source_text')
-        entry.sourceText = vals[idx]
-      else if (h === 'translatedtext' || h === 'translated_text')
-        entry.translatedText = vals[idx]
-      else if (h === 'tags' && vals[idx])
-        entry.tags = vals[idx].split(';').map((t: string) => t.trim())
-      else if (h === 'context')
-        entry.context = vals[idx]
-    })
-    if (entry.key) {
-      entry.sourceText = entry.sourceText || entry.key
-      entries.push(entry as ImportEntry)
-    }
-  }
-  return entries
+interface ColumnDef {
+  idx: number
+  role: 'key' | 'sourceText' | 'tags' | 'context' | 'lang'
+  langCode?: string
 }
 
-function parseCSVLine(line: string) {
-  const r: string[] = []
-  let c = ''
-  let q = false
-  for (const ch of line) {
-    if (q) {
+function csvSplit(data: string): string[][] {
+  const records: string[][] = []
+  let fields: string[] = []
+  let field = ''
+  let quoted = false
+  let i = 0
+  while (i < data.length) {
+    const ch = data[i]
+    if (quoted) {
       if (ch === '"') {
-        q = false
+        if (data[i + 1] === '"') {
+          field += '"'
+          i += 2
+          continue
+        }
+        quoted = false
       }
       else {
-        c += ch
+        field += ch
       }
     }
     else if (ch === '"') {
-      q = true
+      quoted = true
     }
     else if (ch === ',') {
-      r.push(c.trim())
-      c = ''
+      fields.push(field)
+      field = ''
+    }
+    else if (ch === '\n') {
+      fields.push(field)
+      field = ''
+      records.push(fields)
+      fields = []
     }
     else {
-      c += ch
+      field += ch
     }
+    i++
   }
-  r.push(c.trim())
-  return r
+  fields.push(field)
+  if (fields.some(f => f.trim()))
+    records.push(fields)
+  return records
+}
+
+export function csvParse(data: string): ImportEntry[] {
+  const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  const records = csvSplit(normalized)
+  if (records.length < 1)
+    return []
+
+  const headerFields = records[0]
+  let keyCol: ColumnDef | undefined
+  let sourceCol: ColumnDef | undefined
+  let tagsCol: ColumnDef | undefined
+  let ctxCol: ColumnDef | undefined
+  const langCols: ColumnDef[] = []
+
+  for (let idx = 0; idx < headerFields.length; idx++) {
+    const h = headerFields[idx].trim().toLowerCase()
+    let role: 'key' | 'sourceText' | 'tags' | 'context' | 'lang' = 'lang'
+    if (h === 'key')
+      role = 'key'
+    else if (h === 'sourcetext' || h === 'source_text')
+      role = 'sourceText'
+    else if (h === 'tags')
+      role = 'tags'
+    else if (h === 'context')
+      role = 'context'
+    const col: ColumnDef = { idx, role }
+    if (col.role === 'lang')
+      col.langCode = headerFields[idx].trim()
+    if (col.role === 'key')
+      keyCol = col
+    else if (col.role === 'sourceText')
+      sourceCol = col
+    else if (col.role === 'tags')
+      tagsCol = col
+    else if (col.role === 'context')
+      ctxCol = col
+    else
+      langCols.push(col)
+  }
+
+  if (!keyCol)
+    return []
+
+  sourceCol = sourceCol ?? keyCol
+  const hasLang = langCols.length > 0
+  const entries: ImportEntry[] = []
+  for (let i = 1; i < records.length; i++) {
+    const vals = records[i]
+    const get = (idx: number): string => (vals[idx] ?? '').trim()
+    const key = get(keyCol.idx)
+    if (!key)
+      continue
+
+    const base = {
+      key,
+      sourceText: get(sourceCol.idx) || key,
+      tags: tagsCol && vals[tagsCol.idx] ? vals[tagsCol.idx].split(';').map(t => t.trim()) : [],
+      context: ctxCol ? get(ctxCol.idx) : '',
+    }
+
+    if (!hasLang) {
+      entries.push({ ...base, translatedText: '' })
+      continue
+    }
+
+    for (const c of langCols)
+      entries.push({ ...base, translatedText: get(c.idx), lang: c.langCode! })
+  }
+  return entries
 }
