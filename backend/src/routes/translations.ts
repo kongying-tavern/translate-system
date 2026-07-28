@@ -55,8 +55,8 @@ translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware, 
   }
 })
 
-// Save translation for a specific key + language
-translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddleware, requireOwnership, async (req, res) => {
+// Save translation for a specific key + language (langCode optional for key-level updates)
+translationRoutes.put('/:projectSlug/translations/:key/:langCode?', authMiddleware, requireOwnership, async (req, res) => {
   try {
     const t = await transService.saveForLang(req.params.projectSlug, req.params.key, req.params.langCode, req.body)
     success(res, t)
@@ -70,7 +70,8 @@ translationRoutes.put('/:projectSlug/translations/:key/:langCode', authMiddlewar
 // Translation count (lightweight)
 translationRoutes.get('/:projectSlug/translations/count', authMiddleware, requireOwnership, async (req, res) => {
   try {
-    const data = await transService.getTranslationCount(req.params.projectSlug, req.query.languageCode as string)
+    const tags = req.query.tags ? (req.query.tags as string).split(',') : undefined
+    const data = await transService.getTranslationCount(req.params.projectSlug, req.query.languageCode as string, tags)
     success(res, data)
   }
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }

@@ -183,16 +183,20 @@ export async function getForExport(projectId: string, _languageCodes: string[]):
   return keys
 }
 
-export async function getTranslationCount(projectSlug: string, languageCode?: string) {
+export async function getTranslationCount(projectSlug: string, languageCode?: string, tags?: string[]) {
   const project = await resolveProject(projectSlug)
   if (!project)
     throw new AppError(404, 'project not found')
 
-  const total = await prisma.translationKey.count({ where: { projectId: project.id } })
+  const keyWhere: Prisma.TranslationKeyWhereInput = { projectId: project.id }
+  if (tags?.length)
+    keyWhere.tags = { hasSome: tags }
+
+  const total = await prisma.translationKey.count({ where: keyWhere })
   if (!languageCode)
     return { total, translated: 0, languageCode: '*' }
   const translated = await prisma.translationValue.count({
-    where: { key: { projectId: project.id }, languageCode, translatedText: { not: '' } },
+    where: { key: keyWhere, languageCode, translatedText: { not: '' } },
   })
   return { total, translated, languageCode }
 }

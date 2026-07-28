@@ -70,10 +70,8 @@ watch(projectSlug, () => {
 })
 
 function doSearch() {
-  if (filters.search !== appliedSearch.value) {
-    appliedSearch.value = filters.search
-    load()
-  }
+  appliedSearch.value = filters.search
+  load()
 }
 function init() {
   langStore.fetchProjectLanguages(projectSlug.value)
@@ -235,6 +233,7 @@ async function loadMore() {
 
 function onGlobalLangChange(lang: string) {
   rowLangs.value = rows.value.map(() => lang)
+  load()
 }
 function onRowLangChange(index: number, lang: string) {
   rowLangs.value[index] = lang
@@ -327,14 +326,14 @@ async function onSourceSave(row: GroupedRow) {
   }
 }
 
-async function onTagsChange(row: GroupedRow, tags: string[]) {
+async function onTagsChange(row: GroupedRow) {
   try {
-    await saveTranslation(projectSlug.value, row.translationKey, '', { tags })
-    row.tags = tags
+    await saveTranslation(projectSlug.value, row.translationKey, '', { tags: row.tags })
     loadTags()
   }
   catch {
     ElMessage.error('保存失败')
+    load()
   }
 }
 function openCreate() {
@@ -394,12 +393,12 @@ async function handleDelete(row: GroupedRow) {
         </el-select>
       </el-form-item>
       <el-form-item label="标签筛选">
-        <el-select v-model="filterTags" multiple clearable placeholder="全部标签" style="width:200px" @change="load">
+        <el-select v-model="filterTags" multiple filterable clearable placeholder="全部标签" style="width:200px">
           <el-option v-for="t in allTags" :key="t" :label="t" :value="t" />
         </el-select>
       </el-form-item>
       <el-form-item label="搜索">
-        <el-input v-model="filters.search" placeholder="搜索 | #行号 | /正则/" clearable style="width:260px" @keyup.enter="doSearch" @clear="doSearch" @blur="doSearch" />
+        <el-input v-model="filters.search" placeholder="搜索 | #行号 | /正则/" clearable style="width:260px" />
       </el-form-item>
       <el-form-item>
         <el-checkbox v-model="untransOnly" @change="load">
@@ -447,9 +446,9 @@ async function handleDelete(row: GroupedRow) {
           <el-input v-model="transCache[`${row.translationKey}|${rowLangs[$index]}`]" type="textarea" :autosize="{ minRows: 1, maxRows: 6 }" size="small" placeholder="输入译文..." @blur="onSave(row, rowLangs[$index])" />
         </template>
       </el-table-column>
-      <el-table-column label="标签" width="180">
+      <el-table-column label="标签" width="260">
         <template #default="{ row }">
-          <el-select v-if="auth.role !== SystemRole.User" :model-value="row.tags" multiple filterable allow-create size="small" style="width:150px" placeholder="无" @update:model-value="(vals: string[]) => onTagsChange(row, vals)" /><span v-else style="font-size:13px">{{ row.tags.length ? row.tags.join(', ') : '-' }}</span>
+          <el-input-tag v-if="auth.role !== SystemRole.User" v-model="row.tags" size="small" placeholder="+标签" clearable :delimiter="[',', ';']" @change="() => onTagsChange(row)" /><span v-else style="font-size:13px">{{ row.tags.length ? row.tags.join(', ') : '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column label="备注" min-width="160">
@@ -472,9 +471,7 @@ async function handleDelete(row: GroupedRow) {
         </el-form-item><el-form-item label="原文">
           <el-input v-model="form.sourceText" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入原文" />
         </el-form-item><el-form-item label="标签">
-          <el-select v-model="form.tags" multiple filterable allow-create style="width:100%" placeholder="选择或输入标签">
-            <el-option v-for="t in allTags" :key="t" :label="t" :value="t" />
-          </el-select>
+          <el-input-tag v-model="form.tags" style="width:100%" placeholder="输入标签，回车添加" clearable :delimiter="[',', ';']" />
         </el-form-item>
       </el-form>
       <template #footer>
