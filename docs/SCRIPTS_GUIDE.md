@@ -282,48 +282,8 @@ SSH 部署脚本：连接服务器 → 拉取指定分支 → `docker compose up
 - 服务器已安装 Docker + Docker Compose
 - 目标目录已 clone 项目并配置好 `.env`
 
----
-
 ## 开发脚本
 
 用于本地开发环境的数据操作，脚本内部自动定位 backend/frontend 目录，在项目根目录下直接运行即可。
 
-### dev_import_translations.ps1 / dev_import_translations.sh
 
-将目录下所有 JSON 翻译文件批量导入项目，文件名作为语言代码。
-
-#### 参数
-
-| PS1 参数 | Sh 参数 | 说明 |
-|----------|---------|------|
-| `-ProjectCode` | 第一个位置参数 | 项目 Slug 或 Code（如 `my-project`） |
-| `-Directory` | 第二个位置参数 | 包含 JSON 文件的目录路径 |
-
-#### 文件命名约定
-
-文件名即为语言代码，如 `zh-Hans.json`、`en-US.json`、`ja-JP.json`。
-
-#### 示例
-
-```bash
-./scripts/dev_import_translations.sh my-project /app/translations
-
-# PowerShell
-./scripts/dev_import_translations.ps1 -ProjectCode my-project -Directory C:\translations\
-```
-
-#### 前置条件
-
-- 后端服务运行中，数据库包含目标项目
-- 后端依赖已安装（`cd backend && pnpm install`）
-
----
-
-### import-json.ts（底层脚本）
-
-```bash
-cd backend
-pnpm tsx src/scripts/import-json.ts <项目ID> <JSON文件路径> <语言代码>
-```
-
-`dev_import_translations` 底层调用的导入脚本，也可单独使用（需在 `backend/` 下执行）。
