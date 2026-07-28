@@ -1,5 +1,6 @@
 import type { AuthRequest } from '../middleware/auth'
 import { Router } from 'express'
+import { SystemRole } from '../constants/roles'
 import { prisma } from '../index'
 import { ErrCode } from '../lib/errors'
 import { error, success, successWithPage } from '../lib/response'
@@ -25,7 +26,7 @@ projectRoutes.get('/', async (req: AuthRequest, res) => {
 
 projectRoutes.post('/', async (req: AuthRequest, res) => {
   try {
-    if (req.userRole !== 'super_admin')
+    if (req.userRole !== SystemRole.SuperAdmin)
       return error(res, ErrCode.Forbidden, '只有系统超管可以创建项目')
     if (!req.body.name)
       return error(res, ErrCode.InvalidParams, 'name is required')
@@ -130,7 +131,7 @@ projectRoutes.post('/:projectSlug/members', requireOwnership, async (req: AuthRe
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user)
       return error(res, ErrCode.NotFound, '用户不存在')
-    if (req.userRole === 'admin' && user.role !== 'user')
+    if (req.userRole === SystemRole.Admin && user.role !== SystemRole.User)
       return error(res, ErrCode.Forbidden, '管理员只能将普通用户添加到项目')
     const existing = await prisma.projectMember.findUnique({ where: { projectId_userId: { projectId: req.params.projectSlug, userId: user.id } } })
     if (existing)

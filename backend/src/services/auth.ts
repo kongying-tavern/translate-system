@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { config } from '../config'
+import { ROLE_LEVEL, SystemRole } from '../constants/roles'
 import { prisma } from '../index'
 import { AppError } from '../utils/AppError'
 
@@ -25,7 +26,7 @@ export async function register(username: string, email: string, password: string
   if (existingUsername)
     throw new AppError(1004, '用户名已存在')
   const userCount = await prisma.user.count()
-  const role = userCount === 0 ? 'super_admin' : 'user'
+  const role = userCount === 0 ? SystemRole.SuperAdmin : SystemRole.User
   const passwordHash = await bcrypt.hash(password, 10)
   const user = await prisma.user.create({ data: { username, email, passwordHash, role } })
   return generateTokens(user.id, user.role)
@@ -57,13 +58,11 @@ export async function listUsers() {
   return prisma.user.findMany({ select: { id: true, username: true, email: true, role: true, createdAt: true }, orderBy: { createdAt: 'asc' } })
 }
 
-const ROLE_LEVEL: Record<string, number> = { super_admin: 3, admin: 2, user: 1 }
-
 function canManage(operator: string | undefined, target: string): boolean {
-  if (operator === 'super_admin')
+  if (operator === SystemRole.SuperAdmin)
     return true
-  if (operator === 'admin')
-    return target !== 'super_admin' // admin can manage members and other admins
+  if (operator === SystemRole.Admin)
+    return target !== SystemRole.SuperAdmin // admin can manage users and other admins
   return false
 }
 
@@ -74,7 +73,7 @@ export async function updateUserRole(operatorId: string, targetId: string, newRo
     throw new AppError(1003, '用户不存在')
   if (!canManage(operator?.role, target.role))
     throw new AppError(1002, '没有权限管理此用户')
-  if (ROLE_LEVEL[newRole] > (ROLE_LEVEL[operator?.role || 'user'] || 0))
+  if (ROLE_LEVEL[newRole] > (ROLE_LEVEL[operator?.role || SystemRole.User] || 0))
     throw new AppError(1002, '不能设置高于自己的角色')
   return prisma.user.update({ where: { id: targetId }, data: { role: newRole }, select: { id: true, username: true, role: true } })
 }
@@ -83,7 +82,7 @@ export async function createUser(username: string, email: string, password: stri
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing)
     throw new AppError(1004, '邮箱已注册')
-  if (operatorRole === 'admin' && role !== 'user')
+  if (operatorRole === SystemRole.Admin && role !== SystemRole.User)
     throw new AppError(1002, '系统管理员只能创建普通用户')
   const passwordHash = await bcrypt.hash(password, 10)
   return prisma.user.create({ data: { username, email, passwordHash, role }, select: { id: true, username: true, email: true, role: true, createdAt: true } })

@@ -8,6 +8,7 @@ import client from '@/api/client'
 import { addMember, getMembers, removeMember } from '@/api/project'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useAuthStore } from '@/stores/auth'
+import { roleLabel } from '@/utils/roles'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -17,10 +18,6 @@ const selectedUserId = ref('')
 const newMemberRole = ref('member')
 const userOptions = ref<User[]>([])
 const searching = ref(false)
-
-function roleLabel(r: string) {
-  return { super_admin: '超管', admin: '管理员', user: '普通用户' }[r] || r
-}
 
 onMounted(async () => {
   const { data: res } = await getMembers(projectSlug.value)

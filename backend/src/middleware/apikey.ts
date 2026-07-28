@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import crypto from 'node:crypto'
+import { ROLE_LEVEL } from '../constants/roles'
 import { prisma } from '../index'
 
 export interface ApiKeyRequest extends Request {
@@ -8,7 +9,6 @@ export interface ApiKeyRequest extends Request {
 }
 
 export function apiKeyAuth(requireRole?: string) {
-  const LEVEL: Record<string, number> = { super_admin: 3, admin: 2, user: 1 }
   return async (req: ApiKeyRequest, res: Response, next: NextFunction) => {
     const apiKey = req.headers['x-api-key'] as string
     const secret = req.headers['x-api-secret'] as string
@@ -23,7 +23,7 @@ export function apiKeyAuth(requireRole?: string) {
     if (!user)
       return res.status(401).json({ code: 1001, message: 'user not found', data: null })
 
-    if (requireRole && (LEVEL[user.role] || 0) < (LEVEL[requireRole] || 0)) {
+    if (requireRole && (ROLE_LEVEL[user.role] || 0) < (ROLE_LEVEL[requireRole] || 0)) {
       return res.status(403).json({ code: 1002, message: '没有权限', data: null })
     }
 

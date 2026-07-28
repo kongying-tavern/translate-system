@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { SystemRole } from '@/utils/roles'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -33,7 +34,7 @@ onMounted(async () => {
     <p style="font-size:16px;color:#909399;margin-bottom:20px">
       暂无可用项目
     </p>
-    <el-button v-if="auth.role === 'super_admin'" type="primary" @click="$router.push('/projects/new')">
+    <el-button v-if="auth.role === SystemRole.SuperAdmin" type="primary" @click="$router.push('/projects/new')">
       创建第一个项目
     </el-button>
     <p v-else style="font-size:14px;color:#c0c4cc">

@@ -1,5 +1,6 @@
 import type { AuthRequest } from '../middleware/auth'
 import { Router } from 'express'
+import { SystemRole } from '../constants/roles'
 import { ErrCode } from '../lib/errors'
 import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
@@ -172,7 +173,7 @@ authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: Auth
       return error(res, ErrCode.InvalidParams, '缺少必填字段')
     if (password.length < 6)
       return error(res, ErrCode.InvalidParams, '密码至少6位')
-    success(res, await authService.createUser(username, email, password, role || 'user', req.userRole!))
+    success(res, await authService.createUser(username, email, password, role || SystemRole.User, req.userRole!))
   }
   catch (e: unknown) {
     const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }

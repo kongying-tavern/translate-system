@@ -2,12 +2,13 @@ import type { User } from '@/types/models'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as authApi from '@/api/auth'
+import { SystemRole } from '@/utils/roles'
 import { clearTokens, getAccessToken, setTokens } from '@/utils/token'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const isAuthenticated = ref(!!getAccessToken())
-  const role = ref('user')
+  const role = ref<string>(SystemRole.User)
 
   async function init() {
     if (!getAccessToken())
@@ -15,7 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const { data: res } = await authApi.getMe()
       user.value = res.data
-      role.value = res.data.role || 'user'
+      role.value = res.data.role || SystemRole.User
     }
     catch { /* token might be expired, refresh will handle it */ }
   }
@@ -38,7 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
     clearTokens()
     user.value = null
     isAuthenticated.value = false
-    role.value = 'user'
+    role.value = SystemRole.User
   }
 
   const activeProjectSlug = ref(localStorage.getItem('activeProjectSlug') || '')

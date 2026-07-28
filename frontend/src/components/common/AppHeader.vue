@@ -7,6 +7,7 @@ import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
 import { deleteProject, getProject, getProjects, updateProject } from '@/api/project'
 import { useAuthStore } from '@/stores/auth'
+import { SystemRole } from '@/utils/roles'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
@@ -224,7 +225,7 @@ async function deleteApiKey(row: ApiKey) {
           <ArrowDown />
         </el-icon>
       </el-button>
-      <el-button v-if="auth.role === 'super_admin'" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
+      <el-button v-if="auth.role === SystemRole.SuperAdmin" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
         <el-icon><Setting /></el-icon>
       </el-button>
     </template>
@@ -237,7 +238,7 @@ async function deleteApiKey(row: ApiKey) {
           <el-dropdown-item command="pwd">
             修改密码
           </el-dropdown-item>
-          <el-dropdown-item v-if="auth.role !== 'user'" command="apikey">
+          <el-dropdown-item v-if="auth.role !== SystemRole.User" command="apikey">
             API 密钥
           </el-dropdown-item>
           <el-dropdown-item command="logout">
@@ -257,7 +258,7 @@ async function deleteApiKey(row: ApiKey) {
     </div>
     <EmptyState v-if="!filteredProjects.length" description="暂无项目" />
     <template #footer>
-      <el-button v-if="auth.role === 'super_admin'" type="primary" style="width:100%" @click="goCreateProject">
+      <el-button v-if="auth.role === SystemRole.SuperAdmin" type="primary" style="width:100%" @click="goCreateProject">
         新建项目
       </el-button>
     </template>

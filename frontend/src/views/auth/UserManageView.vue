@@ -5,11 +5,12 @@ import { onMounted, reactive, ref } from 'vue'
 import { changePassword, createUser, deleteUser, getUsers, updateUserRole } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
+import { roleLabel, SystemRole } from '@/utils/roles'
 
 const auth = useAuthStore()
 const users = ref<User[]>([])
 const createVisible = ref(false)
-const createForm = reactive({ username: '', email: '', password: '', role: 'user' })
+const createForm = reactive({ username: '', email: '', password: '', role: SystemRole.User })
 const pwdVisible = ref(false)
 const pwdTarget = ref<User | null>(null)
 const pwdForm = reactive({ password: '', confirmPassword: '' })
@@ -19,13 +20,10 @@ onMounted(async () => {
   users.value = res.data
 })
 
-function roleLabel(r: string) {
-  return { super_admin: '超管', admin: '管理员', user: '普通用户' }[r] || r
-}
 function cannotEdit(row: User) {
   if (row.id === auth.user?.id)
     return true
-  if (row.role === 'super_admin')
+  if (row.role === SystemRole.SuperAdmin)
     return true
   return false
 }
@@ -41,7 +39,7 @@ async function onChangeRole(row: User, newRole: string) {
   }
 }
 function openCreate() {
-  Object.assign(createForm, { username: '', email: '', password: '', role: 'user' })
+  Object.assign(createForm, { username: '', email: '', password: '', role: SystemRole.User })
   createVisible.value = true
 }
 async function handleCreate() {
@@ -114,7 +112,7 @@ async function handlePwdSave() {
 <template>
   <div>
     <div class="page-header">
-      <h2>用户管理</h2><el-button v-if="auth.role === 'super_admin' || auth.role === 'admin'" type="primary" @click="openCreate">
+      <h2>用户管理</h2><el-button v-if="auth.role === SystemRole.SuperAdmin || auth.role === SystemRole.Admin" type="primary" @click="openCreate">
         添加用户
       </el-button>
     </div>
@@ -128,7 +126,7 @@ async function handlePwdSave() {
           </el-tag>
           <el-select v-else :model-value="row.role" size="small" style="width:130px" @change="(v:string) => onChangeRole(row, v)">
             <el-option label="管理员" value="admin" />
-            <el-option label="普通用户" value="user" />
+            <el-option label="普通用户" :value="SystemRole.User" />
           </el-select>
         </template>
       </el-table-column>
@@ -158,7 +156,7 @@ async function handlePwdSave() {
           <el-input v-model="createForm.password" show-password />
         </el-form-item><el-form-item label="角色">
           <el-select v-model="createForm.role" style="width:100%">
-            <el-option label="管理员" value="admin" /><el-option label="普通用户" value="user" />
+            <el-option label="管理员" value="admin" /><el-option label="普通用户" :value="SystemRole.User" />
           </el-select>
         </el-form-item>
       </el-form>
