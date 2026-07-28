@@ -19,7 +19,7 @@ const userOptions = ref<User[]>([])
 const searching = ref(false)
 
 function roleLabel(r: string) {
-  return { super_admin: '超管', admin: '管理员', member: '成员' }[r] || r
+  return { super_admin: '超管', admin: '管理员', user: '普通用户' }[r] || r
 }
 
 onMounted(async () => {

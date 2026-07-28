@@ -8,7 +8,7 @@ export interface ApiKeyRequest extends Request {
 }
 
 export function apiKeyAuth(requireRole?: string) {
-  const LEVEL: Record<string, number> = { super_admin: 4, senior_admin: 3, admin: 2, member: 1 }
+  const LEVEL: Record<string, number> = { super_admin: 3, admin: 2, user: 1 }
   return async (req: ApiKeyRequest, res: Response, next: NextFunction) => {
     const apiKey = req.headers['x-api-key'] as string
     const secret = req.headers['x-api-secret'] as string

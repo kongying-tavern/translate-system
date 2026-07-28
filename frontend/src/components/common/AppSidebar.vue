@@ -26,22 +26,22 @@ const projectSlug = computed(() => (route.params.projectSlug as string) || auth.
           <el-menu-item :index="`/projects/${projectSlug}/translations`">
             <el-icon><Document /></el-icon><span>翻译管理</span>
           </el-menu-item>
-          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/members`">
+          <el-menu-item v-if="auth.role !== 'user'" :index="`/projects/${projectSlug}/members`">
             <el-icon><Avatar /></el-icon><span>项目成员</span>
           </el-menu-item>
-          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/languages`">
+          <el-menu-item v-if="auth.role !== 'user'" :index="`/projects/${projectSlug}/languages`">
             <el-icon><Collection /></el-icon><span>语言管理</span>
           </el-menu-item>
-          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/imports`">
+          <el-menu-item v-if="auth.role !== 'user'" :index="`/projects/${projectSlug}/imports`">
             <el-icon><Upload /></el-icon><span>导入管理</span>
           </el-menu-item>
-          <el-menu-item v-if="auth.role !== 'member'" :index="`/projects/${projectSlug}/exports`">
+          <el-menu-item v-if="auth.role !== 'user'" :index="`/projects/${projectSlug}/exports`">
             <el-icon><Download /></el-icon><span>导出模板</span>
           </el-menu-item>
         </el-sub-menu>
       </template>
     </el-menu>
-    <div v-if="auth.role !== 'member'" class="sidebar-bottom">
+    <div v-if="auth.role !== 'user'" class="sidebar-bottom">
       <el-menu :default-active="route.path" router background-color="#1d1e2c" text-color="#bfcbd9" active-text-color="#409eff">
         <el-menu-item index="/api-doc">
           <el-icon><Document /></el-icon><span>API 说明</span>

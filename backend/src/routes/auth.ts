@@ -172,7 +172,7 @@ authRoutes.post('/users', authMiddleware, requireRole('admin'), async (req: Auth
       return error(res, ErrCode.InvalidParams, '缺少必填字段')
     if (password.length < 6)
       return error(res, ErrCode.InvalidParams, '密码至少6位')
-    success(res, await authService.createUser(username, email, password, role || 'member', req.userRole!))
+    success(res, await authService.createUser(username, email, password, role || 'user', req.userRole!))
   }
   catch (e: unknown) {
     const err = e instanceof AppError ? e : { code: ErrCode.Internal, message: '' }

@@ -237,7 +237,7 @@ async function deleteApiKey(row: ApiKey) {
           <el-dropdown-item command="pwd">
             修改密码
           </el-dropdown-item>
-          <el-dropdown-item v-if="auth.role !== 'member'" command="apikey">
+          <el-dropdown-item v-if="auth.role !== 'user'" command="apikey">
             API 密钥
           </el-dropdown-item>
           <el-dropdown-item command="logout">

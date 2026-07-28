@@ -103,9 +103,9 @@ layouts/AppLayout — 主界面布局
 |------|:--:|:--:|------|
 | super_admin | ✅ | ✅ | 首位注册用户自动成为超管 |
 | admin | ❌ | ❌ | 可管理成员，不能创建/删除项目 |
-| member | ❌ | ❌ | 默认角色（普通用户） |
+| user | ❌ | ❌ | 默认角色（普通用户） |
 
-权限常量: `ROLE_LEVEL = { super_admin:3, admin:2, member:1 }`
+权限常量: `ROLE_LEVEL = { super_admin:3, admin:2, user:1 }`
 
 **项目角色** (`project_members.project_role`):
 

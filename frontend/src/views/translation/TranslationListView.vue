@@ -88,7 +88,7 @@ function bindSortable() {
     sortable.destroy()
     sortable = null
   }
-  if (!el || auth.role === 'member' || hasFilter)
+  if (!el || auth.role === 'user' || hasFilter)
     return
   sortable = Sortable.create(el, {
     handle: '.drag-handle',
@@ -408,7 +408,7 @@ async function handleDelete(row: GroupedRow) {
       <el-form-item>
         <el-button type="primary" @click="doSearch">
           查询
-        </el-button><el-button v-if="auth.role !== 'member'" @click="openCreate">
+        </el-button><el-button v-if="auth.role !== 'user'" @click="openCreate">
           新增 Key
         </el-button>
       </el-form-item>
@@ -424,14 +424,14 @@ async function handleDelete(row: GroupedRow) {
           <span style="white-space:nowrap">{{ row.rowIndex }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="auth.role !== 'member'" label="Key" min-width="160">
+      <el-table-column v-if="auth.role !== 'user'" label="Key" min-width="160">
         <template #default="{ row }">
           <el-input :model-value="editKey.get(row.translationKey) ?? row.translationKey" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editKey.set(row.translationKey, v)" @blur="onKeySave(row)" />
         </template>
       </el-table-column>
       <el-table-column label="原文" min-width="160">
         <template #default="{ row }">
-          <el-input v-if="auth.role !== 'member'" :model-value="editSource.get(row.translationKey) ?? row.sourceText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editSource.set(row.translationKey, v)" @blur="onSourceSave(row)" /><span v-else class="pre-wrap">{{ row.sourceText }}</span>
+          <el-input v-if="auth.role !== 'user'" :model-value="editSource.get(row.translationKey) ?? row.sourceText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editSource.set(row.translationKey, v)" @blur="onSourceSave(row)" /><span v-else class="pre-wrap">{{ row.sourceText }}</span>
         </template>
       </el-table-column>
       <el-table-column label="语言" width="130">
@@ -448,15 +448,15 @@ async function handleDelete(row: GroupedRow) {
       </el-table-column>
       <el-table-column label="标签" width="180">
         <template #default="{ row }">
-          <el-select v-if="auth.role !== 'member'" :model-value="row.tags" multiple filterable allow-create size="small" style="width:150px" placeholder="无" @update:model-value="(vals: string[]) => onTagsChange(row, vals)" /><span v-else style="font-size:13px">{{ row.tags.length ? row.tags.join(', ') : '-' }}</span>
+          <el-select v-if="auth.role !== 'user'" :model-value="row.tags" multiple filterable allow-create size="small" style="width:150px" placeholder="无" @update:model-value="(vals: string[]) => onTagsChange(row, vals)" /><span v-else style="font-size:13px">{{ row.tags.length ? row.tags.join(', ') : '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column label="备注" min-width="160">
         <template #default="{ row }">
-          <el-input v-if="auth.role !== 'member'" :model-value="row.context" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" placeholder="备注..." @update:model-value="(v: string) => onCtxSave(row, v)" /><span v-else style="font-size:13px" class="pre-wrap">{{ row.context || '-' }}</span>
+          <el-input v-if="auth.role !== 'user'" :model-value="row.context" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" placeholder="备注..." @update:model-value="(v: string) => onCtxSave(row, v)" /><span v-else style="font-size:13px" class="pre-wrap">{{ row.context || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="auth.role !== 'member'" label="操作" width="80">
+      <el-table-column v-if="auth.role !== 'user'" label="操作" width="80">
         <template #default="{ row }">
           <el-button link type="danger" size="small" @click="handleDelete(row)">
             删除
