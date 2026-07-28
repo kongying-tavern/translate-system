@@ -60,7 +60,18 @@ cd frontend && pnpm lint:fix       # 自动修复 + vue-tsc（仅修复格式，
 ### 数据层
 
 ```
-translation_keys (Key 级属性: context, tags) 1:N translation_values (按语言的值: translatedText)
+translation_keys              translation_values
+┌──────────────────┐  1:N  ┌──────────────────┐
+│ id (UUID PK)     │───────│ id (UUID PK)     │
+│ project_id (FK)  │       │ key_id (FK)      │
+│ key              │       │ language_code    │
+│ source_text      │       │ translated_text  │
+│ context          │       │ is_reviewed      │
+│ tags (TEXT[])    │       │ created_at       │
+│ created_at       │       └──────────────────┘
+└──────────────────┘
+
+context 和 tags 为 Key 级别属性，跨语言共享
 project_languages (alias 别名字段) — 导出和 UI 优先显示别名
 ```
 
@@ -92,7 +103,7 @@ layouts/AppLayout — 主界面布局
 |------|:--:|:--:|------|
 | super_admin | ✅ | ✅ | 首位注册用户自动成为超管 |
 | admin | ❌ | ❌ | 可管理成员，不能创建/删除项目 |
-| member | ❌ | ❌ | 默认角色 |
+| member | ❌ | ❌ | 默认角色（普通用户） |
 
 权限常量: `ROLE_LEVEL = { super_admin:3, admin:2, member:1 }`
 

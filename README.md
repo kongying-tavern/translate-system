@@ -4,13 +4,13 @@
 
 ## 功能
 
-- **翻译管理** — Key 聚合视图，按语言切换编辑，支持全文搜索、标签筛选、未翻译过滤
-- **多语言** — BCP 47 标准语言代码，支持别名自定义
+- **翻译管理** — 按翻译条目（Key）聚合展示，支持按语言切换编辑、全文搜索、标签筛选、仅看未翻译
+- **多语言** — 采用标准语言代码（BCP 47），支持别名自定义
 - **批量导入** — 扁平 JSON 一键导入 `{ "原文": "译文" }`
 - **多格式导出** — JSON（扁平/嵌套）、YAML（扁平/嵌套）、Properties、XML（扁平/嵌套）、CSV
-- **标签 & 备注** — Key 级标签和备注，跨语言共享
-- **RBAC 权限** — 超管 / 高管 / 管理员 / 成员 四级角色
-- **项目成员** — 按项目邀请用户，角色隔离
+- **标签 & 备注** — 每条翻译条目可添加标签和备注，所有语言共享
+- **权限管理** — 超管 / 管理员 / 普通用户 三级系统角色
+- **项目成员** — 按项目邀请用户，可分配管理员 / 维护者 / 成员角色
 - **OpenAPI 文档** — Swagger UI 自动生成
 
 ## 技术栈
@@ -70,7 +70,7 @@ cp .env.example .env
 cd backend
 pnpm install
 pnpm db:generate
-pnpm db:push         # 或用 pnpm db:migrate 走迁移文件
+pnpm db:push         # 初始化数据库
 ```
 
 #### 4. 启动
@@ -128,64 +128,35 @@ translate-system/
 └── 翻译后台备忘录.txt
 ```
 
-## 数据库设计
+## 数据结构
 
-```
-translation_keys              translation_values
-┌──────────────────┐  1:N  ┌──────────────────┐
-│ id (UUID PK)     │───────│ id (UUID PK)     │
-│ project_id (FK)  │       │ key_id (FK)      │
-│ key              │       │ language_code    │
-│ source_text      │       │ translated_text  │
-│ context          │       │ is_reviewed      │
-│ tags (TEXT[])    │       │ created_at       │
-│ created_at       │       └──────────────────┘
-└──────────────────┘
+每条待翻译的原文称为一个**翻译条目**，一个条目可包含原文、上下文说明和标签，这些信息在所有语言中共享。
 
-context 和 tags 为 Key 级别属性，跨语言共享，不冗余存储。
-```
-
-## Slug 系统
-
-项目（Project）和导出模板（ExportTemplate）支持使用 `code` 作为人类可读的标识符。
-
-**创建时需指定 `code`：**
-
-```bash
-# 创建项目
-curl -X POST /api/v1/projects \
-  -H "Authorization: Bearer <token>" \
-  -d '{"name":"我的项目","code":"my-project"}'
-
-# 创建导出模板
-curl -X POST /api/v1/projects/my-project/exports/templates \
-  -H "Authorization: Bearer <token>" \
-  -d '{"name":"配置文件","code":"config-json","formatType":"flat-json"}'
-```
-
-**访问时可用 `code` 替代 UUID：**
-
-```bash
-# 通过 code 访问项目
-curl /api/v1/projects/my-project
-
-# 导出时通过 code 引用模板
-curl -X POST /api/v1/projects/my-project/exports/generate \
-  -d '{"templateSlug":"config-json","languageCodes":["zh-Hans"]}'
-```
-
-> 项目中所有带 `:projectSlug` 和 `:templateSlug` 的路由参数均兼容 UUID 和 `code`，UUID 优先级更高。
+针对每个条目，你可以在不同语言下分别填入对应的译文。不同语言的译文独立保存，互不影响。
 
 ## 角色权限
 
-| | 超管 | 高管 | 管理员 | 成员 |
-|--|:--:|:--:|:--:|:--:|
-| 新建项目 | ✅ | ❌ | ❌ | ❌ |
-| 用户管理 | ✅ | ✅ | ❌ | ❌ |
-| 翻译/导出 | ✅ | ✅ | ✅ | 仅编辑译文 |
-| 项目成员 | 全部 | 管理员及以下 | 仅成员 | ❌ |
+系统有**系统角色**和**项目角色**两层权限划分。
 
-首位注册用户自动成为超级管理员，后续注册默认为成员。
+### 系统角色
+
+系统角色决定你在平台整体上的操作范围：
+
+- **超管** — 全部权限：可以新建项目、管理系统用户、翻译导出、管理所有项目成员。首位注册的用户自动成为超管。
+- **管理员** — 可进行完整的翻译和导出操作，管理已加入项目的成员，但不能新建项目和管理系统用户。
+- **普通用户** — 仅可编辑译文。
+
+新注册的用户默认为普通用户。
+
+### 项目角色
+
+项目创建后，可以邀请其他用户加入项目并分配角色。项目角色决定用户在项目内的操作权限：
+
+- **管理员** — 拥有项目内的全部权限：修改项目设置、管理项目成员、管理语言和导出、翻译、增删翻译条目。
+- **维护者** — 可以进行翻译和增删翻译条目，但不能修改项目设置和管理成员。
+- **成员** — 仅可编辑译文，不能增删翻译条目。
+
+系统超管对所有项目拥有管理员级别的全部权限。
 
 ## 命令行脚本
 
