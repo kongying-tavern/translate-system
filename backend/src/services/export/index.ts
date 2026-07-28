@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import type { ExportKey, FlatTranslation } from './types'
 import { prisma } from '../../index'
+import { ExportFormat } from '../../lib/formats'
 import { AppError } from '../../utils/AppError'
 import { exportCSV } from './csv'
 import { exportFlatJSON, exportNestedJSON } from './json'
@@ -80,14 +81,14 @@ export function exportTranslations(keys: ExportKey[], languageCodes: string[], f
     translations = translations.filter(t => t.translatedText)
   }
   switch (formatType) {
-    case 'flat-json': return [exportFlatJSON(translations, languageCodes, config), 'json']
-    case 'nested-json': return [exportNestedJSON(translations, languageCodes, config), 'json']
-    case 'flat-yaml': return [exportFlatYAML(translations, languageCodes, config), 'yaml']
-    case 'nested-yaml': return [exportNestedYAML(translations, languageCodes, config), 'yaml']
-    case 'properties': return [exportProperties(translations, languageCodes, config), 'properties']
-    case 'flat-xml': return [exportFlatXML(translations, languageCodes, config), 'xml']
-    case 'nested-xml': return [exportNestedXML(translations, languageCodes, config), 'xml']
-    case 'csv': return [exportCSV(translations, languageCodes, config), 'csv']
+    case ExportFormat.FlatJson: return [exportFlatJSON(translations, languageCodes, config), 'json']
+    case ExportFormat.NestedJson: return [exportNestedJSON(translations, languageCodes, config), 'json']
+    case ExportFormat.FlatYaml: return [exportFlatYAML(translations, languageCodes, config), 'yaml']
+    case ExportFormat.NestedYaml: return [exportNestedYAML(translations, languageCodes, config), 'yaml']
+    case ExportFormat.Properties: return [exportProperties(translations, languageCodes, config), 'properties']
+    case ExportFormat.FlatXml: return [exportFlatXML(translations, languageCodes, config), 'xml']
+    case ExportFormat.NestedXml: return [exportNestedXML(translations, languageCodes, config), 'xml']
+    case ExportFormat.Csv: return [exportCSV(translations, languageCodes, config), 'csv']
     default: return [exportFlatJSON(translations, languageCodes, config), 'json']
   }
 }

@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
-import { EXPORT_FORMAT_MAP } from '@/data/exportFormats'
+import { EXPORT_FORMAT_MAP, ExportFormat } from '@/data/exportFormats'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,7 +22,7 @@ const formatOptions = computed(() =>
   })),
 )
 
-const form = reactive({ name: '', code: '', description: '', formatType: 'nested-json' })
+const form: { name: string, code: string, description: string, formatType: ExportFormat } = reactive({ name: '', code: '', description: '', formatType: ExportFormat.NestedJson })
 const configForm = reactive({ skipIdentical: false, skipEmpty: false, useCodeKey: false })
 
 const rules: FormRules = {
@@ -36,7 +36,7 @@ onMounted(async () => {
     form.name = res.data.name
     form.code = res.data.code || ''
     form.description = res.data.description || ''
-    form.formatType = res.data.formatType
+    form.formatType = res.data.formatType as ExportFormat
     if (res.data.config) {
       const cfg = res.data.config as Record<string, unknown>
       configForm.skipIdentical = !!cfg.skipIdentical
