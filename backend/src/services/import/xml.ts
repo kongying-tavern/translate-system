@@ -1,32 +1,67 @@
 import type { ImportEntry } from './types'
+import { XMLParser } from 'fast-xml-parser'
 
-export function xmlParse(data: string): ImportEntry[] {
-  const entries: ImportEntry[] = []
-  const langRe = /<language\s+code="([^"]*)"[^>]*>([\s\S]*?)<\/language>/g
-  let lm
-  while (true) {
-    lm = langRe.exec(data)
-    if (!lm)
-      break
-    const langCode = lm[1]
-    const strRe = /<string\s+name="([^"]*)"(?:\s+sourceText="([^"]*)")?(?:\s+tags="([^"]*)")?(?:\s+context="([^"]*)")?[^>]*>([\s\S]*?)<\/string>/g
-    let sm
-    while (true) {
-      sm = strRe.exec(lm[2])
-      if (!sm)
-        break
-      entries.push({ key: sm[1], sourceText: sm[2] || sm[1], translatedText: sm[5].trim(), tags: sm[3] ? sm[3].split(';').map((t: string) => t.trim()) : [], context: sm[4] || '', lang: langCode })
-    }
+interface RawString {
+  '@_name'?: string
+  '@_sourceText'?: string
+  '@_tags'?: string
+  '@_context'?: string
+  '#text'?: string
+}
+
+interface RawLanguage {
+  '@_code'?: string
+  'string'?: RawString | RawString[]
+}
+
+interface RawDoc {
+  resources?: {
+    string?: RawString | RawString[]
+    language?: RawLanguage | RawLanguage[]
   }
-  if (!entries.length) {
-    const re = /<string\s+name="([^"]*)"(?:\s+sourceText="([^"]*)")?(?:\s+tags="([^"]*)")?(?:\s+context="([^"]*)")?[^>]*>([\s\S]*?)<\/string>/g
-    let m
-    while (true) {
-      m = re.exec(data)
-      if (!m)
-        break
-      entries.push({ key: m[1], sourceText: m[2] || m[1], translatedText: m[5].trim(), tags: m[3] ? m[3].split(';').map((t: string) => t.trim()) : [], context: m[4] || '' })
+}
+
+function toArray<T>(v: T | T[] | undefined): T[] {
+  if (v == null)
+    return []
+  return Array.isArray(v) ? v : [v]
+}
+
+function parseString(s: RawString): ImportEntry {
+  return {
+    key: s['@_name'] ?? '',
+    sourceText: s['@_sourceText'] || s['@_name'] || '',
+    translatedText: s['#text']?.trim() ?? '',
+    tags: s['@_tags'] ? s['@_tags'].split(';').map(t => t.trim()) : [],
+    context: s['@_context'] ?? '',
+  }
+}
+
+function parseFlatXml(root: Exclude<RawDoc['resources'], undefined>): ImportEntry[] {
+  return toArray(root.string).map(parseString)
+}
+
+function parseNestedXml(root: Exclude<RawDoc['resources'], undefined>): ImportEntry[] {
+  const entries: ImportEntry[] = []
+  for (const lang of toArray(root.language)) {
+    const langCode = lang['@_code'] ?? ''
+    for (const s of toArray(lang.string)) {
+      entries.push({ ...parseString(s), lang: langCode })
     }
   }
   return entries
+}
+
+export function xmlParse(data: string): ImportEntry[] {
+  const parser = new XMLParser({ ignoreAttributes: false })
+  const doc = parser.parse(data) as RawDoc
+  const root = doc?.resources
+  if (!root)
+    return []
+
+  const langs = toArray(root.language)
+  if (langs.length)
+    return parseNestedXml(root)
+
+  return parseFlatXml(root)
 }
