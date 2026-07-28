@@ -1,6 +1,6 @@
 import type { ImportEntry } from './types'
 
-export function flatJSONParse(data: Record<string, unknown>, _languageCode: string): ImportEntry[] {
+export function JSONParse(data: Record<string, unknown>, _languageCode: string): ImportEntry[] {
   // Detect nested: { "zh-Hans": { "key": "val" } } → flatten with lang
   const firstVal = Object.values(data)[0]
   if (firstVal && typeof firstVal === 'object' && !Array.isArray(firstVal) && !('translatedText' in (firstVal as Record<string, unknown>)) && !('sourceText' in (firstVal as Record<string, unknown>))) {

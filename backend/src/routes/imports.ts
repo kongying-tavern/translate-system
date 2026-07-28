@@ -8,7 +8,7 @@ import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
 import { csvParse } from '../services/import/csv'
-import { flatJSONParse } from '../services/import/json'
+import { JSONParse } from '../services/import/json'
 import { propertiesParse } from '../services/import/properties'
 import { xmlParse } from '../services/import/xml'
 import { yamlParse } from '../services/import/yaml'
@@ -78,7 +78,7 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwners
     let entries: ImportEntry[] = []
     if (eOnly) {
       if (raw.trim().startsWith('{'))
-        entries = flatJSONParse(JSON.parse(raw), languageCode)
+        entries = JSONParse(JSON.parse(raw), languageCode)
       else if (raw.trim().startsWith('<'))
         entries = xmlParse(raw)
       else if (raw.includes(':') && !raw.includes(','))
@@ -86,7 +86,7 @@ importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwners
       else entries = csvParse(raw)
     }
     else if (fmt === 'flat-json' || fmt === 'json') {
-      entries = flatJSONParse(JSON.parse(raw), languageCode)
+      entries = JSONParse(JSON.parse(raw), languageCode)
     }
     else if (fmt === 'csv') {
       entries = csvParse(raw)
