@@ -4,6 +4,7 @@ import type { ImportEntry } from '../services/import/types'
 import { Router } from 'express'
 import { prisma } from '../index'
 import { ErrCode } from '../lib/errors'
+import { ImportFormat } from '../lib/formats'
 import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
 import { requireOwnership } from '../middleware/ownership'
@@ -28,7 +29,7 @@ importRoutes.post('/:projectSlug/imports/templates', authMiddleware, requireOwne
     const { name, description, formatType, config } = req.body
     if (!name)
       return error(res, ErrCode.InvalidParams, 'name is required')
-    success(res, await prisma.importTemplate.create({ data: { projectId: req.params.projectSlug, name, description: description || '', formatType: formatType || 'flat-json', config: config || {} } }))
+    success(res, await prisma.importTemplate.create({ data: { projectId: req.params.projectSlug, name, description: description || '', formatType: formatType || ImportFormat.JSON, config: config || {} } }))
   }
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
@@ -55,97 +56,132 @@ importRoutes.delete('/:projectSlug/imports/templates/:id', authMiddleware, requi
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-// Execute import (supports both template-based and direct mode)
-importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+function sniffFormat(raw: string): ImportFormat {
+  const t = raw.trim()
+  if (t.startsWith('{'))
+    return ImportFormat.JSON
+  if (t.startsWith('<'))
+    return ImportFormat.XML
+  const lines = raw.split(/\r?\n/).filter(l => l.trim())
+  if (
+    lines.some(l => l.trimStart().startsWith('---') || l.trimStart().startsWith('- '))
+    || lines.some(l => /^\s+/.test(l))
+    || lines.some(l => /^[\w.\-[/]+:\s/.test(l))
+  ) {
+    return ImportFormat.YAML
+  }
+  return ImportFormat.CSV
+}
+
+function parseImportData(raw: string, fmt: string, languageCode: string): ImportEntry[] {
   try {
-    const { templateId, languageCode, data, entriesOnly, overwrite, autoCreate } = req.body
-    // eslint-disable-next-line no-console
-    console.log('[import] entriesOnly:', entriesOnly, 'overwrite:', overwrite, 'autoCreate:', autoCreate, 'lang:', languageCode)
-    const raw = typeof data === 'string' ? data : JSON.stringify(data)
+    if (fmt === ImportFormat.JSON)
+      return JSONParse(JSON.parse(raw), languageCode)
+    if (fmt === ImportFormat.CSV)
+      return csvParse(raw)
+    if (fmt === ImportFormat.Properties)
+      return propertiesParse(raw)
+    if (fmt === ImportFormat.YAML)
+      return yamlParse(raw)
+    if (fmt === ImportFormat.XML)
+      return xmlParse(raw)
+    return []
+  }
+  catch {
+    return []
+  }
+}
 
-    // Resolve format and entriesOnly
-    let fmt = req.body.formatType || 'flat-json'
-    let eOnly = entriesOnly
-    if (templateId) {
-      const template = await prisma.importTemplate.findUnique({ where: { id: templateId } })
-      if (!template)
-        return error(res, ErrCode.NotFound, 'template not found')
-      fmt = template.formatType
-      eOnly = template.formatType === 'entries-only'
+async function importKeys(projectSlug: string, raw: string, fmt: ImportFormat, overwrite: boolean): Promise<{ imported: number, created: number, skipped: number }> {
+  const entries = parseImportData(raw, fmt, '')
+  let imported = 0
+  let created = 0
+  let skipped = 0
+  for (const entry of entries) {
+    const { key, context, tags, sourceText } = entry
+    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId: projectSlug, key } } })
+    const keyExisted = !!tk
+    if (keyExisted && !overwrite) {
+      skipped++
     }
-
-    // Parse
-    let entries: ImportEntry[] = []
-    if (eOnly) {
-      if (raw.trim().startsWith('{'))
-        entries = JSONParse(JSON.parse(raw), languageCode)
-      else if (raw.trim().startsWith('<'))
-        entries = xmlParse(raw)
-      else if (raw.includes(':') && !raw.includes(','))
-        entries = yamlParse(raw)
-      else entries = csvParse(raw)
-    }
-    else if (fmt === 'flat-json' || fmt === 'json') {
-      entries = JSONParse(JSON.parse(raw), languageCode)
-    }
-    else if (fmt === 'csv') {
-      entries = csvParse(raw)
-    }
-    else if (fmt === 'properties') {
-      entries = propertiesParse(raw)
-    }
-    else if (fmt === 'yaml') {
-      entries = yamlParse(raw)
-    }
-    else if (fmt === 'xml') {
-      entries = xmlParse(raw)
-    }
-
-    let count = 0
-    let created = 0
-    let skipped = 0
-    for (const entry of entries) {
-      const { key, translatedText, context, tags, sourceText, lang } = entry
-      const langCode = lang || languageCode
-      let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId: req.params.projectSlug, key } } })
-      const keyExisted = !!tk
-      if (!tk && autoCreate !== false) {
-        const maxSo = await prisma.translationKey.aggregate({ where: { projectId: req.params.projectSlug }, _max: { sortOrder: true } })
-        tk = await prisma.translationKey.create({ data: { projectId: req.params.projectSlug, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+    else {
+      if (!tk) {
+        const maxSo = await prisma.translationKey.aggregate({ where: { projectId: projectSlug }, _max: { sortOrder: true } })
+        tk = await prisma.translationKey.create({ data: { projectId: projectSlug, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
       }
-      if (eOnly && keyExisted && !overwrite)
-        skipped++
-      if (tk) {
-        if (context !== undefined || tags?.length) {
-          const updates: Prisma.TranslationKeyUpdateInput = {}
-          if (context !== undefined)
-            updates.context = context
-          if (tags?.length)
-            updates.tags = tags
-          if (Object.keys(updates).length)
-            await prisma.translationKey.update({ where: { id: tk.id }, data: updates })
-        }
+      if (context !== undefined || tags?.length) {
+        const updates: Prisma.TranslationKeyUpdateInput = {}
+        if (context !== undefined)
+          updates.context = context
+        if (tags?.length)
+          updates.tags = tags
+        if (Object.keys(updates).length)
+          await prisma.translationKey.update({ where: { id: tk.id }, data: updates })
       }
-      if (!eOnly && tk && translatedText !== undefined && langCode) {
-        if (overwrite) {
-          await prisma.translationValue.upsert({ where: { keyId_languageCode: { keyId: tk.id, languageCode: langCode } }, update: { translatedText }, create: { keyId: tk.id, languageCode: langCode, translatedText } })
+      created++
+    }
+    imported++
+  }
+  return { imported, created, skipped }
+}
+
+async function importTranslations(projectSlug: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean): Promise<{ imported: number, created: number, skipped: number }> {
+  const entries = parseImportData(raw, fmt, languageCode)
+  let imported = 0
+  let created = 0
+  let skipped = 0
+  for (const entry of entries) {
+    const { key, translatedText, context, tags, sourceText, lang } = entry
+    const langCode = lang || languageCode
+    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId: projectSlug, key } } })
+    if (!tk && autoCreate !== false) {
+      const maxSo = await prisma.translationKey.aggregate({ where: { projectId: projectSlug }, _max: { sortOrder: true } })
+      tk = await prisma.translationKey.create({ data: { projectId: projectSlug, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+    }
+    if (tk) {
+      if (context !== undefined || tags?.length) {
+        const updates: Prisma.TranslationKeyUpdateInput = {}
+        if (context !== undefined)
+          updates.context = context
+        if (tags?.length)
+          updates.tags = tags
+        if (Object.keys(updates).length)
+          await prisma.translationKey.update({ where: { id: tk.id }, data: updates })
+      }
+    }
+    if (tk && translatedText !== undefined && langCode) {
+      if (overwrite) {
+        await prisma.translationValue.upsert({ where: { keyId_languageCode: { keyId: tk.id, languageCode: langCode } }, update: { translatedText }, create: { keyId: tk.id, languageCode: langCode, translatedText } })
+        created++
+      }
+      else {
+        const existing = await prisma.translationValue.findUnique({ where: { keyId_languageCode: { keyId: tk.id, languageCode: langCode } } })
+        if (!existing || !existing.translatedText) {
+          if (existing)
+            await prisma.translationValue.update({ where: { id: existing.id }, data: { translatedText } })
+          else
+            await prisma.translationValue.create({ data: { keyId: tk.id, languageCode: langCode, translatedText } })
           created++
         }
         else {
-          const existing = await prisma.translationValue.findUnique({ where: { keyId_languageCode: { keyId: tk.id, languageCode: langCode } } })
-          if (!existing || !existing.translatedText) {
-            if (existing) {
-              await prisma.translationValue.update({ where: { id: existing.id }, data: { translatedText } })
-            }
-            else { await prisma.translationValue.create({ data: { keyId: tk.id, languageCode: langCode, translatedText } }) }
-            created++
-          }
-          else { skipped++ }
+          skipped++
         }
       }
-      count++
     }
-    success(res, { imported: count, created, skipped })
+    imported++
+  }
+  return { imported, created, skipped }
+}
+
+importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+  try {
+    const { languageCode, data, entriesOnly, overwrite, autoCreate } = req.body
+    const raw = typeof data === 'string' ? data : JSON.stringify(data)
+    const fmt = !req.body.formatType || req.body.formatType === 'auto' ? sniffFormat(raw) : req.body.formatType as ImportFormat
+    const result = entriesOnly
+      ? await importKeys(req.params.projectSlug, raw, fmt, overwrite)
+      : await importTranslations(req.params.projectSlug, raw, fmt, languageCode, overwrite, autoCreate)
+    success(res, result)
   }
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })

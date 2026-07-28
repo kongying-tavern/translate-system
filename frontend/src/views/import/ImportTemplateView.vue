@@ -5,12 +5,13 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
+import { ImportFormat } from '@/data/importFormats'
 
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
-const fmt = ref('flat-json')
+const fmt = ref<string>('auto')
 const importLang = ref('')
 const overwrite = ref(false)
 const autoCreate = ref(true)
@@ -20,22 +21,24 @@ const exampleTab = ref('json')
 const inputMode = ref('file')
 const textInput = ref('')
 
-const needLang = computed(() => mode.value === 'translate' && (fmt.value === 'flat-json' || fmt.value === 'properties'))
+const needLang = computed(() => mode.value === 'translate' && (fmt.value === 'auto' || fmt.value === ImportFormat.JSON || fmt.value === ImportFormat.Properties))
 const fileAccept = computed(() => {
   if (mode.value === 'entries')
     return '.json,.csv,.yaml,.yml,.xml'
-  if (fmt.value === 'csv')
+  if (fmt.value === 'auto')
+    return '.json,.csv,.yaml,.yml,.xml'
+  if (fmt.value === ImportFormat.CSV)
     return '.csv'
-  if (fmt.value === 'yaml')
-    return '.yaml,.yml'
-  if (fmt.value === 'properties')
+  if (fmt.value === ImportFormat.Properties)
     return '.properties'
-  if (fmt.value === 'xml')
+  if (fmt.value === ImportFormat.YAML)
+    return '.yaml,.yml'
+  if (fmt.value === ImportFormat.XML)
     return '.xml'
   return '.json'
 })
 
-const fmtNames: Record<string, string> = { 'flat-json': '扁平 JSON', 'json': '嵌套 JSON', 'csv': 'CSV', 'properties': 'Properties', 'yaml': 'YAML', 'xml': 'XML' }
+const fmtNames: Record<string, string> = { auto: '自动检测', [ImportFormat.JSON]: 'JSON', [ImportFormat.CSV]: 'CSV', [ImportFormat.Properties]: 'Properties', [ImportFormat.YAML]: 'YAML', [ImportFormat.XML]: 'XML' }
 const exampleTitle = computed(() => fmtNames[fmt.value] || fmt.value)
 
 const entriesExample = {
@@ -47,12 +50,12 @@ const entriesExample = {
 
 const exampleText = computed(() => {
   switch (fmt.value) {
-    case 'flat-json': return '{\n  "login.title": "Login",\n  "error.network": "Network Error"\n}'
-    case 'json': return '{\n  "zh-Hans": { "login.title": "登录" },\n  "en-US": { "login.title": "Login" }\n}'
-    case 'csv': return 'key,sourceText,zh-Hans,en-US\nlogin.title,登录,登录,Login'
-    case 'properties': return 'login.title=Login\nerror.network=Network Error'
-    case 'yaml': return 'zh-Hans:\n  login.title: 登录\nen-US:\n  login.title: Login'
-    case 'xml': return '<resources>\n  <language code="zh-Hans">\n    <string name="login.title">登录</string>\n  </language>\n  <language code="en-US">\n    <string name="login.title">Login</string>\n  </language>\n</resources>'
+    case 'auto': return '根据文件内容自动识别格式\n支持: JSON / CSV / YAML / XML'
+    case ImportFormat.JSON: return '{\n  "zh-Hans": { "login.title": "登录" },\n  "en-US": { "login.title": "Login" }\n}'
+    case ImportFormat.CSV: return 'key,sourceText,zh-Hans,en-US\nlogin.title,登录,登录,Login'
+    case ImportFormat.Properties: return 'login.title=Login\nerror.network=Network Error'
+    case ImportFormat.YAML: return 'zh-Hans:\n  login.title: 登录\nen-US:\n  login.title: Login'
+    case ImportFormat.XML: return '<resources>\n  <language code="zh-Hans">\n    <string name="login.title">登录</string>\n  </language>\n  <language code="en-US">\n    <string name="login.title">Login</string>\n  </language>\n</resources>'
     default: return ''
   }
 })
@@ -135,12 +138,12 @@ async function doImport() {
       <template v-if="mode === 'translate'">
         <el-form-item label="格式">
           <el-select v-model="fmt" style="width:160px">
-            <el-option label="扁平 JSON" value="flat-json" />
-            <el-option label="嵌套 JSON" value="json" />
-            <el-option label="CSV" value="csv" />
-            <el-option label="Properties" value="properties" />
-            <el-option label="YAML" value="yaml" />
-            <el-option label="XML" value="xml" />
+            <el-option label="自动检测" value="auto" />
+            <el-option label="JSON" :value="ImportFormat.JSON" />
+            <el-option label="CSV" :value="ImportFormat.CSV" />
+            <el-option label="Properties" :value="ImportFormat.Properties" />
+            <el-option label="YAML" :value="ImportFormat.YAML" />
+            <el-option label="XML" :value="ImportFormat.XML" />
           </el-select>
         </el-form-item>
         <el-form-item v-if="needLang" label="语言">

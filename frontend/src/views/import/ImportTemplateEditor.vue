@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
+import { ImportFormat } from '@/data/importFormats'
 
 const route = useRoute()
 const router = useRouter()
@@ -10,7 +11,7 @@ const projectSlug = computed(() => route.params.projectSlug as string)
 const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
-const form = reactive({ name: '', description: '', formatType: 'flat-json' })
+const form = reactive({ name: '', description: '', formatType: ImportFormat.JSON, entriesOnly: false })
 
 onMounted(async () => {
   if (isEdit.value) {
@@ -18,6 +19,7 @@ onMounted(async () => {
     form.name = res.data.name
     form.description = res.data.description || ''
     form.formatType = res.data.formatType
+    form.entriesOnly = res.data.entriesOnly ?? false
   }
 })
 
@@ -55,14 +57,17 @@ async function handleSave() {
         <el-input v-model="form.description" type="textarea" />
       </el-form-item>
       <el-form-item label="输入格式">
-        <el-select v-model="form.formatType" style="width:100%">
-          <el-option label="扁平 JSON" value="flat-json" />
-          <el-option label="嵌套 JSON" value="json" />
-          <el-option label="CSV" value="csv" />
-          <el-option label="Properties" value="properties" />
-          <el-option label="XML" value="xml" />
-          <el-option label="仅导入条目" value="entries-only" />
+        <el-select v-model="form.formatType" :disabled="form.entriesOnly" style="width:100%">
+          <el-option label="自动检测" value="auto" />
+          <el-option label="JSON" :value="ImportFormat.JSON" />
+          <el-option label="CSV" :value="ImportFormat.CSV" />
+          <el-option label="Properties" :value="ImportFormat.Properties" />
+          <el-option label="YAML" :value="ImportFormat.YAML" />
+          <el-option label="XML" :value="ImportFormat.XML" />
         </el-select>
+      </el-form-item>
+      <el-form-item label="仅条目">
+        <el-switch v-model="form.entriesOnly" />
       </el-form-item>
       <el-form-item>
         <el-button type="primary" :loading="saving" @click="handleSave">

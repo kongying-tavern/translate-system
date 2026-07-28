@@ -187,7 +187,7 @@ model ImportTemplate {
   projectId   String   @map("project_id") @db.Uuid
   name        String   @db.VarChar(255)
   description String?  @db.Text
-  formatType  String   @default("flat-json") @map("format_type") @db.VarChar(50)
+  formatType  String   @default("json") @map("format_type") @db.VarChar(50)
   config      Json     @default("{}") @db.JsonB
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
