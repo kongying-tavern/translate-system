@@ -173,15 +173,21 @@ async function importTranslations(projectSlug: string, raw: string, fmt: string,
   return { imported, created, skipped }
 }
 
-importRoutes.post('/:projectSlug/imports/execute', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+importRoutes.post('/:projectSlug/imports/entries', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
   try {
-    const { languageCode, data, entriesOnly, overwrite, autoCreate } = req.body
+    const { data, overwrite } = req.body
+    const raw = typeof data === 'string' ? data : JSON.stringify(data)
+    success(res, await importKeys(req.params.projectSlug, raw, sniffFormat(raw), overwrite))
+  }
+  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
+})
+
+importRoutes.post('/:projectSlug/imports/translations', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+  try {
+    const { languageCode, data, overwrite, autoCreate } = req.body
     const raw = typeof data === 'string' ? data : JSON.stringify(data)
     const fmt = !req.body.formatType || req.body.formatType === 'auto' ? sniffFormat(raw) : req.body.formatType as ImportFormat
-    const result = entriesOnly
-      ? await importKeys(req.params.projectSlug, raw, fmt, overwrite)
-      : await importTranslations(req.params.projectSlug, raw, fmt, languageCode, overwrite, autoCreate)
-    success(res, result)
+    success(res, await importTranslations(req.params.projectSlug, raw, fmt, languageCode, overwrite, autoCreate))
   }
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })

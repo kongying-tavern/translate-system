@@ -82,8 +82,11 @@ async function doTextImport() {
   }
   importing.value = true
   try {
-    const body = { data: textInput.value, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${projectSlug.value}/imports/execute`, body)
+    const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
+    const body: Record<string, unknown> = mode.value === 'entries'
+      ? { data: textInput.value, overwrite: overwrite.value }
+      : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
+    const { data: res } = await client.post(`/projects/${projectSlug.value}/imports/${endpoint}`, body)
     const d1 = res.data
     ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
     textInput.value = ''
@@ -104,8 +107,11 @@ async function doImport() {
   importing.value = true
   try {
     const text = await importFile.value.text()
-    const body = { data: text, entriesOnly: mode.value === 'entries', languageCode: importLang.value, formatType: fmt.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${projectSlug.value}/imports/execute`, body)
+    const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
+    const body: Record<string, unknown> = mode.value === 'entries'
+      ? { data: text, overwrite: overwrite.value }
+      : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
+    const { data: res } = await client.post(`/projects/${projectSlug.value}/imports/${endpoint}`, body)
     const d1 = res.data
     ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
     importFile.value = null
