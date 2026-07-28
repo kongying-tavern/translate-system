@@ -34,6 +34,10 @@ async function loadExports() {
   templates.value = tRes.data.data
   projectLanguages.value = lRes.data.data
   allTags.value = tagRes.data.data
+  if (templates.value.length === 1)
+    selectedTemplate.value = templates.value[0].id
+  if (projectLanguages.value.length === 1)
+    selectedLangs.value = [projectLanguages.value[0].languageCode]
 }
 
 async function doPreview() {
@@ -96,18 +100,25 @@ async function handleDelete(id: string) {
 
     <template v-if="templates.length">
       <el-form :inline="true" class="export-bar">
-        <el-form-item label="选择模板">
-          <el-select v-model="selectedTemplate" placeholder="选择导出模板" style="width:220px" filterable clearable>
-            <el-option v-for="t in templates" :key="t.id" :label="`${t.name + (t.code ? ` [${t.code}]` : '')} (${t.formatType})`" :value="t.id" />
+        <el-form-item label="选择模板" required>
+          <el-select v-model="selectedTemplate" placeholder="选择导出模板" style="width:240px" filterable clearable>
+            <el-option v-for="t in templates" :key="t.id" :label="`${t.name}${t.code ? ` [${t.code}]` : ''} — ${t.formatType}`" :value="t.id">
+              <template #default>
+                <div class="opt-row">
+                  <span class="opt-name">{{ t.name }}{{ t.code ? ` [${t.code}]` : '' }}</span>
+                  <span class="opt-meta">{{ t.formatType }}</span>
+                </div>
+              </template>
+            </el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="导出语言">
+        <el-form-item label="导出语言" required>
           <el-select v-model="selectedLangs" multiple placeholder="选择语言" style="width:280px" filterable clearable>
-            <el-option v-for="l in projectLanguages" :key="l.languageCode" :label="l.alias || l.languageCode" :value="l.languageCode" />
+            <el-option v-for="l in projectLanguages" :key="l.languageCode" :label="`${l.alias || l.languageCode}${l.alias ? ` (${l.languageCode})` : ''}`" :value="l.languageCode" />
           </el-select>
         </el-form-item>
-        <el-form-item>
-          <el-select v-model="exportFilterTags" multiple clearable placeholder="按标签过滤(可选)" style="width:200px" filterable>
+        <el-form-item label="标签过滤">
+          <el-select v-model="exportFilterTags" multiple clearable placeholder="搜索标签" style="width:200px" filterable>
             <el-option v-for="t in allTags" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
@@ -165,4 +176,7 @@ async function handleDelete(id: string) {
 .page-header h2 { margin: 0; }
 .export-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .export-bar .el-form-item { margin-bottom: 0; }
+.opt-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+.opt-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-meta { color: #909399; font-size: 12px; margin-left: 12px; white-space: nowrap; }
 </style>
