@@ -45,6 +45,8 @@ const APIKEY_WHITELIST = [
   { method: 'GET', path: /^\/projects\/[^/]+\/translations\/count$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/translations\/tags\/list$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/languages$/ },
+  { method: 'POST', path: /^\/projects\/[^/]+\/imports\/entries$/ },
+  { method: 'POST', path: /^\/projects\/[^/]+\/imports\/translations$/ },
   { method: 'GET', path: /^\/projects\/[^/]+\/exports\/templates\/[^/]+$/ },
   { method: 'POST', path: /^\/projects\/[^/]+\/exports\/preview$/ },
   { method: 'POST', path: /^\/projects\/[^/]+\/exports\/generate$/ },
@@ -63,6 +65,7 @@ apikeyProxy.use((req: Request, res: Response, next: NextFunction) => {
 })
 apikeyProxy.use('/projects', projectRoutes)
 apikeyProxy.use('/projects', translationRoutes)
+apikeyProxy.use('/projects', importRoutes)
 apikeyProxy.use('/projects', exportRoutes)
 app.use('/api/v1/apikey', apikeyProxy)
 
