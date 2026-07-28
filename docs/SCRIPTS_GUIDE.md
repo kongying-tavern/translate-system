@@ -4,6 +4,50 @@
 
 基于已部署服务（Docker 接口、前端页面）的运维与集成操作。
 
+### import_entries.ps1 / import_entries.sh
+
+将条目定义（translation_key）批量导入项目。支持 JSON / CSV / YAML / XML 格式，后端自动检测。
+
+#### 参数
+
+| PS1 参数 | Sh 参数 | 说明 |
+|----------|---------|------|
+| `-Endpoint` | `-e, --endpoint` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k, --api-key` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s, --api-secret` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a, --auth-config` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
+| `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
+| `-File` | `-f, --file` | 数据文件路径 |
+| `-Overwrite` | `-o, --overwrite` | 覆盖已有条目（默认不覆盖） |
+
+#### 前置条件
+
+- 在用户设置中创建 **API Key + Secret**
+
+#### Shell 依赖
+
+`import_entries.sh` 需要安装 [jq](https://jqlang.github.io/jq/) 解析 JSON。
+
+#### 示例
+
+```bash
+./scripts/import_entries.sh \
+  -e http://localhost:20080 \
+  -k ak_xxx -s xxx \
+  -p my-project \
+  -f ./entries.json
+
+# PowerShell
+./scripts/import_entries.ps1 `
+  -Endpoint http://localhost:20080 `
+  -ApiKey ak_xxx -ApiSecret xxx `
+  -ProjectSlug my-project `
+  -File .\entries.json `
+  -Overwrite
+```
+
+---
+
 ### download_translations_single.ps1 / download_translations_single.sh
 
 从服务器导出翻译文件，每语言一个单独文件。
