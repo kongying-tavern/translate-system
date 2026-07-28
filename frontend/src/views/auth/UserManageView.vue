@@ -171,7 +171,7 @@ async function handlePwdSave() {
       </template>
     </el-dialog>
     <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
-      <el-form label-width="80px">
+      <el-form label-width="100px">
         <el-form-item label="用户">
           {{ pwdTarget?.username }}
         </el-form-item><el-form-item label="新密码">

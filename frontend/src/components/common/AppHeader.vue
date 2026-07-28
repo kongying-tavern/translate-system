@@ -333,7 +333,7 @@ async function deleteApiKey(row: ApiKey) {
   </el-dialog>
 
   <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
-    <el-form label-width="80px">
+    <el-form label-width="100px">
       <el-form-item label="当前密码">
         <el-input v-model="pwdForm.oldPassword" show-password />
       </el-form-item>
