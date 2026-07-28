@@ -17,45 +17,6 @@ import { AppError } from '../utils/AppError'
 
 export const importRoutes = Router()
 
-importRoutes.get('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
-  try {
-    success(res, await prisma.importTemplate.findMany({ where: { projectId: req.params.projectSlug }, orderBy: { createdAt: 'desc' } }))
-  }
-  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
-})
-
-importRoutes.post('/:projectSlug/imports/templates', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
-  try {
-    const { name, description, formatType, config } = req.body
-    if (!name)
-      return error(res, ErrCode.InvalidParams, 'name is required')
-    success(res, await prisma.importTemplate.create({ data: { projectId: req.params.projectSlug, name, description: description || '', formatType: formatType || ImportFormat.JSON, config: config || {} } }))
-  }
-  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
-})
-
-importRoutes.get('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
-  try {
-    success(res, await prisma.importTemplate.findUnique({ where: { id: req.params.id } }))
-  }
-  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
-})
-
-importRoutes.put('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
-  try {
-    success(res, await prisma.importTemplate.update({ where: { id: req.params.id }, data: req.body }))
-  }
-  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
-})
-
-importRoutes.delete('/:projectSlug/imports/templates/:id', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
-  try {
-    await prisma.importTemplate.delete({ where: { id: req.params.id } })
-    success(res, null)
-  }
-  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
-})
-
 function sniffFormat(raw: string): ImportFormat {
   const t = raw.trim()
   if (t.startsWith('{'))
