@@ -4,6 +4,64 @@
 
 基于已部署服务（Docker 接口、前端页面）的运维与集成操作。
 
+### import_translations.ps1 / import_translations.sh
+
+将翻译内容（translation_value）批量导入指定语言。支持 JSON / CSV / YAML / XML / Properties 格式，需明确指定格式类型。
+
+#### 参数
+
+| PS1 参数 | Sh 参数 | 说明 |
+|----------|---------|------|
+| `-Endpoint` | `-e, --endpoint` | 服务器地址，如 `http://localhost:20080` |
+| `-ApiKey` | `-k, --api-key` | API Key，以 `ak_` 开头，与 `-AuthConfig` 二选一 |
+| `-ApiSecret` | `-s, --api-secret` | API Secret，与 `-AuthConfig` 二选一 |
+| `-AuthConfig` | `-a, --auth-config` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
+| `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
+| `-FormatType` | `-t, --format-type` | 格式类型（取值见下表） |
+| `-Language` | `-l, --language` | 目标语言代码（如 `zh-Hans`，不支持别名） |
+| `-File` | `-f, --file` | 数据文件路径 |
+| `-Overwrite` | `-o, --overwrite` | 覆盖已有译文（默认不覆盖） |
+| `-NoAutoCreate` | `-n, --no-auto-create` | 不自动补全新条目（默认自动创建） |
+
+**`-FormatType` / `-t` 取值说明：**
+
+| 值 | 格式 |
+|---|------|
+| `json` | JSON |
+| `csv` | CSV |
+| `yaml` | YAML |
+| `xml` | XML |
+| `properties` | Properties |
+
+#### 前置条件
+
+- 在用户设置中创建 **API Key + Secret**
+
+#### Shell 依赖
+
+`import_translations.sh` 需要安装 [jq](https://jqlang.github.io/jq/) 解析 JSON。
+
+#### 示例
+
+```bash
+./scripts/import_translations.sh \
+  -e http://localhost:20080 \
+  -k ak_xxx -s xxx \
+  -p my-project \
+  -t json -l zh-Hans \
+  -f ./zh-Hans.json
+
+# PowerShell
+./scripts/import_translations.ps1 `
+  -Endpoint http://localhost:20080 `
+  -ApiKey ak_xxx -ApiSecret xxx `
+  -ProjectSlug my-project `
+  -FormatType json -Language zh-Hans `
+  -File .\zh-Hans.json
+```
+
+---
+
 ### import_entries.ps1 / import_entries.sh
 
 将条目定义（translation_key）批量导入项目。支持 JSON / CSV / YAML / XML 格式，后端自动检测。
