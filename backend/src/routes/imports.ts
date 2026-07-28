@@ -145,10 +145,11 @@ importRoutes.post('/:projectSlug/imports/entries', authMiddleware, requireOwners
 
 importRoutes.post('/:projectSlug/imports/translations', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
   try {
-    const { languageCode, data, overwrite, autoCreate } = req.body
+    const { languageCode, formatType, data, overwrite, autoCreate } = req.body
+    if (!formatType)
+      return error(res, ErrCode.InvalidParams, 'formatType is required')
     const raw = typeof data === 'string' ? data : JSON.stringify(data)
-    const fmt = !req.body.formatType || req.body.formatType === 'auto' ? sniffFormat(raw) : req.body.formatType as ImportFormat
-    success(res, await importTranslations(req.params.projectSlug, raw, fmt, languageCode, overwrite, autoCreate))
+    success(res, await importTranslations(req.params.projectSlug, raw, formatType as ImportFormat, languageCode, overwrite, autoCreate))
   }
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })

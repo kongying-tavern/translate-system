@@ -11,7 +11,7 @@ const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
-const fmt = ref<string>('auto')
+const fmt = ref<string>(ImportFormat.JSON)
 const importLang = ref('')
 const overwrite = ref(false)
 const autoCreate = ref(true)
@@ -21,7 +21,7 @@ const exampleTab = ref('json')
 const inputMode = ref('file')
 const textInput = ref('')
 
-const needLang = computed(() => mode.value === 'translate' && (fmt.value === 'auto' || fmt.value === ImportFormat.JSON || fmt.value === ImportFormat.Properties))
+const needLang = computed(() => mode.value === 'translate' && (fmt.value === ImportFormat.JSON || fmt.value === ImportFormat.Properties))
 const fileAccept = computed(() => {
   if (mode.value === 'entries')
     return '.json,.csv,.yaml,.yml,.xml'
@@ -38,7 +38,7 @@ const fileAccept = computed(() => {
   return '.json'
 })
 
-const fmtNames: Record<string, string> = { auto: '自动检测', [ImportFormat.JSON]: 'JSON', [ImportFormat.CSV]: 'CSV', [ImportFormat.Properties]: 'Properties', [ImportFormat.YAML]: 'YAML', [ImportFormat.XML]: 'XML' }
+const fmtNames: Record<string, string> = { [ImportFormat.JSON]: 'JSON', [ImportFormat.CSV]: 'CSV', [ImportFormat.Properties]: 'Properties', [ImportFormat.YAML]: 'YAML', [ImportFormat.XML]: 'XML' }
 const exampleTitle = computed(() => fmtNames[fmt.value] || fmt.value)
 
 const entriesExample = {
@@ -50,7 +50,6 @@ const entriesExample = {
 
 const exampleText = computed(() => {
   switch (fmt.value) {
-    case 'auto': return '根据文件内容自动识别格式\n支持: JSON / CSV / YAML / XML'
     case ImportFormat.JSON: return '{\n  "zh-Hans": { "login.title": "登录" },\n  "en-US": { "login.title": "Login" }\n}'
     case ImportFormat.CSV: return 'key,sourceText,zh-Hans,en-US\nlogin.title,登录,登录,Login'
     case ImportFormat.Properties: return 'login.title=Login\nerror.network=Network Error'
@@ -67,8 +66,23 @@ onMounted(async () => {
     importLang.value = projectLanguages.value[0].languageCode
 })
 
+const extMap: Record<string, string> = {
+  json: ImportFormat.JSON,
+  csv: ImportFormat.CSV,
+  properties: ImportFormat.Properties,
+  yaml: ImportFormat.YAML,
+  yml: ImportFormat.YAML,
+  xml: ImportFormat.XML,
+}
+
 function onFileChange(file: UploadFile) {
-  importFile.value = file.raw ?? null
+  const raw = file.raw ?? null
+  importFile.value = raw
+  if (mode.value === 'translate' && raw) {
+    const ext = raw.name.split('.').pop()?.toLowerCase() ?? ''
+    if (extMap[ext])
+      fmt.value = extMap[ext]
+  }
 }
 
 async function doTextImport() {
@@ -142,9 +156,8 @@ async function doImport() {
 
     <el-form :inline="true" class="import-bar" style="margin-top:0">
       <template v-if="mode === 'translate'">
-        <el-form-item label="格式">
+        <el-form-item v-if="inputMode === 'text'" label="格式">
           <el-select v-model="fmt" style="width:160px">
-            <el-option label="自动检测" value="auto" />
             <el-option label="JSON" :value="ImportFormat.JSON" />
             <el-option label="CSV" :value="ImportFormat.CSV" />
             <el-option label="Properties" :value="ImportFormat.Properties" />
