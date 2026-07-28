@@ -34,10 +34,10 @@ function sniffFormat(raw: string): ImportFormat {
   return ImportFormat.CSV
 }
 
-function parseImportData(raw: string, fmt: string, languageCode: string): ImportEntry[] {
+function parseImportData(raw: string, fmt: string): ImportEntry[] {
   try {
     if (fmt === ImportFormat.JSON)
-      return JSONParse(JSON.parse(raw), languageCode)
+      return JSONParse(raw)
     if (fmt === ImportFormat.CSV)
       return csvParse(raw)
     if (fmt === ImportFormat.Properties)
@@ -54,7 +54,7 @@ function parseImportData(raw: string, fmt: string, languageCode: string): Import
 }
 
 async function importKeys(projectSlug: string, raw: string, fmt: ImportFormat, overwrite: boolean): Promise<{ imported: number, created: number, skipped: number }> {
-  const entries = parseImportData(raw, fmt, '')
+  const entries = parseImportData(raw, fmt)
   let imported = 0
   let created = 0
   let skipped = 0
@@ -87,7 +87,7 @@ async function importKeys(projectSlug: string, raw: string, fmt: ImportFormat, o
 }
 
 async function importTranslations(projectSlug: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean): Promise<{ imported: number, created: number, skipped: number }> {
-  const entries = parseImportData(raw, fmt, languageCode)
+  const entries = parseImportData(raw, fmt)
   let imported = 0
   let created = 0
   let skipped = 0

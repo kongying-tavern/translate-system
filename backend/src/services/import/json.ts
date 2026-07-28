@@ -29,7 +29,8 @@ function parseNested(data: Record<string, unknown>): ImportEntry[] {
   return entries
 }
 
-export function JSONParse(data: Record<string, unknown>, _languageCode: string): ImportEntry[] {
+export function JSONParse(raw: string): ImportEntry[] {
+  const data = JSON.parse(raw) as Record<string, unknown>
   const flatResult = FlatEntriesSchema.safeParse(data)
   if (flatResult.success)
     return parseFlat(flatResult.data)
