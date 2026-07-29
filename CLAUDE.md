@@ -99,23 +99,53 @@ layouts/AppLayout — 主界面布局
 
 **系统角色** (`users.role`):
 
-| 角色 | 新建项目 | 用户管理 | 说明 |
+| 角色 | 新建/编辑项目 | 用户管理 | 说明 |
 |------|:--:|:--:|------|
 | super_admin | ✅ | ✅ | 首位注册用户自动成为超管 |
-| admin | ❌ | ❌ | 可管理成员，不能创建/删除项目 |
+| admin | ❌ | ❌ | 可管理用户，不能管理 super_admin |
 | user | ❌ | ❌ | 默认角色（普通用户） |
 
 权限常量: `ROLE_LEVEL = { super_admin:3, admin:2, user:1 }`
 
 **项目角色** (`project_members.project_role`):
 
-| 角色 | 项目设置 | 项目成员 | 语言/导出 | 翻译 | 新增/删除Key |
-|------|:--:|:--:|:--:|:--:|:--:|
-| admin | ✅ | ✅ | ✅ | ✅ | ✅ |
-| maintainer | ❌ | ❌ | ❌ | ✅ | ✅ |
-| member | ❌ | ❌ | ❌ | 仅编辑译文 | ❌ |
+| 角色 | 项目成员 | 语言管理 | 导入 | Key管理 | 翻译 | 导出模板 |
+|------|:--:|:--:|:--:|:--:|:--:|:--:|
+| admin | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| maintainer | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| member | ❌ | ❌ | ❌ | ❌ | 仅编辑译文 | 仅使用模板 |
 
 项目 owner 自动拥有项目 admin 权限。系统 super_admin 对所有项目拥有全部权限。
+
+**三层权限模型：**
+
+1. **菜单权限**（sidebar 可见性）：
+
+   | 菜单 | 系统角色 | 项目角色 |
+   |------|:-------:|:--------:|
+   | 用户管理 | SuperAdmin/Admin | — |
+   | 项目管理 | Any | — |
+   | 翻译管理 | Any | Any |
+   | 项目成员 | Any | Admin |
+   | 语言管理 | Any | Admin/Maintainer |
+   | 导入管理 | Any | Admin/Maintainer |
+   | 导出模板 | Any | Any |
+
+2. **功能权限**（按钮/操作）：
+   | 页面 | 操作 | 系统角色 | 项目角色 |
+   |------|------|:-------:|:--------:|
+   | 项目管理 | 编辑项目 | SuperAdmin | — |
+   | 翻译管理 | 新增/删除Key | — | Admin/Maintainer |
+   | 翻译管理 | 编辑Key/原文/标签/备注列 | — | Admin/Maintainer |
+   | 翻译管理 | 排序行 | — | Admin/Maintainer |
+   | 导出模板 | 新增/删除/编辑模板 | — | Admin/Maintainer |
+
+3. **数据权限**：
+   - 项目选择器：Project-Any（只能看到自己有成员/owner 身份的项目）
+
+**前端权限工具**：使用 `hooks/useProjectPermission.ts` 的 `useProjectPermission()` 获取所有权限 computed，替代直接判断 `auth.role`。提供 `canManageContent`（Admin/Maintainer 或 super_admin）、`canManageProject`（Admin 或 super_admin）等权限属性。
+
+**后端中间件链**：`authMiddleware` → `requireOwnership` → `requireProjectRole(minRole)` → handler。`requireProjectRole` 自动放行 super_admin。敏感路由（创建 Key、管理成员、语言、导入、模板增删改）已加上对应 `requireProjectRole` 保护。
 
 ### Slug
 
@@ -202,9 +232,10 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 | 文件 | 职责 |
 |------|------|
-| `stores/auth.ts` | 用户信息、角色、activeProjectId |
+| `stores/auth.ts` | 用户信息、系统角色、项目角色、activeProjectId |
 | `stores/translation.ts` | 翻译列表、GroupedRow 类型 |
 | `stores/loading.ts` | 全局 loading 遮罩 |
+| `composables/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
 | `api/client.ts` | Axios 实例、401 自动 refresh token |
 | `router/index.ts` | 路由守卫、auth.init() 初始化 |
 

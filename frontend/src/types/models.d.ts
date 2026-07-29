@@ -13,6 +13,7 @@ export interface Project {
   code: string
   description: string
   sourceLanguage: string
+  projectRole: string | null
   createdAt: string
   updatedAt: string
 }

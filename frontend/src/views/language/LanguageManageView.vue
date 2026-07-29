@@ -7,6 +7,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
 
@@ -33,6 +34,7 @@ watch(projectSlug, () => {
     loadLangs()
 })
 const sortedBaseLanguages = computed(() => [...baseLanguages.value].sort((a, b) => a.englishName.localeCompare(b.englishName)))
+const perm = useProjectPermission()
 const loadingStore = useLoadingStore()
 function loadLangs() {
   loadingStore.start()
@@ -107,17 +109,17 @@ async function saveOrder(row: ProjectLanguage) {
 <template>
   <div>
     <div class="page-header">
-      <h2>语言管理</h2><el-button type="primary" @click="showAddDialog = true">
+      <h2>语言管理</h2><el-button v-if="perm.canManageContent.value" type="primary" @click="showAddDialog = true">
         添加语言
       </el-button>
     </div>
     <el-table :data="projectLanguages || []" stripe row-key="id">
       <el-table-column label="排序" width="80" align="center">
         <template #default="{ $index }">
-          <el-button link size="small" :disabled="$index === 0" @click="moveUp($index)">
+          <el-button v-if="perm.canManageContent.value" link size="small" :disabled="$index === 0" @click="moveUp($index)">
             <el-icon><ArrowUp /></el-icon>
           </el-button>
-          <el-button link size="small" :disabled="$index === (projectLanguages || []).length - 1" @click="moveDown($index)">
+          <el-button v-if="perm.canManageContent.value" link size="small" :disabled="$index === (projectLanguages || []).length - 1" @click="moveDown($index)">
             <el-icon><ArrowDown /></el-icon>
           </el-button>
         </template>
@@ -130,7 +132,7 @@ async function saveOrder(row: ProjectLanguage) {
       </el-table-column>
       <el-table-column label="别名" min-width="160">
         <template #default="{ row }">
-          <el-input v-model="aliasCache[row.id]" size="small" placeholder="输入别名..." @blur="onAliasSave(row)" />
+          <el-input v-model="aliasCache[row.id]" size="small" placeholder="输入别名..." :readonly="!perm.canManageContent.value" @blur="onAliasSave(row)" />
         </template>
       </el-table-column>
       <el-table-column label="显示名" min-width="120">
@@ -140,7 +142,7 @@ async function saveOrder(row: ProjectLanguage) {
       </el-table-column>
       <el-table-column label="操作" min-width="80">
         <template #default="{ row }">
-          <el-button type="danger" link @click="handleRemove(row.languageCode)">
+          <el-button v-if="perm.canManageContent.value" type="danger" link @click="handleRemove(row.languageCode)">
             删除
           </el-button>
         </template>

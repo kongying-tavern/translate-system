@@ -2,12 +2,13 @@ import type { Prisma } from '@prisma/client'
 import type { AuthRequest } from '../middleware/auth'
 import type { ImportEntry } from '../services/import/types'
 import { Router } from 'express'
+import { ProjectRole } from '../constants/roles'
 import { prisma } from '../index'
 import { ErrCode } from '../lib/errors'
 import { ImportFormat } from '../lib/formats'
 import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
-import { requireOwnership } from '../middleware/ownership'
+import { requireOwnership, requireProjectRole } from '../middleware/ownership'
 import { csvParse } from '../services/import/csv'
 import { JSONParse } from '../services/import/json'
 import { propertiesParse } from '../services/import/properties'
@@ -134,7 +135,7 @@ async function importTranslations(projectSlug: string, raw: string, fmt: string,
   return { imported, created, skipped }
 }
 
-importRoutes.post('/:projectSlug/imports/entries', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+importRoutes.post('/:projectSlug/imports/entries', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req: AuthRequest, res) => {
   try {
     const { data, overwrite } = req.body
     const raw = typeof data === 'string' ? data : JSON.stringify(data)
@@ -143,7 +144,7 @@ importRoutes.post('/:projectSlug/imports/entries', authMiddleware, requireOwners
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-importRoutes.post('/:projectSlug/imports/translations', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+importRoutes.post('/:projectSlug/imports/translations', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req: AuthRequest, res) => {
   try {
     const { languageCode, formatType, data, overwrite, autoCreate } = req.body
     if (!formatType)

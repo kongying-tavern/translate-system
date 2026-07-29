@@ -6,11 +6,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
 import { deleteProject, getProject, getProjects, updateProject } from '@/api/project'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
-import { SystemRole } from '@/utils/roles'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
+const perm = useProjectPermission()
 const router = useRouter()
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string | undefined)
@@ -97,7 +98,7 @@ watch(projectSlug, async (slug) => {
     try {
       const { data: res } = await getProject(slug)
       projectName.value = res.data.name
-      auth.setActiveProject(res.data.id, res.data.name, res.data.code)
+      auth.setActiveProject(res.data.id, res.data.name, res.data.code, res.data.projectRole)
     }
     catch {
       projectName.value = slug
@@ -105,6 +106,7 @@ watch(projectSlug, async (slug) => {
   }
   else {
     projectName.value = ''
+    auth.setActiveProject('', '', undefined, null)
   }
 }, { immediate: true })
 
@@ -225,7 +227,7 @@ async function deleteApiKey(row: ApiKey) {
           <ArrowDown />
         </el-icon>
       </el-button>
-      <el-button v-if="auth.role === SystemRole.SuperAdmin" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
+      <el-button v-if="perm.canEditProject.value" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
         <el-icon><Setting /></el-icon>
       </el-button>
     </template>
@@ -238,7 +240,7 @@ async function deleteApiKey(row: ApiKey) {
           <el-dropdown-item command="pwd">
             修改密码
           </el-dropdown-item>
-          <el-dropdown-item v-if="auth.role !== SystemRole.User" command="apikey">
+          <el-dropdown-item command="apikey">
             API 密钥
           </el-dropdown-item>
           <el-dropdown-item command="logout">
@@ -258,7 +260,7 @@ async function deleteApiKey(row: ApiKey) {
     </div>
     <EmptyState v-if="!filteredProjects.length" description="暂无项目" />
     <template #footer>
-      <el-button v-if="auth.role === SystemRole.SuperAdmin" type="primary" style="width:100%" @click="goCreateProject">
+      <el-button v-if="perm.canCreateProject.value" type="primary" style="width:100%" @click="goCreateProject">
         新建项目
       </el-button>
     </template>

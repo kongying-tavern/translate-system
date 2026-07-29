@@ -6,8 +6,10 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { ImportFormat } from '@/data/importFormats'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 
 const route = useRoute()
+const perm = useProjectPermission()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
@@ -193,13 +195,13 @@ async function doImport() {
       </el-form-item>
       <el-form-item v-if="inputMode === 'file'">
         <el-upload :auto-upload="false" :show-file-list="false" :accept="fileAccept" @change="onFileChange">
-          <el-button type="primary">
+          <el-button type="primary" :disabled="!perm.canManageContent.value">
             选择文件
           </el-button>
         </el-upload>
       </el-form-item>
       <el-form-item v-if="importFile && inputMode === 'file'">
-        <el-button type="success" :loading="importing" @click="doImport">
+        <el-button type="success" :loading="importing" :disabled="!perm.canManageContent.value" @click="doImport">
           开始导入
         </el-button>
       </el-form-item>
@@ -208,8 +210,8 @@ async function doImport() {
       已选: {{ importFile.name }}
     </div>
     <div v-if="inputMode === 'text'" style="margin-bottom:16px">
-      <el-input v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." style="font-family:monospace;font-size:13px" />
-      <el-button type="success" :loading="importing" style="margin-top:8px" @click="doTextImport">
+      <el-input v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value" style="font-family:monospace;font-size:13px" />
+      <el-button type="success" :loading="importing" :disabled="!perm.canManageContent.value" style="margin-top:8px" @click="doTextImport">
         开始导入
       </el-button>
     </div>

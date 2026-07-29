@@ -1,8 +1,9 @@
 import { Router } from 'express'
+import { ProjectRole } from '../constants/roles'
 import { ErrCode } from '../lib/errors'
 import { error, success } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
-import { requireOwnership } from '../middleware/ownership'
+import { requireOwnership, requireProjectRole } from '../middleware/ownership'
 import * as exportService from '../services/export'
 import * as langService from '../services/language'
 import * as transService from '../services/translation'
@@ -17,7 +18,7 @@ exportRoutes.get('/:projectSlug/exports/templates', authMiddleware, requireOwner
   }
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
-exportRoutes.post('/:projectSlug/exports/templates', authMiddleware, requireOwnership, async (req, res) => {
+exportRoutes.post('/:projectSlug/exports/templates', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req, res) => {
   try {
     const data = await exportService.createTemplate(req.params.projectSlug, req.body)
     success(res, data)
@@ -37,7 +38,7 @@ exportRoutes.get('/:projectSlug/exports/templates/:templateSlug', authMiddleware
     error(res, err.code, err.message)
   }
 })
-exportRoutes.put('/:projectSlug/exports/templates/:templateSlug', authMiddleware, requireOwnership, async (req, res) => {
+exportRoutes.put('/:projectSlug/exports/templates/:templateSlug', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req, res) => {
   try {
     const data = await exportService.updateTemplate(req.params.templateSlug, req.body)
     success(res, data)
@@ -47,7 +48,7 @@ exportRoutes.put('/:projectSlug/exports/templates/:templateSlug', authMiddleware
     error(res, err.code, err.message)
   }
 })
-exportRoutes.delete('/:projectSlug/exports/templates/:templateSlug', authMiddleware, requireOwnership, async (req, res) => {
+exportRoutes.delete('/:projectSlug/exports/templates/:templateSlug', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req, res) => {
   try {
     await exportService.deleteTemplate(req.params.templateSlug)
     success(res, null)

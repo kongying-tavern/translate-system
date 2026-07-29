@@ -44,6 +44,8 @@ export async function requireOwnership(req: AuthRequest, res: Response, next: Ne
 
 export function requireProjectRole(minRole: string) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (req.userRole === SystemRole.SuperAdmin)
+      return next()
     const userLevel = PROJECT_ROLE_LEVEL[req.projectRole || ProjectRole.Member] || 0
     if (userLevel >= (PROJECT_ROLE_LEVEL[minRole] || 0))
       return next()

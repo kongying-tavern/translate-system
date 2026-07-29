@@ -1,10 +1,11 @@
 import type { AuthRequest } from '../middleware/auth'
 import { Router } from 'express'
+import { ProjectRole } from '../constants/roles'
 import { prisma } from '../index'
 import { ErrCode } from '../lib/errors'
 import { error, success, successWithPage } from '../lib/response'
 import { authMiddleware } from '../middleware/auth'
-import { requireOwnership } from '../middleware/ownership'
+import { requireOwnership, requireProjectRole } from '../middleware/ownership'
 import * as transService from '../services/translation'
 import { AppError } from '../utils/AppError'
 
@@ -28,7 +29,7 @@ translationRoutes.get('/:projectSlug/translations', authMiddleware, requireOwner
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.post('/:projectSlug/translations', authMiddleware, requireOwnership, async (req, res) => {
+translationRoutes.post('/:projectSlug/translations', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req, res) => {
   try {
     const t = await transService.createTranslation(req.params.projectSlug, req.body)
     success(res, t)
@@ -40,7 +41,7 @@ translationRoutes.post('/:projectSlug/translations', authMiddleware, requireOwne
 })
 
 // Update key and sourceText for all translations matching oldKey (MUST be before /:key/:langCode)
-translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware, requireOwnership, async (req, res) => {
+translationRoutes.put('/:projectSlug/translations/key/:oldKey', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req, res) => {
   try {
     const { translationKey, sourceText } = req.body
     if (!translationKey?.trim())
@@ -86,7 +87,7 @@ translationRoutes.get('/:projectSlug/translations/tags/list', authMiddleware, re
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware, requireOwnership, async (req, res) => {
+translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req, res) => {
   try {
     await transService.deleteTranslation(req.params.translationId)
     success(res, null)
@@ -94,7 +95,7 @@ translationRoutes.delete('/:projectSlug/translations/:translationId', authMiddle
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware, requireOwnership, async (req: AuthRequest, res) => {
+translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req: AuthRequest, res) => {
   try {
     for (const o of req.body.orders) {
       await prisma.translationKey.update({ where: { id: o.keyId }, data: { sortOrder: o.sortOrder } })
@@ -104,7 +105,7 @@ translationRoutes.put('/:projectSlug/translations/sortOrders', authMiddleware, r
   catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
 })
 
-translationRoutes.post('/:projectSlug/translations/batch', authMiddleware, requireOwnership, async (req, res) => {
+translationRoutes.post('/:projectSlug/translations/batch', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req, res) => {
   try {
     await transService.batchUpsert(req.params.projectSlug, req.body.translations)
     success(res, null)

@@ -8,8 +8,10 @@ import { getProjectLanguages } from '@/api/language'
 import { getTags } from '@/api/translation'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { getFormatMeta } from '@/data/exportFormats'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 
 const route = useRoute()
+const perm = useProjectPermission()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const templates = ref<ExportTemplate[]>([])
 const projectLanguages = ref<ProjectLanguage[]>([])
@@ -93,7 +95,7 @@ async function handleDelete(id: string) {
   <div>
     <div class="page-header">
       <h2>导出</h2>
-      <el-button type="primary" @click="$router.push(`/projects/${projectSlug}/exports/new/edit`)">
+      <el-button v-if="perm.canManageExportTemplates.value" type="primary" @click="$router.push(`/projects/${projectSlug}/exports/new/edit`)">
         新建模板
       </el-button>
     </div>
@@ -153,10 +155,10 @@ async function handleDelete(id: string) {
         <el-table-column prop="description" label="描述" />
         <el-table-column label="操作" width="150">
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/projects/${projectSlug}/exports/${row.id}/edit`)">
+            <el-button v-if="perm.canManageExportTemplates.value" link type="primary" @click="$router.push(`/projects/${projectSlug}/exports/${row.id}/edit`)">
               编辑
             </el-button>
-            <el-button link type="danger" @click="handleDelete(row.id)">
+            <el-button v-if="perm.canManageExportTemplates.value" link type="danger" @click="handleDelete(row.id)">
               删除
             </el-button>
           </template>

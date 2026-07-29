@@ -5,9 +5,11 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
 import { EXPORT_FORMAT_MAP, ExportFormat } from '@/data/exportFormats'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 
 const route = useRoute()
 const router = useRouter()
+const perm = useProjectPermission()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
@@ -31,6 +33,11 @@ const rules: FormRules = {
 }
 
 onMounted(async () => {
+  if (!perm.canManageExportTemplates.value) {
+    ElMessage.warning('没有权限')
+    router.back()
+    return
+  }
   if (isEdit.value) {
     const { data: res } = await getExportTemplate(projectSlug.value, templateId.value)
     form.name = res.data.name

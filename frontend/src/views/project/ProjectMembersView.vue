@@ -7,10 +7,12 @@ import { getUsers } from '@/api/auth'
 import client from '@/api/client'
 import { addMember, getMembers, removeMember } from '@/api/project'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { roleLabel } from '@/utils/roles'
 
 const auth = useAuthStore()
+const perm = useProjectPermission()
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const members = ref<ProjectMember[]>([])
@@ -78,7 +80,7 @@ async function changeProjectRole(row: ProjectMember, newRole: string) {
     <div class="page-header">
       <h2>项目成员</h2>
     </div>
-    <el-form :inline="true" class="add-bar">
+    <el-form v-if="perm.canManageProject.value" :inline="true" class="add-bar">
       <el-form-item label="添加成员">
         <el-select
           v-model="selectedUserId" filterable remote :remote-method="searchUsers" :loading="searching"
@@ -104,7 +106,7 @@ async function changeProjectRole(row: ProjectMember, newRole: string) {
       </el-table-column>
       <el-table-column label="项目角色" width="130">
         <template #default="{ row }">
-          <el-select v-model="row.projectRole" size="small" style="width:100px" :disabled="row.userId === auth.user?.id" @change="(v:string) => changeProjectRole(row, v)">
+          <el-select v-model="row.projectRole" size="small" style="width:100px" :disabled="row.userId === auth.user?.id || !perm.canManageProject.value" @change="(v:string) => changeProjectRole(row, v)">
             <el-option label="管理员" value="admin" /><el-option label="维护者" value="maintainer" /><el-option label="成员" value="member" />
           </el-select>
         </template>
@@ -116,7 +118,7 @@ async function changeProjectRole(row: ProjectMember, newRole: string) {
       </el-table-column>
       <el-table-column label="操作" width="80">
         <template #default="{ row }">
-          <el-button link type="danger" size="small" @click="handleRemove(row)">
+          <el-button v-if="perm.canManageProject.value" link type="danger" size="small" @click="handleRemove(row)">
             移除
           </el-button>
         </template>

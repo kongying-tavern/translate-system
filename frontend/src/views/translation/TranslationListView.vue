@@ -8,15 +8,14 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, getTranslations, saveTranslation, updateKey } from '@/api/translation'
-import { useAuthStore } from '@/stores/auth'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
 import { useTranslationStore } from '@/stores/translation'
-import { SystemRole } from '@/utils/roles'
 
 const vElTableInfiniteScroll = elTableInfiniteScroll
 
-const auth = useAuthStore()
+const perm = useProjectPermission()
 const loadingStore = useLoadingStore()
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
@@ -87,7 +86,7 @@ function bindSortable() {
     sortable.destroy()
     sortable = null
   }
-  if (!el || auth.role === SystemRole.User || hasFilter)
+  if (!el || !perm.canReorderRows.value || hasFilter)
     return
   sortable = Sortable.create(el, {
     handle: '.drag-handle',
@@ -408,7 +407,7 @@ async function handleDelete(row: GroupedRow) {
       <el-form-item>
         <el-button type="primary" @click="doSearch">
           查询
-        </el-button><el-button v-if="auth.role !== SystemRole.User" @click="openCreate">
+        </el-button><el-button v-if="perm.canManageKeys.value" @click="openCreate">
           新增 Key
         </el-button>
       </el-form-item>
@@ -424,14 +423,14 @@ async function handleDelete(row: GroupedRow) {
           <span style="white-space:nowrap">{{ row.rowIndex }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="auth.role !== SystemRole.User" label="Key" min-width="160">
+      <el-table-column v-if="perm.canEditKeyColumn.value" label="Key" min-width="160">
         <template #default="{ row }">
           <el-input :model-value="editKey.get(row.translationKey) ?? row.translationKey" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editKey.set(row.translationKey, v)" @blur="onKeySave(row)" />
         </template>
       </el-table-column>
       <el-table-column label="原文" min-width="160">
         <template #default="{ row }">
-          <el-input v-if="auth.role !== SystemRole.User" :model-value="editSource.get(row.translationKey) ?? row.sourceText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editSource.set(row.translationKey, v)" @blur="onSourceSave(row)" /><span v-else class="pre-wrap">{{ row.sourceText }}</span>
+          <el-input v-if="perm.canEditSourceColumn.value" :model-value="editSource.get(row.translationKey) ?? row.sourceText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editSource.set(row.translationKey, v)" @blur="onSourceSave(row)" /><span v-else class="pre-wrap">{{ row.sourceText }}</span>
         </template>
       </el-table-column>
       <el-table-column label="语言" width="130">
@@ -448,15 +447,15 @@ async function handleDelete(row: GroupedRow) {
       </el-table-column>
       <el-table-column label="标签" width="260">
         <template #default="{ row }">
-          <el-input-tag v-if="auth.role !== SystemRole.User" v-model="row.tags" size="small" placeholder="+标签" clearable :delimiter="[',', ';']" @change="() => onTagsChange(row)" /><span v-else style="font-size:13px">{{ row.tags.length ? row.tags.join(', ') : '-' }}</span>
+          <el-input-tag v-if="perm.canEditTagsColumn.value" v-model="row.tags" size="small" placeholder="+标签" clearable :delimiter="[',', ';']" @change="() => onTagsChange(row)" /><span v-else style="font-size:13px">{{ row.tags.length ? row.tags.join(', ') : '-' }}</span>
         </template>
       </el-table-column>
       <el-table-column label="备注" min-width="160">
         <template #default="{ row }">
-          <el-input v-if="auth.role !== SystemRole.User" :model-value="row.context" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" placeholder="备注..." @update:model-value="(v: string) => onCtxSave(row, v)" /><span v-else style="font-size:13px" class="pre-wrap">{{ row.context || '-' }}</span>
+          <el-input v-if="perm.canEditContextColumn.value" :model-value="row.context" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" placeholder="备注..." @update:model-value="(v: string) => onCtxSave(row, v)" /><span v-else style="font-size:13px" class="pre-wrap">{{ row.context || '-' }}</span>
         </template>
       </el-table-column>
-      <el-table-column v-if="auth.role !== SystemRole.User" label="操作" width="80">
+      <el-table-column v-if="perm.canManageKeys.value" label="操作" width="80">
         <template #default="{ row }">
           <el-button link type="danger" size="small" @click="handleDelete(row)">
             删除
