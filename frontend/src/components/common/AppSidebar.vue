@@ -8,12 +8,13 @@ import { SystemRole } from '@/utils/roles'
 const route = useRoute()
 const auth = useAuthStore()
 const projectSlug = computed(() => (route.params.projectSlug as string) || auth.activeProjectSlug || undefined)
+const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
 </script>
 
 <template>
   <div class="sidebar">
     <div class="sidebar-logo">
-      空荧酒馆译站
+      {{ appName }}
     </div>
     <el-menu :default-active="route.path" router background-color="#1d1e2c" text-color="#bfcbd9" active-text-color="#409eff" class="sidebar-menu">
       <el-menu-item v-if="auth.role === SystemRole.SuperAdmin || auth.role === SystemRole.Admin" index="/users">

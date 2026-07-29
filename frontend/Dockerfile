@@ -3,6 +3,8 @@ WORKDIR /app
 ARG NPM_REGISTRY=https://registry.npmmirror.com
 ENV COREPACK_NPM_REGISTRY=$NPM_REGISTRY
 ENV NPM_CONFIG_REGISTRY=$NPM_REGISTRY
+ARG VITE_APP_NAME
+ENV VITE_APP_NAME=$VITE_APP_NAME
 COPY package.json pnpm-lock.yaml .npmrc .
 RUN corepack enable && pnpm install
 COPY . .

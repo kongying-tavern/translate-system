@@ -1,4 +1,4 @@
-# 空荧酒馆译站
+# 翻译管理平台
 
 本地化翻译管理平台，支持多语言协作翻译、角色权限管理、多种格式导出。
 
@@ -59,10 +59,22 @@ docker compose up -d postgres
 cd backend
 cp .env.example .env
 # 编辑 backend/.env 中的 DATABASE_URL，指向本地映射的 PostgreSQL
-# DATABASE_URL=postgresql://translate:translate123@localhost:20432/kongying_translate
+# DATABASE_URL=postgresql://translate:translate123@localhost:20432/translate_system
+
+# 前端环境变量
+cd ../frontend
+cp .env.example .env
 ```
 
-> 根目录 `.env` 仅供 Docker 部署使用，本地开发只需配置 `backend/.env`。
+> 根目录 `.env` 仅供 Docker 部署使用，本地开发配置相应子目录的 `.env`。
+
+各层环境变量采用两层配置：
+
+| 文件 | 用途 | 读取方式 |
+|------|------|----------|
+| `backend/.env` | 本地后端开发 | dotenv 直接读取 |
+| `frontend/.env` | 本地前端开发 | Vite 构建时读取 |
+| 根 `.env` | Docker Compose 部署 | 通过 `docker-compose.yml` 传入各容器 |
 
 #### 3. 初始化数据库
 

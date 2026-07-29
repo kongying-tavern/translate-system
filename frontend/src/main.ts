@@ -6,6 +6,10 @@ import App from './App.vue'
 import router from './router'
 import 'element-plus/dist/index.css'
 
+const appName = import.meta.env.VITE_APP_NAME
+if (appName)
+  document.title = appName
+
 const app = createApp(App)
 app.use(createPinia())
 app.use(router)

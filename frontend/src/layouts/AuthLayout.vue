@@ -1,3 +1,7 @@
+<script setup lang="ts">
+const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
+</script>
+
 <template>
   <div class="auth-layout">
     <div class="auth-bg">
@@ -5,7 +9,7 @@
     </div>
     <div class="auth-card">
       <h1 class="auth-title">
-        空荧酒馆译站
+        {{ appName }}
       </h1>
       <router-view />
     </div>
