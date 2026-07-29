@@ -23,6 +23,9 @@ param(
     [Parameter(HelpMessage = "过滤语言代码，逗号分隔（如 zh-Hans,en-US），留空则导出所有语言")]
     [string]$Languages = "",
 
+    [Parameter(HelpMessage = "按标签过滤，逗号分隔，只导出含指定标签的条目")]
+    [string]$FilterTags = "",
+
     [Parameter(HelpMessage = "导出前删除已存在的输出文件")]
     [switch]$Delete
 )
@@ -118,10 +121,11 @@ try {
 
 # ── 一次性导出全部语言 ──
 $exportUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/exports/generate"
+$tagList = if ($FilterTags) { @($FilterTags -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) } else { @() }
 $body = @{
     templateSlug  = $TemplateSlug
     languageCodes = $langCodes
-    filterTags    = @()
+    filterTags    = $tagList
 } | ConvertTo-Json
 
 Write-Host "导出全部语言到 $OutputFile ..." -NoNewline

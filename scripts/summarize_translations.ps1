@@ -17,6 +17,9 @@ param(
     [Parameter(HelpMessage = "过滤语言，逗号分隔，支持 code 或 alias，不传则全部")]
     [string]$Languages = "",
 
+    [Parameter(HelpMessage = "按标签过滤，逗号分隔，只统计含指定标签的条目")]
+    [string]$FilterTags = "",
+
     [Parameter(HelpMessage = "文件名和输出的 langCode 使用语言代码而非别名")]
     [switch]$NoAlias,
 
@@ -87,8 +90,9 @@ try {
 }
 
 Write-Host "正在获取翻译总数..." -ForegroundColor Cyan
+$tagQuery = if ($FilterTags) { "?tags=$([uri]::EscapeDataString(($FilterTags -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } ) -join ','))" } else { "" }
 try {
-    $countResp = Invoke-RestMethod -Uri "$apiBase/projects/$ProjectSlug/translations/count" -Headers $headers -Method Get
+    $countResp = Invoke-RestMethod -Uri "$apiBase/projects/$ProjectSlug/translations/count$tagQuery" -Headers $headers -Method Get
     $total = $countResp.data.total
 } catch {
     Write-Host "错误: 获取总数失败: $_" -ForegroundColor Red
@@ -213,6 +217,33 @@ foreach ($l in $targetLangs) {
     $code = $l.languageCode
     $alias = $codeToAlias[$code]
     $logicLangCode = if ($NoAlias) { $code } else { if ($alias) { $alias } else { $code } }
+
+    if ($FilterTags) {
+        # 标签过滤模式：使用 API 获取已翻译数，跳过本地文件
+        try {
+            $lcQuery = [uri]::EscapeDataString($code)
+            $tQuery = [uri]::EscapeDataString(($FilterTags -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ } ) -join ',')
+            $lcResp = Invoke-RestMethod -Uri "$apiBase/projects/$ProjectSlug/translations/count?languageCode=$lcQuery&tags=$tQuery" -Headers $headers -Method Get
+            $translated = $lcResp.data.translated
+        } catch {
+            Write-Host "错误: 获取语言 $code 统计失败: $_" -ForegroundColor Red
+            continue
+        }
+        $ratio = if ($total -gt 0) { [Math]::Round(($translated / $total * 100), 8) } else { 0 }
+        $md5Hash = ""
+        $result += [PSCustomObject]@{
+            langName = $code
+            langCode = $logicLangCode
+            md5Hash  = $md5Hash
+            summary  = [PSCustomObject]@{
+                countTotal      = $total
+                countTranslated = $translated
+                ratioTranslated = $ratio
+            }
+        }
+        continue
+    }
+
     $filePath = Join-Path $InputDir "$logicLangCode.$inExt"
 
     if (-not (Test-Path $filePath)) {

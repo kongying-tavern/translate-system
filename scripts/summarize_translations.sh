@@ -14,6 +14,7 @@ usage() {
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
   -l, --languages <list>      过滤语言，逗号分隔，支持 code 或 alias，不传则全部
+  -g, --filter-tags <list>    按标签过滤，逗号分隔，只统计含指定标签的条目
   -n, --no-alias              文件名和输出的 langCode 使用语言代码而非别名
   -f, --input-format <type>   输入文件类型: json, yaml, xml, properties, csv（默认 json）
   -t, --output-format <type>  输出文件类型: json, yaml, xml（默认 json）
@@ -31,6 +32,7 @@ PROJECT_SLUG=""
 INPUT_DIR=""
 AUTH_CONFIG=""
 LANGUAGES=""
+FILTER_TAGS=""
 NO_ALIAS=""
 INPUT_FORMAT="json"
 OUTPUT_FORMAT="json"
@@ -45,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     -p|--project)       PROJECT_SLUG="$2"; shift 2 ;;
     -i|--input-dir)     INPUT_DIR="$2"; shift 2 ;;
     -l|--languages)     LANGUAGES="$2"; shift 2 ;;
+    -g|--filter-tags)   FILTER_TAGS="$2"; shift 2 ;;
     -n|--no-alias)      NO_ALIAS="true"; shift ;;
     -f|--input-format)  INPUT_FORMAT="$2"; shift 2 ;;
     -t|--output-format) OUTPUT_FORMAT="$2"; shift 2 ;;
@@ -96,7 +99,9 @@ LANGS_RAW=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/languages" \
 
 # ── 获取总 key 数 ──
 echo "正在获取翻译总数..." >&2
-COUNT_RESP=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/translations/count" \
+COUNT_URL="$API_BASE/projects/$PROJECT_SLUG/translations/count"
+[[ -n "$FILTER_TAGS" ]] && COUNT_URL+="?tags=$(echo "$FILTER_TAGS" | tr -d ' ' | sed 's/,/%2C/g')"
+COUNT_RESP=$(curl -s -X GET "$COUNT_URL" \
   -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET")
 TOTAL=$(jq -r '.data.total // 0' <<< "$COUNT_RESP")
 echo "总条目数: $TOTAL" >&2
@@ -159,46 +164,61 @@ while IFS='|' read -r code alias; do
   logicLangCode="$code"
   [[ "$NO_ALIAS" != "true" && -n "$alias" ]] && logicLangCode="$alias"
 
-  file="${INPUT_DIR}/${logicLangCode}.${IN_EXT}"
-  if [[ ! -f "$file" ]]; then
-    echo "文件不存在，跳过: $file" >&2
-    continue
-  fi
+  if [[ -n "$FILTER_TAGS" ]]; then
+    # 标签过滤模式：使用 API 获取已翻译数
+    LC_QUERY=$(printf '%s' "$code" | jq -sRr @uri)
+    TAG_QUERY=$(echo "$FILTER_TAGS" | tr -d ' ' | sed 's/,/%2C/g')
+    LC_RESP=$(curl -s -X GET "$API_BASE/projects/$PROJECT_SLUG/translations/count?languageCode=$LC_QUERY&tags=$TAG_QUERY" \
+      -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET")
+    TRANSLATED=$(echo "$LC_RESP" | jq -r '.data.translated // 0')
+    [[ -z "$TRANSLATED" || "$TRANSLATED" = "null" ]] && { echo "错误: 获取语言 $code 统计失败" >&2; continue; }
+    MD5=""
+    RATIO=0
+    if [[ "$TOTAL" -gt 0 ]]; then
+      RATIO=$(awk "BEGIN{printf \"%.8f\", $TRANSLATED / $TOTAL * 100}")
+    fi
+  else
+    file="${INPUT_DIR}/${logicLangCode}.${IN_EXT}"
+    if [[ ! -f "$file" ]]; then
+      echo "文件不存在，跳过: $file" >&2
+      continue
+    fi
 
-  TRANSLATED=0
-  VALUES=""
+    TRANSLATED=0
+    VALUES=""
 
-  case "$IN_EXT" in
-    json)
-      VALUES=$(jq -r 'to_entries[] | select(.value != null) | .value' "$file")
-      TRANSLATED=$(jq -r '[to_entries[] | select(.value != null and .value != "")] | length' "$file")
-      ;;
-    yaml)
-      VALUES=$(yq eval '. | to_entries[] | select(.value != null and .value != "") | .value' "$file" 2>/dev/null)
-      TRANSLATED=$(yq eval '[. | to_entries[] | select(.value != null and .value != "")] | length' "$file" 2>/dev/null)
-      ;;
-    xml)
-      VALUES=$(xmlstarlet sel -t -m "//string" -v "text()" -n "$file" 2>/dev/null | sed '/^[[:space:]]*$/d')
-      TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
-      ;;
-    properties)
-      VALUES=$(grep -v '^[#!]' "$file" | grep '=' 2>/dev/null | sed 's/^[^=]*=//' | sed 's/\\([nrt])/\\1/g' | grep -v '^[[:space:]]*$')
-      TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
-      ;;
-    csv)
-      VALUES=$(awk -F',' 'NR>1 {
-        val = $NF
-        gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
-        if (val != "") print val
-      }' "$file" 2>/dev/null)
-      TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
-      ;;
-  esac
+    case "$IN_EXT" in
+      json)
+        VALUES=$(jq -r 'to_entries[] | select(.value != null) | .value' "$file")
+        TRANSLATED=$(jq -r '[to_entries[] | select(.value != null and .value != "")] | length' "$file")
+        ;;
+      yaml)
+        VALUES=$(yq eval '. | to_entries[] | select(.value != null and .value != "") | .value' "$file" 2>/dev/null)
+        TRANSLATED=$(yq eval '[. | to_entries[] | select(.value != null and .value != "")] | length' "$file" 2>/dev/null)
+        ;;
+      xml)
+        VALUES=$(xmlstarlet sel -t -m "//string" -v "text()" -n "$file" 2>/dev/null | sed '/^[[:space:]]*$/d')
+        TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
+        ;;
+      properties)
+        VALUES=$(grep -v '^[#!]' "$file" | grep '=' 2>/dev/null | sed 's/^[^=]*=//' | sed 's/\\([nrt])/\\1/g' | grep -v '^[[:space:]]*$')
+        TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
+        ;;
+      csv)
+        VALUES=$(awk -F',' 'NR>1 {
+          val = $NF
+          gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+          if (val != "") print val
+        }' "$file" 2>/dev/null)
+        TRANSLATED=$(echo "$VALUES" | grep -c . 2>/dev/null || echo 0)
+        ;;
+    esac
 
-  MD5=$(echo "$VALUES" | LC_ALL=C sort | md5sum | cut -d' ' -f1)
-  RATIO=0
-  if [[ "$TOTAL" -gt 0 ]]; then
-    RATIO=$(awk "BEGIN{printf \"%.8f\", $TRANSLATED / $TOTAL * 100}")
+    MD5=$(echo "$VALUES" | LC_ALL=C sort | md5sum | cut -d' ' -f1)
+    RATIO=0
+    if [[ "$TOTAL" -gt 0 ]]; then
+      RATIO=$(awk "BEGIN{printf \"%.8f\", $TRANSLATED / $TOTAL * 100}")
+    fi
   fi
 
   ITEM=$(jq -n -c \

@@ -16,6 +16,7 @@ usage() {
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
   -l, --languages <list>      过滤语言，逗号分隔（如 zh-Hans,en-US），默认全部
+  -g, --filter-tags <list>    按标签过滤，逗号分隔，只导出含指定标签的条目
   -d, --delete                导出前删除已存在的输出文件
   -h, --help                  显示此帮助
 EOF
@@ -43,6 +44,7 @@ while [[ $# -gt 0 ]]; do
     -t|--template)     TEMPLATE_SLUG="$2"; shift 2 ;;
     -o|--output)       OUTPUT_FILE="$2"; shift 2 ;;
     -l|--languages)    LANGUAGES="$2"; shift 2 ;;
+    -g|--filter-tags)  FILTER_TAGS="$2"; shift 2 ;;
     -d|--delete)       DELETE=true; shift ;;
     -h|--help)         usage ;;
     *) echo -e "${RED}未知参数: $1${NC}"; usage ;;
@@ -140,7 +142,9 @@ fi
 # ── 一次性导出全部语言 ──
 EXPORT_URL="$ENDPOINT/api/v1/apikey/projects/$PROJECT_SLUG/exports/generate"
 LANG_LIST=$(IFS=','; echo "${LANG_CODES[*]}")
-BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"${LANG_CODES[*]// /\",\"}\"],\"filterTags\":[]}"
+TAG_LIST=$(echo "$FILTER_TAGS" | awk -F',' '{for(i=1;i<=NF;i++){gsub(/^[[:space:]]+|[[:space:]]+$/,"",$i); if($i!=""){printf "\"%s\"",$i; if(i<NF)printf ","}}}')
+[[ -n "$TAG_LIST" ]] && TAG_LIST="[$TAG_LIST]" || TAG_LIST="[]"
+BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"${LANG_CODES[*]// /\",\"}\"],\"filterTags\":$TAG_LIST}"
 echo -n "导出全部语言到 ${OUTPUT_FILE}..."
 
 RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \

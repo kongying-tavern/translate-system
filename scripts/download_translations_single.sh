@@ -16,6 +16,7 @@ usage() {
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
   -l, --languages <list>      过滤语言，逗号分隔（如 zh-Hans,en-US），默认全部
+  -g, --filter-tags <list>    按标签过滤，逗号分隔，只导出含指定标签的条目
   -n, --no-alias              不使用语言别名作为文件名，改用语言代码
   -d, --delete                写文件前若有则删除（file 模式）或导出前删整个目录（folder 模式）
   -m, --delete-mode <mode>    清理模式: file|folder (默认 file)
@@ -33,6 +34,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
+FILTER_TAGS=""
 
 # ── 解析参数 ──
 while [[ $# -gt 0 ]]; do
@@ -45,6 +47,7 @@ while [[ $# -gt 0 ]]; do
     -t|--template)     TEMPLATE_SLUG="$2"; shift 2 ;;
     -o|--output)       OUTPUT_DIR="$2"; shift 2 ;;
     -l|--languages)    LANGUAGES="$2"; shift 2 ;;
+    -g|--filter-tags)  FILTER_TAGS="$2"; shift 2 ;;
     -n|--no-alias)     NO_ALIAS=true; shift ;;
     -d|--delete)       DELETE=true; shift ;;
     -m|--delete-mode)  DELETE_MODE="$2"; shift 2 ;;
@@ -167,7 +170,9 @@ for CODE in "${LANG_CODES[@]}"; do
 
   echo -n "导出 $CODE ..."
 
-  BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$CODE\"],\"filterTags\":[]}"
+  TAG_LIST=$(echo "$FILTER_TAGS" | awk -F',' '{for(i=1;i<=NF;i++){gsub(/^[[:space:]]+|[[:space:]]+$/,"",$i); if($i!=""){printf "\"%s\"",$i; if(i<NF)printf ","}}}')
+  [[ -n "$TAG_LIST" ]] && TAG_LIST="[$TAG_LIST]" || TAG_LIST="[]"
+  BODY="{\"templateSlug\":\"$TEMPLATE_SLUG\",\"languageCodes\":[\"$CODE\"],\"filterTags\":$TAG_LIST}"
   RESP=$(curl -s -X POST -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" \
     -H "Content-Type: application/json" -d "$BODY" "$EXPORT_URL")
   [[ -z "$RESP" ]] && { echo -e "${RED} 错误: API 返回空响应${NC}"; ((++FAILED)); continue; }

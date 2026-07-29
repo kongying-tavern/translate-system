@@ -23,6 +23,9 @@ param(
     [Parameter(HelpMessage = "过滤语言代码，逗号分隔（如 zh-Hans,en-US），留空则导出所有语言")]
     [string]$Languages = "",
 
+    [Parameter(HelpMessage = "按标签过滤，逗号分隔，只导出含指定标签的条目")]
+    [string]$FilterTags = "",
+
     [Parameter(HelpMessage = "不使用语言别名作为文件名，改用语言代码")]
     [switch]$NoAlias,
 
@@ -149,7 +152,7 @@ foreach ($code in $langCodes) {
     $body = @{
         templateSlug  = $TemplateSlug
         languageCodes = @($code)
-        filterTags    = @()
+        filterTags    = if ($FilterTags) { @($FilterTags -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) } else { @() }
     } | ConvertTo-Json
 
     Write-Host "导出 $code ..." -NoNewline
