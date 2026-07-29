@@ -209,6 +209,10 @@ async function toggleApiKey(row: ApiKey) {
 }
 async function deleteApiKey(row: ApiKey) {
   try {
+    await ElMessageBox.confirm('删除后使用该 Key 的调用将立即失效，确定删除吗？', '确认删除', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch { return }
+  try {
     await client.delete(`/apikey/me/keys/${row.id}`)
     apiKeys.value = apiKeys.value.filter(k => k.id !== row.id)
     ElMessage.success('已删除')

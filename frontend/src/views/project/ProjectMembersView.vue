@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ProjectMember, User } from '@/types/models'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getUsers } from '@/api/auth'
@@ -57,6 +57,10 @@ async function handleAdd(userId: string) {
 }
 
 async function handleRemove(row: ProjectMember) {
+  try {
+    await ElMessageBox.confirm(`确定将 ${row.username} 移出项目吗？`, '确认移除', { confirmButtonText: '确认移除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch { return }
   try {
     await removeMember(projectSlug.value, row.id)
     members.value = members.value.filter(m => m.id !== row.id)

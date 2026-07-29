@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ExportTemplate, ProjectLanguage } from '@/types/models'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { deleteExportTemplate, generateExport, getExportTemplates } from '@/api/export'
@@ -83,6 +83,10 @@ function doDownload() {
 }
 
 async function handleDelete(id: string) {
+  try {
+    await ElMessageBox.confirm('确定要删除该导出模板吗？', '确认删除', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch { return }
   await deleteExportTemplate(projectSlug.value, id)
   templates.value = templates.value.filter(t => t.id !== id)
   if (selectedTemplate.value === id)

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectLanguage } from '@/types/models'
 import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -64,6 +64,10 @@ async function handleAdd() {
 }
 
 async function handleRemove(code: string) {
+  try {
+    await ElMessageBox.confirm('确定要移除此语言吗？关联的翻译数据将被一并删除。', '确认删除', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch { return }
   try {
     await langStore.removeLanguage(projectSlug.value, code)
     ElMessage.success('删除成功')

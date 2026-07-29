@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { LayoutConfig, LayoutTemplate } from '@/types/models'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { deleteConfig, deleteTemplate, getConfigs, getTemplates } from '@/api/layout'
@@ -23,12 +23,20 @@ async function loadLayouts() {
 }
 
 async function handleDeleteTemplate(id: string) {
+  try {
+    await ElMessageBox.confirm('确定要删除该布局模板吗？', '确认删除', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch { return }
   await deleteTemplate(projectSlug.value, id)
   templates.value = templates.value.filter(t => t.id !== id)
   ElMessage.success('删除成功')
 }
 
 async function handleDeleteConfig(id: string) {
+  try {
+    await ElMessageBox.confirm('确定要删除该布局配置吗？', '确认删除', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch { return }
   await deleteConfig(projectSlug.value, id)
   configs.value = configs.value.filter(c => c.id !== id)
   ElMessage.success('删除成功')
