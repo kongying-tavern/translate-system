@@ -228,6 +228,33 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 5. **`cannot edit` 报错** — GateGuard hook，用 `ECC_GATEGUARD=off` 前缀或加到 `settings.json`
 6. **前端 TS 报错（`Property 'xxx' does not exist on type`）** — 改 schema 后未同步 `frontend/src/types/models.d.ts`，检查并添加对应字段
 
+### Base UI 组件体系
+
+前端基础 UI 元素封装在 `src/components/ui/`，通过 `@/components/ui` barrel（命名导出）统一导入。每个组件目录含 `index.vue` + `style.scss`，方便后续全局扩展和换肤。
+
+**核心规则：**
+- 显式 `defineProps` + `withDefaults` + `defineModel` + `defineEmits`，不使用 `v-bind="$attrs"`
+- 样式通过 `<style lang="scss" scoped>@import './style.scss';</style>` 加载，scoped 隔离 + 外部文件可替换
+
+**当前组件：**
+
+| 组件 | 类型 | 说明 |
+|------|:----:|------|
+| BaseButton | 透传 | Element Plus el-button 封装 |
+| BaseInput | 透传 | el-input，支持 autosize |
+| BaseDialog | 透传 | el-dialog，defineModel 双向绑定 |
+| BaseForm | 透传 | el-form，卡片式容器 |
+| BaseFormItem | 透传 | el-form-item |
+| BaseIcon | 透传 | el-icon，hover 动画 |
+| BasePageHeader | 透传 | 页面标题栏 |
+| BaseTable | **配置式** | columns 配置驱动，cell 使用 TSX 渲染 |
+| BaseSelect | **配置式** | options 配置驱动，泛型选择器 |
+
+其中 BaseTable 和 BaseSelect 为**配置式封装**，不同于简单透传：
+
+- **BaseTable `<T extends object>`** — 通过 `columns: BaseTableColumnConfig<T>[]` 配置驱动，`cell` 渲染函数使用 TSX（需 `@vitejs/plugin-vue-jsx`，`tsconfig.json` 设 `jsxImportSource: "vue"`），替代 `<el-table-column>` 手写。`BaseTableColumnConfig` 类型定义在 `./types.ts`。
+- **BaseSelect `<T, TItem>`** — 通过 `options` / `labelKey` / `valueKey` / `labelGetter` / `valueGetter` 配置选项，替代 `<el-option>` 手写循环。
+
 ### 前端关键文件
 
 | 文件 | 职责 |
