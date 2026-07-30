@@ -399,13 +399,16 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     cell: row => <span style={{ whiteSpace: 'nowrap' }}>{String(row.rowIndex)}</span>,
   })
 
-  if (perm.canEditKeyColumn.value) {
-    cols.push({
-      title: 'Key',
-      minWidth: 160,
-      cell: row => <BaseInput modelValue={editKey.value.get(row.translationKey) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.translationKey, v)} onBlur={() => onKeySave(row)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />,
-    })
-  }
+  cols.push({
+    title: 'Key',
+    minWidth: 160,
+    cell: (row) => {
+      if (perm.canEditKeyColumn.value) {
+        return <BaseInput modelValue={editKey.value.get(row.translationKey) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.translationKey, v)} onBlur={() => onKeySave(row)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+      }
+      return <span class="pre-wrap">{row.translationKey}</span>
+    },
+  })
 
   cols.push({
     title: '原文',
@@ -462,13 +465,11 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     },
   })
 
-  if (perm.canManageKeys.value) {
-    cols.push({
-      title: '操作',
-      width: 80,
-      cell: row => <BaseButton link type="danger" size="small" onClick={() => handleDelete(row)}>删除</BaseButton>,
-    })
-  }
+  cols.push({
+    title: '操作',
+    width: 80,
+    cell: row => perm.canManageKeys.value ? <BaseButton link type="danger" size="small" onClick={() => handleDelete(row)}>删除</BaseButton> : null,
+  })
 
   return cols
 })

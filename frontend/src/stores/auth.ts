@@ -35,16 +35,21 @@ export const useAuthStore = defineStore('auth', () => {
     await init()
   }
 
+  const projectRole = ref<string | null>(null)
+  const activeProjectSlug = ref(localStorage.getItem('activeProjectSlug') || '')
+  const activeProjectName = ref(localStorage.getItem('activeProjectName') || '')
+
   function logout() {
     clearTokens()
     user.value = null
     isAuthenticated.value = false
     role.value = SystemRole.User
+    projectRole.value = null
+    activeProjectSlug.value = ''
+    activeProjectName.value = ''
+    localStorage.removeItem('activeProjectSlug')
+    localStorage.removeItem('activeProjectName')
   }
-
-  const projectRole = ref<string | null>(null)
-  const activeProjectSlug = ref(localStorage.getItem('activeProjectSlug') || '')
-  const activeProjectName = ref(localStorage.getItem('activeProjectName') || '')
 
   function setActiveProject(id: string, name: string, code?: string, pr?: string | null) {
     const slug = code || id
