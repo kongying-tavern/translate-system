@@ -15,3 +15,7 @@ withDefaults(defineProps<{
     <slot />
   </div>
 </template>
+
+<style lang="scss" scoped>
+@import './style.scss';
+</style>

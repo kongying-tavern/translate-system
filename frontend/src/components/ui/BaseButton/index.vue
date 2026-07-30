@@ -49,3 +49,7 @@ function handleClick(event: MouseEvent) {
     <slot />
   </el-button>
 </template>
+
+<style lang="scss" scoped>
+@import './style.scss';
+</style>

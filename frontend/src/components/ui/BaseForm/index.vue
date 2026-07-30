@@ -24,3 +24,7 @@ withDefaults(defineProps<{
     <slot />
   </el-form>
 </template>
+
+<style lang="scss" scoped>
+@import './style.scss';
+</style>

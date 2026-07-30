@@ -1,1 +1,10 @@
-.base-input { }
+.base-input {
+  .el-input__wrapper {
+    border-radius: 8px;
+    transition: box-shadow 0.2s;
+  }
+
+  .el-input__wrapper.is-focus {
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2) !important;
+  }
+}

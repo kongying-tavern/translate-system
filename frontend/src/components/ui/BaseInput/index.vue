@@ -69,3 +69,7 @@ function handleClear() {
     </template>
   </el-input>
 </template>
+
+<style lang="scss" scoped>
+@import './style.scss';
+</style>

@@ -85,3 +85,7 @@ function handleVisibleChange(visible: boolean) {
     </template>
   </el-select>
 </template>
+
+<style lang="scss" scoped>
+@import './style.scss';
+</style>

@@ -1,1 +1,20 @@
-.base-dialog { }
+.base-dialog {
+  .el-dialog {
+    border-radius: 12px;
+  }
+
+  .el-dialog__header {
+    margin: 0;
+    padding: 16px 20px;
+    border-bottom: 1px solid #ebeef5;
+  }
+
+  .el-dialog__body {
+    padding: 20px;
+  }
+
+  .el-dialog__footer {
+    padding: 12px 20px;
+    border-top: 1px solid #ebeef5;
+  }
+}

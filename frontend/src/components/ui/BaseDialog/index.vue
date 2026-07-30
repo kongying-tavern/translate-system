@@ -56,3 +56,7 @@ function handleClosed() {
     <slot />
   </el-dialog>
 </template>
+
+<style lang="scss" scoped>
+@import './style.scss';
+</style>

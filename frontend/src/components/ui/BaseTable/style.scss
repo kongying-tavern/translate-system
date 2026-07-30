@@ -1,1 +1,11 @@
-.base-table { }
+.base-table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  .el-table__header th.el-table__cell {
+    background: #f5f7fa;
+    font-weight: 600;
+    color: #333;
+  }
+}

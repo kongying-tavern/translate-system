@@ -1,1 +1,20 @@
-.base-button { }
+.base-button {
+  border-radius: 8px;
+  transition: all 0.25s ease;
+
+  &.el-button--primary {
+    box-shadow: 0 2px 8px rgba(64, 158, 255, 0.3);
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &.el-button--small { border-radius: 6px; }
+  &.el-button--large { border-radius: 10px; }
+}

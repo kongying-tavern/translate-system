@@ -1,1 +1,8 @@
-.base-icon { }
+.base-icon {
+  transition: color 0.2s, transform 0.2s;
+
+  &:hover {
+    color: #409eff;
+    transform: scale(1.1);
+  }
+}

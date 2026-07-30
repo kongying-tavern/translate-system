@@ -98,3 +98,7 @@ function handleRowDblclick(row: unknown, column: object, event: Event) {
     <slot v-else />
   </el-table>
 </template>
+
+<style lang="scss" scoped>
+@import './style.scss';
+</style>

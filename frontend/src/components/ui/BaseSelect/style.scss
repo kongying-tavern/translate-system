@@ -1,1 +1,10 @@
-.base-select { }
+.base-select {
+  .el-select__wrapper {
+    border-radius: 8px;
+    transition: box-shadow 0.2s;
+  }
+
+  .el-select__wrapper.is-focused {
+    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2) !important;
+  }
+}
