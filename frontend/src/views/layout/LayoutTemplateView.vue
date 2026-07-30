@@ -5,7 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { deleteConfig, deleteTemplate, getConfigs, getTemplates } from '@/api/layout'
-import { BaseButton, BasePageHeader, BaseTable } from '@/components/ui'
+import { BaseButton, BasePageHeader, BaseTable, BaseTabs } from '@/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -87,24 +87,20 @@ const configColumns: BaseTableColumnConfig<LayoutConfig>[] = [
 <template>
   <div>
     <BasePageHeader title="布局管理">
-      <el-tabs v-model="activeTab" style="margin-top:4px">
-        <el-tab-pane label="模板" name="templates" />
-        <el-tab-pane label="配置" name="configs" />
-      </el-tabs>
+      <BaseTabs v-model="activeTab" :tabs="[{ key: 'templates', label: '模板' }, { key: 'configs', label: '配置' }]" style="margin-top:4px">
+        <template #tab-templates>
+          <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/templates/new/edit`)">
+            新建模板
+          </BaseButton>
+          <BaseTable :data="templates" :columns="templateColumns" stripe />
+        </template>
+        <template #tab-configs>
+          <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/configs/new/edit`)">
+            新建配置
+          </BaseButton>
+          <BaseTable :data="configs" :columns="configColumns" stripe />
+        </template>
+      </BaseTabs>
     </BasePageHeader>
-
-    <template v-if="activeTab === 'templates'">
-      <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/templates/new/edit`)">
-        新建模板
-      </BaseButton>
-      <BaseTable :data="templates" :columns="templateColumns" stripe />
-    </template>
-
-    <template v-else>
-      <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/configs/new/edit`)">
-        新建配置
-      </BaseButton>
-      <BaseTable :data="configs" :columns="configColumns" stripe />
-    </template>
   </div>
 </template>

@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTabs } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -221,20 +221,20 @@ async function doImport() {
         <p style="margin:0 0 12px;font-size:13px;color:#909399">
           字段: key(必填) / sourceText(原文) / tags(标签;分隔) / context(备注)
         </p>
-        <el-tabs v-model="exampleTab" type="card" size="small">
-          <el-tab-pane label="JSON" name="json">
+        <BaseTabs v-model="exampleTab" type="card" :tabs="[{ key: 'json', label: 'JSON' }, { key: 'csv', label: 'CSV' }, { key: 'yaml', label: 'YAML' }, { key: 'xml', label: 'XML' }]">
+          <template #tab-json>
             <pre class="ex-pre">{{ entriesExample.json }}</pre>
-          </el-tab-pane>
-          <el-tab-pane label="CSV" name="csv">
+          </template>
+          <template #tab-csv>
             <pre class="ex-pre">{{ entriesExample.csv }}</pre>
-          </el-tab-pane>
-          <el-tab-pane label="YAML" name="yaml">
+          </template>
+          <template #tab-yaml>
             <pre class="ex-pre">{{ entriesExample.yaml }}</pre>
-          </el-tab-pane>
-          <el-tab-pane label="XML" name="xml">
+          </template>
+          <template #tab-xml>
             <pre class="ex-pre">{{ entriesExample.xml }}</pre>
-          </el-tab-pane>
-        </el-tabs>
+          </template>
+        </BaseTabs>
       </template>
       <template v-else>
         <p style="margin:0 0 8px;font-size:13px;color:#909399">
