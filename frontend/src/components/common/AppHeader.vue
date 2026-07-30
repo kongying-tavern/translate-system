@@ -253,11 +253,11 @@ async function deleteApiKey(row: ApiKey) {
 <template>
   <div class="header-left">
     <template v-if="isProjectRoute && projectSlug">
-      <BaseButton link type="primary" style="font-size:16px;font-weight:600;padding:0" @click="switcherVisible = true">
+      <div class="project-switcher" @click="switcherVisible = true">
         {{ auth.activeProjectName || projectName }} <BaseIcon style="margin-left:4px">
           <ArrowDown />
         </BaseIcon>
-      </BaseButton>
+      </div>
       <BaseButton v-if="perm.canEditProject.value" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
         <BaseIcon><Setting /></BaseIcon>
       </BaseButton>
@@ -368,6 +368,7 @@ async function deleteApiKey(row: ApiKey) {
 .header-left { flex: 1; display: flex; align-items: center; }
 .header-right { display: flex; align-items: center; }
 .user-info { cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.project-switcher { font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; }
 .project-list { max-height: 350px; overflow-y: auto; }
 .project-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 6px; cursor: pointer; gap: 8px; }
 .project-item:hover { background: #f5f7fa; }
