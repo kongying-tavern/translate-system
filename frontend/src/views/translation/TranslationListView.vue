@@ -1,13 +1,15 @@
-<script setup lang="ts">
+<script setup lang="tsx">
 import type { GroupedRow } from '@/api/translation'
+import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import elTableInfiniteScroll from 'el-table-infinite-scroll'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElInputTag, ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import Sortable from 'sortablejs'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, getTranslations, saveTranslation, updateKey } from '@/api/translation'
+import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -378,116 +380,155 @@ async function handleDelete(row: GroupedRow) {
     ElMessage.error('删除失败')
   }
 }
+
+const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
+  const cols: BaseTableColumnConfig<GroupedRow>[] = []
+
+  if (!hasFilter.value) {
+    cols.push({
+      width: 44,
+      fixed: 'left',
+      cell: () => <span class="drag-handle">⋮⋮</span>,
+    })
+  }
+
+  cols.push({
+    title: '#',
+    width: 62,
+    align: 'center',
+    cell: row => <span style={{ whiteSpace: 'nowrap' }}>{String(row.rowIndex)}</span>,
+  })
+
+  if (perm.canEditKeyColumn.value) {
+    cols.push({
+      title: 'Key',
+      minWidth: 160,
+      cell: row => <BaseInput modelValue={editKey.value.get(row.translationKey) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.translationKey, v)} onBlur={() => onKeySave(row)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />,
+    })
+  }
+
+  cols.push({
+    title: '原文',
+    minWidth: 160,
+    cell: (row) => {
+      if (perm.canEditSourceColumn.value) {
+        return <BaseInput modelValue={editSource.value.get(row.translationKey) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.translationKey, v)} onBlur={() => onSourceSave(row)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+      }
+      return <span class="pre-wrap">{row.sourceText}</span>
+    },
+  })
+
+  cols.push({
+    title: '语言',
+    width: 130,
+    cell: (_row, _val, index) => <BaseSelect modelValue={rowLangs.value[index]} style={{ width: '100px' }} onChange={(v: unknown) => onRowLangChange(index, v as string)}>{(projectLanguages.value || []).map(l => <el-option label={l.alias || l.languageCode} value={l.languageCode} />)}</BaseSelect>,
+  })
+
+  cols.push({
+    title: '译文',
+    minWidth: 200,
+    cell: (row, _val, index) => <BaseInput modelValue={transCache[`${row.translationKey}|${rowLangs.value[index]}`]} onUpdate:modelValue={(v: string) => transCache[`${row.translationKey}|${rowLangs.value[index]}`] = v} onBlur={() => onSave(row, rowLangs.value[index])} type="textarea" autosize={{ minRows: 1, maxRows: 6 }} size="small" placeholder="输入译文..." />,
+  })
+
+  cols.push({
+    title: '标签',
+    width: 260,
+    cell: (row) => {
+      if (perm.canEditTagsColumn.value) {
+        return (
+          <ElInputTag
+            size="small"
+            placeholder="+标签"
+            clearable
+            modelValue={row.tags}
+            onUpdate:modelValue={(v?: string[]) => { row.tags = v ?? row.tags }}
+            onChange={() => onTagsChange(row)}
+            delimiter={[',', ';'] as unknown as string | RegExp}
+          />
+        )
+      }
+      return <span style={{ fontSize: '13px' }}>{row.tags.length ? row.tags.join(', ') : '-'}</span>
+    },
+  })
+
+  cols.push({
+    title: '备注',
+    minWidth: 160,
+    cell: (row) => {
+      if (perm.canEditContextColumn.value) {
+        return <BaseInput modelValue={row.context} onUpdate:modelValue={(v: string) => onCtxSave(row, v)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
+      }
+      return <span style={{ fontSize: '13px' }} class="pre-wrap">{row.context || '-'}</span>
+    },
+  })
+
+  if (perm.canManageKeys.value) {
+    cols.push({
+      title: '操作',
+      width: 80,
+      cell: row => <BaseButton link type="danger" size="small" onClick={() => handleDelete(row)}>删除</BaseButton>,
+    })
+  }
+
+  return cols
+})
 </script>
 
 <template>
   <div class="trans-page">
-    <div class="page-header">
-      <h2>翻译管理</h2>
-    </div>
-    <el-form :inline="true" :model="filters" class="filter-bar">
-      <el-form-item label="全局语言">
-        <el-select v-model="globalLang" placeholder="选择语言" style="width:160px" @change="onGlobalLangChange">
-          <el-option v-for="l in projectLanguages" :key="l.languageCode" :label="l.alias || l.languageCode" :value="l.languageCode" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="标签筛选">
-        <el-select v-model="filterTags" multiple filterable clearable placeholder="全部标签" style="width:200px">
-          <el-option v-for="t in allTags" :key="t" :label="t" :value="t" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="搜索">
-        <el-input v-model="filters.search" placeholder="搜索 | #行号 | /正则/" clearable style="width:260px" />
-      </el-form-item>
-      <el-form-item>
+    <BasePageHeader title="翻译管理" />
+    <BaseForm :inline="true" :model="filters" class="filter-bar">
+      <BaseFormItem label="全局语言">
+        <BaseSelect v-model="globalLang" placeholder="选择语言" style="width:160px" @change="onGlobalLangChange">
+          <el-option v-for="l in projectLanguages" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
+        </BaseSelect>
+      </BaseFormItem>
+      <BaseFormItem label="标签筛选">
+        <BaseSelect v-model="filterTags" multiple filterable clearable placeholder="全部标签" style="width:200px">
+          <el-option v-for="t in allTags" :key="t" class="base-option" :label="t" :value="t" />
+        </BaseSelect>
+      </BaseFormItem>
+      <BaseFormItem label="搜索">
+        <BaseInput v-model="filters.search" placeholder="搜索 | #行号 | /正则/" clearable style="width:260px" />
+      </BaseFormItem>
+      <BaseFormItem>
         <el-checkbox v-model="untransOnly" @change="load">
           仅未翻译
         </el-checkbox>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" @click="doSearch">
+      </BaseFormItem>
+      <BaseFormItem>
+        <BaseButton type="primary" @click="doSearch">
           查询
-        </el-button><el-button v-if="perm.canManageKeys.value" @click="openCreate">
+        </BaseButton><BaseButton v-if="perm.canManageKeys.value" @click="openCreate">
           新增 Key
-        </el-button>
-      </el-form-item>
-    </el-form>
-    <el-table :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" stripe row-key="translationKey" height="100%">
-      <el-table-column v-if="!hasFilter" width="44" fixed="left" class-name="drag-handle-col">
-        <template #default>
-          <span class="drag-handle">⋮⋮</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="#" width="62" align="center">
-        <template #default="{ row }">
-          <span style="white-space:nowrap">{{ row.rowIndex }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column v-if="perm.canEditKeyColumn.value" label="Key" min-width="160">
-        <template #default="{ row }">
-          <el-input :model-value="editKey.get(row.translationKey) ?? row.translationKey" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editKey.set(row.translationKey, v)" @blur="onKeySave(row)" />
-        </template>
-      </el-table-column>
-      <el-table-column label="原文" min-width="160">
-        <template #default="{ row }">
-          <el-input v-if="perm.canEditSourceColumn.value" :model-value="editSource.get(row.translationKey) ?? row.sourceText" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" class="inline-input" @update:model-value="(v: string) => editSource.set(row.translationKey, v)" @blur="onSourceSave(row)" /><span v-else class="pre-wrap">{{ row.sourceText }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="语言" width="130">
-        <template #default="{ $index }">
-          <el-select v-model="rowLangs[$index]" style="width:100px" @change="(v: string) => onRowLangChange($index, v)">
-            <el-option v-for="l in projectLanguages" :key="l.languageCode" :label="l.alias || l.languageCode" :value="l.languageCode" />
-          </el-select>
-        </template>
-      </el-table-column>
-      <el-table-column label="译文" min-width="200">
-        <template #default="{ row, $index }">
-          <el-input v-model="transCache[`${row.translationKey}|${rowLangs[$index]}`]" type="textarea" :autosize="{ minRows: 1, maxRows: 6 }" size="small" placeholder="输入译文..." @blur="onSave(row, rowLangs[$index])" />
-        </template>
-      </el-table-column>
-      <el-table-column label="标签" width="260">
-        <template #default="{ row }">
-          <el-input-tag v-if="perm.canEditTagsColumn.value" v-model="row.tags" size="small" placeholder="+标签" clearable :delimiter="[',', ';']" @change="() => onTagsChange(row)" /><span v-else style="font-size:13px">{{ row.tags.length ? row.tags.join(', ') : '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="备注" min-width="160">
-        <template #default="{ row }">
-          <el-input v-if="perm.canEditContextColumn.value" :model-value="row.context" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }" size="small" placeholder="备注..." @update:model-value="(v: string) => onCtxSave(row, v)" /><span v-else style="font-size:13px" class="pre-wrap">{{ row.context || '-' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column v-if="perm.canManageKeys.value" label="操作" width="80">
-        <template #default="{ row }">
-          <el-button link type="danger" size="small" @click="handleDelete(row)">
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <el-dialog v-model="showCreateDialog" title="新增 Key" width="500px">
-      <el-form label-width="60px">
-        <el-form-item label="Key">
-          <el-input v-model="form.translationKey" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入翻译 Key" />
-        </el-form-item><el-form-item label="原文">
-          <el-input v-model="form.sourceText" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入原文" />
-        </el-form-item><el-form-item label="标签">
-          <el-input-tag v-model="form.tags" style="width:100%" placeholder="输入标签，回车添加" clearable :delimiter="[',', ';']" />
-        </el-form-item>
-      </el-form>
+        </BaseButton>
+      </BaseFormItem>
+    </BaseForm>
+    <BaseTable :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" :columns="translationColumns" stripe row-key="translationKey" height="100%" />
+    <BaseDialog v-model="showCreateDialog" title="新增 Key" width="500px">
+      <BaseForm label-width="60px">
+        <BaseFormItem label="Key">
+          <BaseInput v-model="form.translationKey" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入翻译 Key" />
+        </BaseFormItem><BaseFormItem label="原文">
+          <BaseInput v-model="form.sourceText" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入原文" />
+        </BaseFormItem><BaseFormItem label="标签">
+          <ElInputTag v-model="form.tags" style="width:100%" placeholder="输入标签，回车添加" clearable />
+        </BaseFormItem>
+      </BaseForm>
       <template #footer>
-        <el-button @click="showCreateDialog = false">
+        <BaseButton @click="showCreateDialog = false">
           取消
-        </el-button><el-button type="primary" :loading="saving" @click="handleCreate">
+        </BaseButton><BaseButton type="primary" :loading="saving" @click="handleCreate">
           保存
-        </el-button>
+        </BaseButton>
       </template>
-    </el-dialog>
+    </BaseDialog>
   </div>
 </template>
 
 <style scoped>
 .trans-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .trans-page .el-table { flex: 1; }
-.page-header { margin-bottom: 16px; } .page-header h2 { margin: 0; }
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
 .pagination-wrap { display: flex; justify-content: center; margin-top: 16px; }

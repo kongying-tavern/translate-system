@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createConfig, getConfig, getTemplates, updateConfig } from '@/api/layout'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -61,34 +62,27 @@ async function handleSave() {
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>{{ isEdit ? '编辑配置' : '新建配置' }}</h2>
-    </div>
-    <el-form :model="form" label-width="100px" style="max-width:700px">
-      <el-form-item label="名称">
-        <el-input v-model="form.name" />
-      </el-form-item>
-      <el-form-item label="引用模板">
-        <el-select v-model="form.templateId" clearable placeholder="可选" style="width:100%">
-          <el-option v-for="t in templates" :key="t.id" :label="t.name" :value="t.id" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="覆盖配置 (JSON)">
-        <el-input v-model="overrideStr" type="textarea" :rows="12" placeholder="输入JSON覆盖配置..." />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" :loading="saving" @click="handleSave">
+    <BasePageHeader :title="isEdit ? '编辑配置' : '新建配置'" />
+    <BaseForm :model="form" label-width="100px" style="max-width:700px">
+      <BaseFormItem label="名称">
+        <BaseInput v-model="form.name" />
+      </BaseFormItem>
+      <BaseFormItem label="引用模板">
+        <BaseSelect v-model="form.templateId" clearable placeholder="可选" style="width:100%">
+          <el-option v-for="t in templates" :key="t.id" class="base-option" :label="t.name" :value="t.id" />
+        </BaseSelect>
+      </BaseFormItem>
+      <BaseFormItem label="覆盖配置 (JSON)">
+        <BaseInput v-model="overrideStr" type="textarea" :rows="12" placeholder="输入JSON覆盖配置..." />
+      </BaseFormItem>
+      <BaseFormItem>
+        <BaseButton type="primary" :loading="saving" @click="handleSave">
           保存
-        </el-button>
-        <el-button @click="$router.back()">
+        </BaseButton>
+        <BaseButton @click="$router.back()">
           取消
-        </el-button>
-      </el-form-item>
-    </el-form>
+        </BaseButton>
+      </BaseFormItem>
+    </BaseForm>
   </div>
 </template>
-
-<style scoped>
-.page-header { margin-bottom: 20px; }
-.page-header h2 { margin: 0; }
-</style>

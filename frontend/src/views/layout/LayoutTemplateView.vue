@@ -1,11 +1,14 @@
-<script setup lang="ts">
+<script setup lang="tsx">
+import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { LayoutConfig, LayoutTemplate } from '@/types/models'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { deleteConfig, deleteTemplate, getConfigs, getTemplates } from '@/api/layout'
+import { BaseButton, BasePageHeader, BaseTable } from '@/components/ui'
 
 const route = useRoute()
+const router = useRouter()
 const projectSlug = computed(() => route.params.projectSlug as string)
 const activeTab = ref('templates')
 const templates = ref<LayoutTemplate[]>([])
@@ -41,70 +44,67 @@ async function handleDeleteConfig(id: string) {
   configs.value = configs.value.filter(c => c.id !== id)
   ElMessage.success('删除成功')
 }
+
+const templateColumns: BaseTableColumnConfig<LayoutTemplate>[] = [
+  { dataKey: 'name', title: '名称' },
+  { dataKey: 'description', title: '描述' },
+  {
+    title: '默认',
+    width: 80,
+    cell: row => row.isDefault ? '是' : '否',
+  },
+  {
+    title: '操作',
+    width: 160,
+    cell: row => (
+      <div>
+        <BaseButton link type="primary" onClick={() => router.push(`/projects/${projectSlug.value}/layouts/templates/${row.id}/edit`)}>编辑</BaseButton>
+        <BaseButton link type="danger" onClick={() => handleDeleteTemplate(row.id)}>删除</BaseButton>
+      </div>
+    ),
+  },
+]
+
+const configColumns: BaseTableColumnConfig<LayoutConfig>[] = [
+  { dataKey: 'name', title: '名称' },
+  {
+    title: '引用模板',
+    cell: row => row.templateId || '无',
+  },
+  {
+    title: '操作',
+    width: 160,
+    cell: row => (
+      <div>
+        <BaseButton link type="primary" onClick={() => router.push(`/projects/${projectSlug.value}/layouts/configs/${row.id}/edit`)}>编辑</BaseButton>
+        <BaseButton link type="danger" onClick={() => handleDeleteConfig(row.id)}>删除</BaseButton>
+      </div>
+    ),
+  },
+]
 </script>
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>布局管理</h2>
-      <el-tabs v-model="activeTab">
+    <BasePageHeader title="布局管理">
+      <el-tabs v-model="activeTab" style="margin-top:4px">
         <el-tab-pane label="模板" name="templates" />
         <el-tab-pane label="配置" name="configs" />
       </el-tabs>
-    </div>
+    </BasePageHeader>
 
     <template v-if="activeTab === 'templates'">
-      <el-button type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/templates/new/edit`)">
+      <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/templates/new/edit`)">
         新建模板
-      </el-button>
-      <el-table :data="templates" stripe>
-        <el-table-column prop="name" label="名称" />
-        <el-table-column prop="description" label="描述" />
-        <el-table-column prop="isDefault" label="默认" width="80">
-          <template #default="{ row }">
-            {{ row.isDefault ? '是' : '否' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/projects/${projectSlug}/layouts/templates/${row.id}/edit`)">
-              编辑
-            </el-button>
-            <el-button link type="danger" @click="handleDeleteTemplate(row.id)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      </BaseButton>
+      <BaseTable :data="templates" :columns="templateColumns" stripe />
     </template>
 
     <template v-else>
-      <el-button type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/configs/new/edit`)">
+      <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/configs/new/edit`)">
         新建配置
-      </el-button>
-      <el-table :data="configs" stripe>
-        <el-table-column prop="name" label="名称" />
-        <el-table-column label="引用模板">
-          <template #default="{ row }">
-            {{ row.templateId || '无' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="160">
-          <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/projects/${projectSlug}/layouts/configs/${row.id}/edit`)">
-              编辑
-            </el-button>
-            <el-button link type="danger" @click="handleDeleteConfig(row.id)">
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      </BaseButton>
+      <BaseTable :data="configs" :columns="configColumns" stripe />
     </template>
   </div>
 </template>
-
-<style scoped>
-.page-header { margin-bottom: 16px; }
-.page-header h2 { margin: 0 0 8px 0; }
-</style>

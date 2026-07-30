@@ -1,9 +1,12 @@
+import type { ExportFormat } from '@/data/exportFormats'
+
 export interface User {
   id: string
   username: string
   email: string
   avatarUrl?: string
   role: string
+  createdAt: string
 }
 
 export interface Project {
@@ -75,7 +78,7 @@ export interface ExportTemplate {
   name: string
   code: string
   description: string
-  formatType: string
+  formatType: ExportFormat
   config: unknown
 }
 

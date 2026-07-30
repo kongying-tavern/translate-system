@@ -1,11 +1,13 @@
-<script setup lang="ts">
+<script setup lang="tsx">
+import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { ApiKey, Project } from '@/types/models'
 import { ArrowDown, Setting } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
 import { deleteProject, getProject, getProjects, updateProject } from '@/api/project'
+import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import EmptyState from './EmptyState.vue'
@@ -183,6 +185,31 @@ async function saveSettings() {
   }
 }
 
+const apikeyColumns: BaseTableColumnConfig<ApiKey>[] = [
+  { dataKey: 'name', title: '名称', width: 120 },
+  { dataKey: 'apiKey', title: 'API Key', minWidth: 180 },
+  {
+    title: '状态',
+    width: 80,
+    cell: row => <ElTag type={row.enabled ? 'success' : 'danger'} size="small">{row.enabled ? '启用' : '禁用'}</ElTag>,
+  },
+  {
+    title: '最后使用',
+    width: 160,
+    cell: row => row.lastUsed ? new Date(row.lastUsed).toLocaleString('zh-CN') : '-',
+  },
+  {
+    title: '操作',
+    width: 140,
+    cell: row => (
+      <div>
+        <BaseButton link size="small" onClick={() => toggleApiKey(row)}>{row.enabled ? '禁用' : '启用'}</BaseButton>
+        <BaseButton link type="danger" size="small" onClick={() => deleteApiKey(row)}>删除</BaseButton>
+      </div>
+    ),
+  },
+]
+
 async function createApiKey() {
   if (!newKeyName.value.trim()) {
     ElMessage.warning('请输入名称')
@@ -226,19 +253,19 @@ async function deleteApiKey(row: ApiKey) {
 <template>
   <div class="header-left">
     <template v-if="isProjectRoute && projectSlug">
-      <el-button link type="primary" style="font-size:16px;font-weight:600;padding:0" @click="switcherVisible = true">
-        {{ auth.activeProjectName || projectName }} <el-icon style="margin-left:4px">
+      <BaseButton link type="primary" style="font-size:16px;font-weight:600;padding:0" @click="switcherVisible = true">
+        {{ auth.activeProjectName || projectName }} <BaseIcon style="margin-left:4px">
           <ArrowDown />
-        </el-icon>
-      </el-button>
-      <el-button v-if="perm.canEditProject.value" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
-        <el-icon><Setting /></el-icon>
-      </el-button>
+        </BaseIcon>
+      </BaseButton>
+      <BaseButton v-if="perm.canEditProject.value" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
+        <BaseIcon><Setting /></BaseIcon>
+      </BaseButton>
     </template>
   </div>
   <div class="header-right">
     <el-dropdown @command="handleCommand">
-      <span class="user-info">{{ auth.user?.username }}<el-icon><ArrowDown /></el-icon></span>
+      <span class="user-info">{{ auth.user?.username }}<BaseIcon><ArrowDown /></BaseIcon></span>
       <template #dropdown>
         <el-dropdown-menu>
           <el-dropdown-item command="pwd">
@@ -255,8 +282,8 @@ async function deleteApiKey(row: ApiKey) {
     </el-dropdown>
   </div>
 
-  <el-dialog v-model="switcherVisible" title="切换项目" width="550px">
-    <el-input v-model="searchProject" placeholder="搜索项目..." style="margin-bottom:12px" />
+  <BaseDialog v-model="switcherVisible" title="切换项目" width="550px">
+    <BaseInput v-model="searchProject" placeholder="搜索项目..." style="margin-bottom:12px" />
     <div class="project-list">
       <div v-for="p in filteredProjects" :key="p.id" class="project-item" @click="switchProject(p)">
         <span class="project-name">{{ p.name }}</span><span v-if="p.code" class="project-code">[{{ p.code }}]</span><span class="project-lang">{{ p.description }}</span>
@@ -264,70 +291,46 @@ async function deleteApiKey(row: ApiKey) {
     </div>
     <EmptyState v-if="!filteredProjects.length" description="暂无项目" />
     <template #footer>
-      <el-button v-if="perm.canCreateProject.value" type="primary" style="width:100%" @click="goCreateProject">
+      <BaseButton v-if="perm.canCreateProject.value" type="primary" style="width:100%" @click="goCreateProject">
         新建项目
-      </el-button>
+      </BaseButton>
     </template>
-  </el-dialog>
+  </BaseDialog>
 
-  <el-dialog v-model="settingsVisible" title="项目设置" width="500px">
-    <el-form :model="settingsForm" label-width="80px">
-      <el-form-item label="名称">
-        <el-input v-model="settingsForm.name" />
-      </el-form-item>
-      <el-form-item label="标识">
-        <el-input v-model="settingsForm.code" placeholder="英文标识，如 my-project" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="settingsForm.description" type="textarea" :rows="3" />
-      </el-form-item>
-    </el-form>
+  <BaseDialog v-model="settingsVisible" title="项目设置" width="500px">
+    <BaseForm :model="settingsForm" label-width="80px">
+      <BaseFormItem label="名称">
+        <BaseInput v-model="settingsForm.name" />
+      </BaseFormItem>
+      <BaseFormItem label="标识">
+        <BaseInput v-model="settingsForm.code" placeholder="英文标识，如 my-project" />
+      </BaseFormItem>
+      <BaseFormItem label="描述">
+        <BaseInput v-model="settingsForm.description" type="textarea" :rows="3" />
+      </BaseFormItem>
+    </BaseForm>
     <template #footer>
-      <el-button type="danger" style="float:left" @click="handleDeleteProject">
+      <BaseButton type="danger" style="float:left" @click="handleDeleteProject">
         删除项目
-      </el-button><el-button @click="settingsVisible = false">
+      </BaseButton><BaseButton @click="settingsVisible = false">
         取消
-      </el-button><el-button type="primary" :loading="settingsSaving" @click="saveSettings">
+      </BaseButton><BaseButton type="primary" :loading="settingsSaving" @click="saveSettings">
         保存
-      </el-button>
+      </BaseButton>
     </template>
-  </el-dialog>
+  </BaseDialog>
 
-  <el-dialog v-model="apikeyVisible" title="API 密钥" width="650px">
+  <BaseDialog v-model="apikeyVisible" title="API 密钥" width="650px">
     <div style="margin-bottom:16px">
-      <el-form :inline="true">
-        <el-form-item><el-input v-model="newKeyName" placeholder="密钥名称" style="width:200px" /></el-form-item><el-form-item>
-          <el-button type="primary" @click="createApiKey">
+      <BaseForm :inline="true">
+        <BaseFormItem><BaseInput v-model="newKeyName" placeholder="密钥名称" style="width:200px" /></BaseFormItem><BaseFormItem>
+          <BaseButton type="primary" @click="createApiKey">
             生成新密钥
-          </el-button>
-        </el-form-item>
-      </el-form>
+          </BaseButton>
+        </BaseFormItem>
+      </BaseForm>
     </div>
-    <el-table :data="apiKeys" stripe>
-      <el-table-column prop="name" label="名称" width="120" />
-      <el-table-column prop="apiKey" label="API Key" min-width="180" />
-      <el-table-column label="状态" width="80">
-        <template #default="{ row }">
-          <el-tag :type="row.enabled ? 'success' : 'danger'" size="small">
-            {{ row.enabled ? '启用' : '禁用' }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="最后使用" width="160">
-        <template #default="{ row }">
-          {{ row.lastUsed ? new Date(row.lastUsed).toLocaleString('zh-CN') : '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="140">
-        <template #default="{ row }">
-          <el-button link size="small" @click="toggleApiKey(row)">
-            {{ row.enabled ? '禁用' : '启用' }}
-          </el-button><el-button link type="danger" size="small" @click="deleteApiKey(row)">
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <BaseTable :data="apiKeys" :columns="apikeyColumns" stripe />
     <div v-if="newSecret" style="margin-top:16px;background:#f0f9eb;border:1px solid #b7eb8f;padding:12px;border-radius:6px">
       <p style="color:#389e0d;font-weight:600;margin:0 0 4px">
         新密钥已生成！请立即复制 Secret，关闭后将无法再次查看：
@@ -337,28 +340,28 @@ async function deleteApiKey(row: ApiKey) {
     <p style="margin-top:12px;font-size:13px;color:#909399">
       使用方式：请求头 <code>x-api-key</code> 和 <code>x-api-secret</code>
     </p>
-  </el-dialog>
+  </BaseDialog>
 
-  <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
-    <el-form label-width="100px">
-      <el-form-item label="当前密码">
-        <el-input v-model="pwdForm.oldPassword" show-password />
-      </el-form-item>
-      <el-form-item label="新密码">
-        <el-input v-model="pwdForm.newPassword" show-password />
-      </el-form-item>
-      <el-form-item label="确认新密码">
-        <el-input v-model="pwdForm.confirmPassword" show-password />
-      </el-form-item>
-    </el-form>
+  <BaseDialog v-model="pwdVisible" title="修改密码" width="400px">
+    <BaseForm label-width="100px">
+      <BaseFormItem label="当前密码">
+        <BaseInput v-model="pwdForm.oldPassword" show-password />
+      </BaseFormItem>
+      <BaseFormItem label="新密码">
+        <BaseInput v-model="pwdForm.newPassword" show-password />
+      </BaseFormItem>
+      <BaseFormItem label="确认新密码">
+        <BaseInput v-model="pwdForm.confirmPassword" show-password />
+      </BaseFormItem>
+    </BaseForm>
     <template #footer>
-      <el-button @click="pwdVisible = false">
+      <BaseButton @click="pwdVisible = false">
         取消
-      </el-button><el-button type="primary" @click="handlePwd">
+      </BaseButton><BaseButton type="primary" @click="handlePwd">
         确认
-      </el-button>
+      </BaseButton>
     </template>
-  </el-dialog>
+  </BaseDialog>
 </template>
 
 <style scoped>

@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { Document } from '@element-plus/icons-vue'
+import { BaseIcon } from '@/components/ui'
 
 withDefaults(defineProps<{ description?: string }>(), { description: '暂无数据' })
 </script>
 
 <template>
   <div class="empty-state">
-    <el-icon :size="64" color="#c0c4cc">
+    <BaseIcon :size="64" color="#c0c4cc">
       <Document />
-    </el-icon>
+    </BaseIcon>
     <p>{{ description }}</p>
     <slot />
   </div>

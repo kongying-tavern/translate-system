@@ -1,4 +1,19 @@
 <script setup lang="ts">
+import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
+import { BaseInput, BaseTable } from '@/components/ui'
+
+const headerColumns: BaseTableColumnConfig[] = [
+  { dataKey: 'name', title: '参数', width: 180 },
+  { dataKey: 'desc', title: '说明' },
+]
+
+const paramColumns: BaseTableColumnConfig[] = [
+  { dataKey: 'name', title: '参数', width: 150 },
+  { dataKey: 'type', title: '类型', width: 100 },
+  { dataKey: 'required', title: '必填', width: 60 },
+  { dataKey: 'desc', title: '说明' },
+]
+
 const headers = [
   { name: 'x-api-key', desc: 'API Key，格式 ak_xxxx，在右上角菜单 → API 密钥 中生成' },
   { name: 'x-api-secret', desc: 'API Secret，生成密钥时一次性返回，需要妥善保管' },
@@ -27,9 +42,7 @@ curl http://localhost:8080/api/v1/apikey/projects/项目ID/translations \\
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>API 接口说明</h2>
-    </div>
+    <BasePageHeader title="API 文档" />
 
     <el-card header="导出翻译文件" style="margin-bottom:20px">
       <p style="margin-bottom:12px">
@@ -51,26 +64,21 @@ curl http://localhost:8080/api/v1/apikey/projects/项目ID/translations \\
       <h4 style="margin:16px 0 8px">
         请求头
       </h4>
-      <el-table :data="headers" stripe size="small">
-        <el-table-column prop="name" label="参数" width="180" /><el-table-column prop="desc" label="说明" />
-      </el-table>
+      <BaseTable :data="headers" :columns="headerColumns" stripe size="small" />
 
       <h4 style="margin:16px 0 8px">
         请求体 (JSON)
       </h4>
-      <el-table :data="params" stripe size="small">
-        <el-table-column prop="name" label="参数" width="150" /><el-table-column prop="type" label="类型" width="100" /><el-table-column prop="required" label="必填" width="60" /><el-table-column prop="desc" label="说明" />
-      </el-table>
+      <BaseTable :data="params" :columns="paramColumns" stripe size="small" />
 
       <h4 style="margin:16px 0 8px">
         curl 示例
       </h4>
-      <el-input :model-value="curlExample" type="textarea" :rows="6" readonly style="font-family:monospace;font-size:13px" />
+      <BaseInput :model-value="curlExample" type="textarea" :rows="6" readonly style="font-family:monospace;font-size:13px" />
     </el-card>
   </div>
 </template>
 
 <style scoped>
-.page-header { margin-bottom: 20px; } .page-header h2 { margin: 0; }
 code { background: #f5f7fa; padding: 2px 6px; border-radius: 3px; font-size: 13px; color: #e74c3c; }
 </style>

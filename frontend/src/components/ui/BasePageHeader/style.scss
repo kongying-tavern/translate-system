@@ -1,0 +1,15 @@
+.base-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.base-page-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.base-page-header-extra {
+  margin-left: auto;
+}

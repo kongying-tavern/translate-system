@@ -1,4 +1,5 @@
-<script setup lang="ts">
+<script setup lang="tsx">
+import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { ProjectMember, User } from '@/types/models'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
@@ -7,6 +8,7 @@ import { getUsers } from '@/api/auth'
 import client from '@/api/client'
 import { addMember, getMembers, removeMember } from '@/api/project'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { BaseButton, BaseForm, BaseFormItem, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { roleLabel } from '@/utils/roles'
@@ -77,63 +79,69 @@ async function changeProjectRole(row: ProjectMember, newRole: string) {
   }
   catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败') }
 }
+
+const memberColumns: BaseTableColumnConfig<ProjectMember>[] = [
+  { dataKey: 'username', title: '用户名', width: 120 },
+  { dataKey: 'email', title: '邮箱', width: 240 },
+  {
+    title: '系统角色',
+    width: 100,
+    cell: row => roleLabel(row.role),
+  },
+  {
+    title: '项目角色',
+    width: 130,
+    cell: row => (
+      <BaseSelect
+        modelValue={row.projectRole}
+        size="small"
+        style={{ width: '100px' }}
+        disabled={row.userId === auth.user?.id || !perm.canManageProject.value}
+        onChange={(v: unknown) => changeProjectRole(row, v as string)}
+      >
+        <el-option label="管理员" value="admin" />
+        <el-option label="维护者" value="maintainer" />
+        <el-option label="成员" value="member" />
+      </BaseSelect>
+    ),
+  },
+  {
+    title: '加入时间',
+    minWidth: 160,
+    cell: row => row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-',
+  },
+  {
+    title: '操作',
+    width: 80,
+    cell: row => perm.canManageProject.value
+      ? (
+          <BaseButton link type="danger" size="small" onClick={() => handleRemove(row)}>移除</BaseButton>
+        )
+      : null,
+  },
+]
 </script>
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>项目成员</h2>
-    </div>
-    <el-form v-if="perm.canManageProject.value" :inline="true" class="add-bar">
-      <el-form-item label="添加成员">
-        <el-select
+    <BasePageHeader title="项目成员" />
+    <BaseForm v-if="perm.canManageProject.value" :inline="true" class="add-bar">
+      <BaseFormItem label="添加成员">
+        <BaseSelect
           v-model="selectedUserId" filterable remote :remote-method="searchUsers" :loading="searching"
           placeholder="输入用户名或邮箱搜索" style="width:280px" clearable @change="handleAdd"
         >
-          <el-option v-for="u in userOptions" :key="u.id" :label="`${u.username} (${u.email}) - ${roleLabel(u.role)}`" :value="u.id" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="项目角色">
-        <el-select v-model="newMemberRole" style="width:120px">
-          <el-option label="管理员" value="admin" /><el-option label="维护者" value="maintainer" /><el-option label="成员" value="member" />
-        </el-select>
-      </el-form-item>
-    </el-form>
+          <el-option v-for="u in userOptions" :key="u.id" class="base-option" :label="`${u.username} (${u.email}) - ${roleLabel(u.role)}`" :value="u.id" />
+        </BaseSelect>
+      </BaseFormItem>
+      <BaseFormItem label="项目角色">
+        <BaseSelect v-model="newMemberRole" style="width:120px">
+          <el-option class="base-option" label="管理员" value="admin" /><el-option class="base-option" label="维护者" value="maintainer" /><el-option class="base-option" label="成员" value="member" />
+        </BaseSelect>
+      </BaseFormItem>
+    </BaseForm>
 
-    <el-table :data="members" stripe>
-      <el-table-column prop="username" label="用户名" width="120" />
-      <el-table-column prop="email" label="邮箱" width="240" />
-      <el-table-column label="系统角色" width="100">
-        <template #default="{ row }">
-          {{ roleLabel(row.role) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="项目角色" width="130">
-        <template #default="{ row }">
-          <el-select v-model="row.projectRole" size="small" style="width:100px" :disabled="row.userId === auth.user?.id || !perm.canManageProject.value" @change="(v:string) => changeProjectRole(row, v)">
-            <el-option label="管理员" value="admin" /><el-option label="维护者" value="maintainer" /><el-option label="成员" value="member" />
-          </el-select>
-        </template>
-      </el-table-column>
-      <el-table-column label="加入时间" min-width="160">
-        <template #default="{ row }">
-          {{ row.createdAt ? new Date(row.createdAt).toLocaleString('zh-CN') : '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="80">
-        <template #default="{ row }">
-          <el-button v-if="perm.canManageProject.value" link type="danger" size="small" @click="handleRemove(row)">
-            移除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <BaseTable :data="members" :columns="memberColumns" stripe />
     <EmptyState v-if="!members.length" description="暂无项目成员" />
   </div>
 </template>
-
-<style scoped>
-.page-header { margin-bottom: 20px; } .page-header h2 { margin: 0; }
-.add-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
-.add-bar .el-form-item { margin-bottom: 0; }
-</style>

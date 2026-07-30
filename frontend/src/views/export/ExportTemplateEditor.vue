@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
 import { EXPORT_FORMAT_MAP, ExportFormat } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -86,28 +87,26 @@ async function handleSave() {
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>{{ isEdit ? '编辑导出模板' : '新建导出模板' }}</h2>
-    </div>
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:700px">
-      <el-form-item label="名称" prop="name">
-        <el-input v-model="form.name" />
-      </el-form-item>
-      <el-form-item label="模板标识" prop="code">
-        <el-input v-model="form.code" placeholder="英文标识，如 config-json" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="form.description" type="textarea" />
-      </el-form-item>
-      <el-form-item label="输出格式">
-        <el-select v-model="form.formatType" style="width:100%">
-          <el-option v-for="fmt in formatOptions" :key="fmt.value" :label="fmt.label" :value="fmt.value">
+    <BasePageHeader :title="isEdit ? '编辑导出模板' : '新建导出模板'" />
+    <BaseForm ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:700px">
+      <BaseFormItem label="名称" prop="name">
+        <BaseInput v-model="form.name" />
+      </BaseFormItem>
+      <BaseFormItem label="模板标识" prop="code">
+        <BaseInput v-model="form.code" placeholder="英文标识，如 config-json" />
+      </BaseFormItem>
+      <BaseFormItem label="描述">
+        <BaseInput v-model="form.description" type="textarea" />
+      </BaseFormItem>
+      <BaseFormItem label="输出格式">
+        <BaseSelect v-model="form.formatType" style="width:100%">
+          <el-option v-for="fmt in formatOptions" :key="fmt.value" class="base-option" :label="fmt.label" :value="fmt.value">
             <span>{{ fmt.value }}</span>
             <span style="float:right;color:#909399;font-size:12px">{{ fmt.tags }}</span>
           </el-option>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="配置">
+        </BaseSelect>
+      </BaseFormItem>
+      <BaseFormItem label="配置">
         <div style="display:flex;flex-direction:column;gap:8px">
           <el-checkbox v-model="configForm.skipIdentical">
             跳过 Key 和译文相同的行（源语言）
@@ -119,20 +118,15 @@ async function handleSave() {
             使用原始语言 Code（不应用别名）
           </el-checkbox>
         </div>
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" :loading="saving" @click="handleSave">
+      </BaseFormItem>
+      <BaseFormItem>
+        <BaseButton type="primary" :loading="saving" @click="handleSave">
           保存
-        </el-button>
-        <el-button @click="$router.back()">
+        </BaseButton>
+        <BaseButton @click="$router.back()">
           取消
-        </el-button>
-      </el-form-item>
-    </el-form>
+        </BaseButton>
+      </BaseFormItem>
+    </BaseForm>
   </div>
 </template>
-
-<style scoped>
-.page-header { margin-bottom: 20px; }
-.page-header h2 { margin: 0; }
-</style>

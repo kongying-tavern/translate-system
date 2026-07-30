@@ -1,8 +1,10 @@
-<script setup lang="ts">
+<script setup lang="tsx">
+import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { User } from '@/types/models'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import { changePassword, createUser, deleteUser, getUsers, updateUserRole } from '@/api/auth'
+import { BaseButton, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { roleLabel, SystemRole } from '@/utils/roles'
@@ -107,89 +109,91 @@ async function handlePwdSave() {
     ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '失败')
   }
 }
+
+const userColumns: BaseTableColumnConfig<User>[] = [
+  { dataKey: 'username', title: '用户名', width: 150 },
+  { dataKey: 'email', title: '邮箱', width: 250 },
+  {
+    title: '系统角色',
+    width: 180,
+    cell: (row) => {
+      if (cannotEdit(row))
+        return <ElTag type="info">{roleLabel(row.role)}</ElTag>
+      return (
+        <BaseSelect modelValue={row.role} size="small" style={{ width: '130px' }} onChange={(v: unknown) => onChangeRole(row, v as string)}>
+          <el-option label="管理员" value="admin" />
+          <el-option label="普通用户" value={SystemRole.User} />
+        </BaseSelect>
+      )
+    },
+  },
+  {
+    title: '注册时间',
+    minWidth: 170,
+    cell: row => formatDate(row.createdAt),
+  },
+  {
+    title: '操作',
+    width: 200,
+    cell: row => (
+      <div>
+        <BaseButton link type="primary" size="small" disabled={cannotEdit(row) && row.id !== auth.user?.id} onClick={() => openPwd(row)}>改密</BaseButton>
+        <BaseButton link type="danger" size="small" disabled={cannotEdit(row)} onClick={() => handleDelete(row)}>删除</BaseButton>
+      </div>
+    ),
+  },
+]
 </script>
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>用户管理</h2><el-button v-if="auth.role === SystemRole.SuperAdmin || auth.role === SystemRole.Admin" type="primary" @click="openCreate">
-        添加用户
-      </el-button>
-    </div>
-    <el-table :data="users" stripe>
-      <el-table-column prop="username" label="用户名" width="150" />
-      <el-table-column prop="email" label="邮箱" width="250" />
-      <el-table-column prop="role" label="系统角色" width="180">
-        <template #default="{ row }">
-          <el-tag v-if="cannotEdit(row)" type="info">
-            {{ roleLabel(row.role) }}
-          </el-tag>
-          <el-select v-else :model-value="row.role" size="small" style="width:130px" @change="(v:string) => onChangeRole(row, v)">
-            <el-option label="管理员" value="admin" />
-            <el-option label="普通用户" :value="SystemRole.User" />
-          </el-select>
-        </template>
-      </el-table-column>
-      <el-table-column label="注册时间" min-width="170">
-        <template #default="{ row }">
-          {{ formatDate(row.createdAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="200">
-        <template #default="{ row }">
-          <el-button link type="primary" size="small" :disabled="cannotEdit(row) && row.id !== auth.user?.id" @click="openPwd(row)">
-            改密
-          </el-button>
-          <el-button link type="danger" size="small" :disabled="cannotEdit(row)" @click="handleDelete(row)">
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <el-dialog v-model="createVisible" title="添加用户" width="450px">
-      <el-form label-width="80px">
-        <el-form-item label="用户名">
-          <el-input v-model="createForm.username" />
-        </el-form-item><el-form-item label="邮箱">
-          <el-input v-model="createForm.email" />
-        </el-form-item><el-form-item label="密码">
-          <el-input v-model="createForm.password" show-password />
-        </el-form-item><el-form-item label="角色">
-          <el-select v-model="createForm.role" style="width:100%">
-            <el-option label="管理员" value="admin" /><el-option label="普通用户" :value="SystemRole.User" />
-          </el-select>
-        </el-form-item>
-      </el-form>
+    <BasePageHeader title="用户管理">
+      <template #extra>
+        <BaseButton v-if="auth.role === SystemRole.SuperAdmin || auth.role === SystemRole.Admin" type="primary" @click="openCreate">
+          添加用户
+        </BaseButton>
+      </template>
+    </BasePageHeader>
+    <BaseTable :data="users" :columns="userColumns" stripe />
+    <BaseDialog v-model="createVisible" title="添加用户" width="450px">
+      <BaseForm label-width="80px">
+        <BaseFormItem label="用户名">
+          <BaseInput v-model="createForm.username" />
+        </BaseFormItem><BaseFormItem label="邮箱">
+          <BaseInput v-model="createForm.email" />
+        </BaseFormItem><BaseFormItem label="密码">
+          <BaseInput v-model="createForm.password" show-password />
+        </BaseFormItem><BaseFormItem label="角色">
+          <BaseSelect v-model="createForm.role" style="width:100%">
+            <el-option class="base-option" label="管理员" value="admin" /><el-option class="base-option" label="普通用户" :value="SystemRole.User" />
+          </BaseSelect>
+        </BaseFormItem>
+      </BaseForm>
       <template #footer>
-        <el-button @click="createVisible = false">
+        <BaseButton @click="createVisible = false">
           取消
-        </el-button><el-button type="primary" @click="handleCreate">
+        </BaseButton><BaseButton type="primary" @click="handleCreate">
           确认添加
-        </el-button>
+        </BaseButton>
       </template>
-    </el-dialog>
-    <el-dialog v-model="pwdVisible" title="修改密码" width="400px">
-      <el-form label-width="100px">
-        <el-form-item label="用户">
+    </BaseDialog>
+    <BaseDialog v-model="pwdVisible" title="修改密码" width="400px">
+      <BaseForm label-width="100px">
+        <BaseFormItem label="用户">
           {{ pwdTarget?.username }}
-        </el-form-item><el-form-item label="新密码">
-          <el-input v-model="pwdForm.password" show-password />
-        </el-form-item><el-form-item label="确认密码">
-          <el-input v-model="pwdForm.confirmPassword" show-password />
-        </el-form-item>
-      </el-form>
+        </BaseFormItem><BaseFormItem label="新密码">
+          <BaseInput v-model="pwdForm.password" show-password />
+        </BaseFormItem><BaseFormItem label="确认密码">
+          <BaseInput v-model="pwdForm.confirmPassword" show-password />
+        </BaseFormItem>
+      </BaseForm>
       <template #footer>
-        <el-button @click="pwdVisible = false">
+        <BaseButton @click="pwdVisible = false">
           取消
-        </el-button><el-button type="primary" @click="handlePwdSave">
+        </BaseButton><BaseButton type="primary" @click="handlePwdSave">
           确认
-        </el-button>
+        </BaseButton>
       </template>
-    </el-dialog>
+    </BaseDialog>
   </div>
 </template>
-
-<style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { margin: 0; }
-</style>

@@ -2,6 +2,7 @@
 import { ElMessage } from 'element-plus'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
 import { useProjectStore } from '@/stores/project'
 
 const router = useRouter()
@@ -28,30 +29,24 @@ async function handleCreate() {
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>新建项目</h2>
-    </div>
-    <el-form :model="form" :rules="rules" label-width="100px" style="max-width:600px">
-      <el-form-item label="项目名称" prop="name">
-        <el-input v-model="form.name" placeholder="请输入项目名称" />
-      </el-form-item>
-      <el-form-item label="项目标识" prop="code">
-        <el-input v-model="form.code" placeholder="英文标识，如 my-project" />
-      </el-form-item>
-      <el-form-item label="项目描述">
-        <el-input v-model="form.description" type="textarea" placeholder="项目描述(可选)" />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" :loading="loading" @click="handleCreate">
+    <BasePageHeader title="新建项目" />
+    <BaseForm :model="form" :rules="rules" label-width="100px" style="max-width:600px">
+      <BaseFormItem label="项目名称" prop="name">
+        <BaseInput v-model="form.name" placeholder="请输入项目名称" />
+      </BaseFormItem>
+      <BaseFormItem label="项目标识" prop="code">
+        <BaseInput v-model="form.code" placeholder="英文标识，如 my-project" />
+      </BaseFormItem>
+      <BaseFormItem label="项目描述">
+        <BaseInput v-model="form.description" type="textarea" placeholder="项目描述(可选)" />
+      </BaseFormItem>
+      <BaseFormItem>
+        <BaseButton type="primary" :loading="loading" @click="handleCreate">
           创建
-        </el-button><el-button @click="$router.push('/')">
+        </BaseButton><BaseButton @click="$router.push('/')">
           取消
-        </el-button>
-      </el-form-item>
-    </el-form>
+        </BaseButton>
+      </BaseFormItem>
+    </BaseForm>
   </div>
 </template>
-
-<style scoped>
-.page-header { margin-bottom: 20px; } .page-header h2 { margin: 0; }
-</style>

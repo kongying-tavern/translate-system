@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import process from 'node:process'
 import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
 import { defineConfig, loadEnv } from 'vite'
 
 export default defineConfig(({ mode }) => {
@@ -9,7 +10,7 @@ export default defineConfig(({ mode }) => {
     define: {
       'import.meta.env.VITE_APP_NAME': JSON.stringify(env.VITE_APP_NAME || '翻译管理平台'),
     },
-    plugins: [vue()],
+    plugins: [vue(), vueJsx()],
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),

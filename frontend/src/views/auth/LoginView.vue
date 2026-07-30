@@ -3,6 +3,7 @@ import { Hide, Lock, Message, View } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { BaseIcon } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
@@ -34,16 +35,16 @@ async function handleLogin() {
 <template>
   <form class="login-wrap" @submit.prevent="handleLogin">
     <div class="input-group">
-      <el-icon class="input-icon">
+      <BaseIcon class="input-icon">
         <Message />
-      </el-icon><input v-model="form.account" placeholder="用户名/邮箱" class="dark-input">
+      </BaseIcon><input v-model="form.account" placeholder="用户名/邮箱" class="dark-input">
     </div>
     <div class="input-group">
-      <el-icon class="input-icon">
+      <BaseIcon class="input-icon">
         <Lock />
-      </el-icon><input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="密码" class="dark-input"><el-icon class="input-icon toggle-pwd" @click="showPwd = !showPwd">
+      </BaseIcon><input v-model="form.password" :type="showPwd ? 'text' : 'password'" placeholder="密码" class="dark-input"><BaseIcon class="input-icon toggle-pwd" @click="showPwd = !showPwd">
         <View v-if="!showPwd" /><Hide v-else />
-      </el-icon>
+      </BaseIcon>
     </div>
     <button class="login-btn" :disabled="loading" type="submit">
       <span v-if="loading">登录中...</span><span v-else>登 录</span>

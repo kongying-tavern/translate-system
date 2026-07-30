@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createTemplate, getTemplate, updateTemplate } from '@/api/layout'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,38 +61,31 @@ async function handleSave() {
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>{{ isEdit ? '编辑模板' : '新建模板' }}</h2>
-    </div>
-    <el-form :model="form" label-width="100px" style="max-width:700px">
-      <el-form-item label="名称">
-        <el-input v-model="form.name" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="form.description" type="textarea" />
-      </el-form-item>
-      <el-form-item label="缩略图URL">
-        <el-input v-model="form.thumbnailUrl" />
-      </el-form-item>
-      <el-form-item label="是否为默认">
+    <BasePageHeader :title="isEdit ? '编辑模板' : '新建模板'" />
+    <BaseForm :model="form" label-width="100px" style="max-width:700px">
+      <BaseFormItem label="名称">
+        <BaseInput v-model="form.name" />
+      </BaseFormItem>
+      <BaseFormItem label="描述">
+        <BaseInput v-model="form.description" type="textarea" />
+      </BaseFormItem>
+      <BaseFormItem label="缩略图URL">
+        <BaseInput v-model="form.thumbnailUrl" />
+      </BaseFormItem>
+      <BaseFormItem label="是否为默认">
         <el-switch v-model="form.isDefault" />
-      </el-form-item>
-      <el-form-item label="配置 (JSON)">
-        <el-input v-model="configStr" type="textarea" :rows="12" placeholder="输入JSON配置..." />
-      </el-form-item>
-      <el-form-item>
-        <el-button type="primary" :loading="saving" @click="handleSave">
+      </BaseFormItem>
+      <BaseFormItem label="配置 (JSON)">
+        <BaseInput v-model="configStr" type="textarea" :rows="12" placeholder="输入JSON配置..." />
+      </BaseFormItem>
+      <BaseFormItem>
+        <BaseButton type="primary" :loading="saving" @click="handleSave">
           保存
-        </el-button>
-        <el-button @click="$router.back()">
+        </BaseButton>
+        <BaseButton @click="$router.back()">
           取消
-        </el-button>
-      </el-form-item>
-    </el-form>
+        </BaseButton>
+      </BaseFormItem>
+    </BaseForm>
   </div>
 </template>
-
-<style scoped>
-.page-header { margin-bottom: 20px; }
-.page-header h2 { margin: 0; }
-</style>

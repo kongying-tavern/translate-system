@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -139,12 +140,10 @@ async function doImport() {
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>导入</h2>
-    </div>
+    <BasePageHeader title="导入" />
 
-    <el-form :inline="true" class="import-bar">
-      <el-form-item label="模式">
+    <BaseForm :inline="true" class="import-bar">
+      <BaseFormItem label="模式">
         <el-radio-group v-model="mode">
           <el-radio-button value="entries">
             导入条目
@@ -153,37 +152,37 @@ async function doImport() {
             导入翻译
           </el-radio-button>
         </el-radio-group>
-      </el-form-item>
-    </el-form>
+      </BaseFormItem>
+    </BaseForm>
 
-    <el-form :inline="true" class="import-bar" style="margin-top:0">
+    <BaseForm :inline="true" class="import-bar" style="margin-top:0">
       <template v-if="mode === 'translate'">
-        <el-form-item v-if="inputMode === 'text'" label="格式">
-          <el-select v-model="fmt" style="width:160px">
-            <el-option label="JSON" :value="ImportFormat.JSON" />
-            <el-option label="CSV" :value="ImportFormat.CSV" />
-            <el-option label="Properties" :value="ImportFormat.Properties" />
-            <el-option label="YAML" :value="ImportFormat.YAML" />
-            <el-option label="XML" :value="ImportFormat.XML" />
-          </el-select>
-        </el-form-item>
-        <el-form-item v-if="needLang" label="语言">
-          <el-select v-model="importLang" style="width:160px">
-            <el-option v-for="l in projectLanguages" :key="l.languageCode" :label="l.alias || l.languageCode" :value="l.languageCode" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
+        <BaseFormItem v-if="inputMode === 'text'" label="格式">
+          <BaseSelect v-model="fmt" style="width:160px">
+            <el-option class="base-option" label="JSON" :value="ImportFormat.JSON" />
+            <el-option class="base-option" label="CSV" :value="ImportFormat.CSV" />
+            <el-option class="base-option" label="Properties" :value="ImportFormat.Properties" />
+            <el-option class="base-option" label="YAML" :value="ImportFormat.YAML" />
+            <el-option class="base-option" label="XML" :value="ImportFormat.XML" />
+          </BaseSelect>
+        </BaseFormItem>
+        <BaseFormItem v-if="needLang" label="语言">
+          <BaseSelect v-model="importLang" style="width:160px">
+            <el-option v-for="l in projectLanguages" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
+          </BaseSelect>
+        </BaseFormItem>
+        <BaseFormItem>
           <el-checkbox v-model="autoCreate">
             自动补全新条目
           </el-checkbox>
-        </el-form-item>
+        </BaseFormItem>
       </template>
-      <el-form-item>
+      <BaseFormItem>
         <el-checkbox v-model="overwrite">
           {{ mode === 'entries' ? '覆盖已有条目' : '覆盖已有译文' }}
         </el-checkbox>
-      </el-form-item>
-      <el-form-item>
+      </BaseFormItem>
+      <BaseFormItem>
         <el-radio-group v-model="inputMode" size="small">
           <el-radio-button value="file">
             文件
@@ -192,28 +191,28 @@ async function doImport() {
             文本
           </el-radio-button>
         </el-radio-group>
-      </el-form-item>
-      <el-form-item v-if="inputMode === 'file'">
+      </BaseFormItem>
+      <BaseFormItem v-if="inputMode === 'file'">
         <el-upload :auto-upload="false" :show-file-list="false" :accept="fileAccept" @change="onFileChange">
-          <el-button type="primary" :disabled="!perm.canManageContent.value">
+          <BaseButton type="primary" :disabled="!perm.canManageContent.value">
             选择文件
-          </el-button>
+          </BaseButton>
         </el-upload>
-      </el-form-item>
-      <el-form-item v-if="importFile && inputMode === 'file'">
-        <el-button type="success" :loading="importing" :disabled="!perm.canManageContent.value" @click="doImport">
+      </BaseFormItem>
+      <BaseFormItem v-if="importFile && inputMode === 'file'">
+        <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value" @click="doImport">
           开始导入
-        </el-button>
-      </el-form-item>
-    </el-form>
+        </BaseButton>
+      </BaseFormItem>
+    </BaseForm>
     <div v-if="importFile && inputMode === 'file'" style="font-size:13px;color:#909399;margin-bottom:12px">
       已选: {{ importFile.name }}
     </div>
     <div v-if="inputMode === 'text'" style="margin-bottom:16px">
-      <el-input v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value" style="font-family:monospace;font-size:13px" />
-      <el-button type="success" :loading="importing" :disabled="!perm.canManageContent.value" style="margin-top:8px" @click="doTextImport">
+      <BaseInput v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value" style="font-family:monospace;font-size:13px" />
+      <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value" style="margin-top:8px" @click="doTextImport">
         开始导入
-      </el-button>
+      </BaseButton>
     </div>
     <el-alert v-if="mode === 'entries'" type="info" :closable="false" style="margin-bottom:16px" title="导入条目不会更改现有条目的翻译内容" />
 
@@ -248,7 +247,6 @@ async function doImport() {
 </template>
 
 <style scoped>
-.page-header { margin-bottom: 20px; } .page-header h2 { margin: 0; }
 .import-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .import-bar .el-form-item { margin-bottom: 0; }
 .ex-pre { font-size:13px; white-space:pre-wrap; margin:0; }

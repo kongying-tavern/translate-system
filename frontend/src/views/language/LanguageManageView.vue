@@ -1,4 +1,5 @@
-<script setup lang="ts">
+<script setup lang="tsx">
+import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { ProjectLanguage } from '@/types/models'
 import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -7,6 +8,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { BaseButton, BaseDialog, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -108,68 +110,82 @@ async function moveDown(index: number) {
 async function saveOrder(row: ProjectLanguage) {
   await client.put(`/projects/${projectSlug.value}/languages/${row.id}/sortOrder`, { sortOrder: row.sortOrder }).catch(() => {})
 }
+
+const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
+  {
+    title: '排序',
+    width: 80,
+    align: 'center',
+    cell: (_row, _val, index) => (
+      <div>
+        {perm.canManageContent.value
+          ? <BaseButton link size="small" disabled={index === 0} onClick={() => moveUp(index)}><BaseIcon><ArrowUp /></BaseIcon></BaseButton>
+          : null}
+        {perm.canManageContent.value
+          ? <BaseButton link size="small" disabled={index === (projectLanguages.value || []).length - 1} onClick={() => moveDown(index)}><BaseIcon><ArrowDown /></BaseIcon></BaseButton>
+          : null}
+      </div>
+    ),
+  },
+  { dataKey: 'languageCode', title: '语言代码', minWidth: 120 },
+  {
+    title: '语言名称',
+    minWidth: 200,
+    cell: row => langStore.getBaseName(row.languageCode),
+  },
+  {
+    title: '别名',
+    minWidth: 160,
+    cell: row => (
+      <BaseInput
+        v-model={aliasCache[row.id]}
+        size="small"
+        placeholder="输入别名..."
+        readonly={!perm.canManageContent.value}
+        onBlur={() => onAliasSave(row)}
+      />
+    ),
+  },
+  {
+    title: '显示名',
+    minWidth: 120,
+    cell: row => row.alias || row.languageCode,
+  },
+  {
+    title: '操作',
+    minWidth: 80,
+    cell: row => perm.canManageContent.value
+      ? (
+          <BaseButton type="danger" link onClick={() => handleRemove(row.languageCode)}>删除</BaseButton>
+        )
+      : null,
+  },
+]
 </script>
 
 <template>
   <div>
-    <div class="page-header">
-      <h2>语言管理</h2><el-button v-if="perm.canManageContent.value" type="primary" @click="showAddDialog = true">
-        添加语言
-      </el-button>
-    </div>
-    <el-table :data="projectLanguages || []" stripe row-key="id">
-      <el-table-column label="排序" width="80" align="center">
-        <template #default="{ $index }">
-          <el-button v-if="perm.canManageContent.value" link size="small" :disabled="$index === 0" @click="moveUp($index)">
-            <el-icon><ArrowUp /></el-icon>
-          </el-button>
-          <el-button v-if="perm.canManageContent.value" link size="small" :disabled="$index === (projectLanguages || []).length - 1" @click="moveDown($index)">
-            <el-icon><ArrowDown /></el-icon>
-          </el-button>
-        </template>
-      </el-table-column>
-      <el-table-column prop="languageCode" label="语言代码" min-width="120" />
-      <el-table-column label="语言名称" min-width="200">
-        <template #default="{ row }">
-          {{ langStore.getBaseName(row.languageCode) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="别名" min-width="160">
-        <template #default="{ row }">
-          <el-input v-model="aliasCache[row.id]" size="small" placeholder="输入别名..." :readonly="!perm.canManageContent.value" @blur="onAliasSave(row)" />
-        </template>
-      </el-table-column>
-      <el-table-column label="显示名" min-width="120">
-        <template #default="{ row }">
-          {{ row.alias || row.languageCode }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" min-width="80">
-        <template #default="{ row }">
-          <el-button v-if="perm.canManageContent.value" type="danger" link @click="handleRemove(row.languageCode)">
-            删除
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+    <BasePageHeader title="语言管理">
+      <template #extra>
+        <BaseButton v-if="perm.canManageContent.value" type="primary" @click="showAddDialog = true">
+          添加语言
+        </BaseButton>
+      </template>
+    </BasePageHeader>
+    <BaseTable :data="projectLanguages || []" :columns="langColumns" stripe row-key="id" />
     <EmptyState v-if="!projectLanguages || !projectLanguages.length" description="暂无语言" />
 
-    <el-dialog v-model="showAddDialog" title="添加语言" width="500px">
-      <el-select v-model="selectedLang" filterable placeholder="搜索语言..." style="width:100%">
-        <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" :label="`${l.englishName} (${l.nativeName || ''}) - ${l.languageCode}`" :value="l.languageCode" />
-      </el-select>
+    <BaseDialog v-model="showAddDialog" title="添加语言" width="500px">
+      <BaseSelect v-model="selectedLang" filterable placeholder="搜索语言..." style="width:100%">
+        <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" class="base-option" :label="`${l.englishName} (${l.nativeName || ''}) - ${l.languageCode}`" :value="l.languageCode" />
+      </BaseSelect>
       <template #footer>
-        <el-button @click="showAddDialog = false">
+        <BaseButton @click="showAddDialog = false">
           取消
-        </el-button><el-button type="primary" :disabled="!selectedLang" @click="handleAdd">
+        </BaseButton><BaseButton type="primary" :disabled="!selectedLang" @click="handleAdd">
           确认添加
-        </el-button>
+        </BaseButton>
       </template>
-    </el-dialog>
+    </BaseDialog>
   </div>
 </template>
-
-<style scoped>
-.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.page-header h2 { margin: 0; }
-</style>
