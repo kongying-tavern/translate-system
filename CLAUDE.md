@@ -45,6 +45,16 @@ pnpm prisma migrate deploy       # 非交互式：将已有迁移应用到 DB（
 cd frontend && pnpm dev          # Vite HMR（开发者手动启动）
 rm -rf node_modules/.vite        # 清除 Vite 缓存（模块找不到时）
 
+# pnpm patch（修改依赖源码，如 data-visor-vue@0.0.4）
+cd frontend && pnpm patch data-visor-vue@0.0.4   # 创建/打开 patch 工作目录 node_modules/.pnpm_patches/
+# 在 patch 工作目录里修改 dist/index.js 等源码后：
+cd frontend && pnpm patch-commit "node_modules\.pnpm_patches\data-visor-vue@0.0.4"  # 生成/更新 patches/*.patch
+cd frontend && pnpm install      # 将 patch 应用到 node_modules（若 node_modules/.pnpm_patches 已存在则直接编辑后 patch-commit）
+rm -rf node_modules/.vite        # patch 生效后必须清 Vite 缓存，否则 dev server 仍用旧代码
+
+# 注意：patch 目录存在时再次 pnpm patch 会报 ERR_PNPM_EDIT_DIR_NOT_EMPTY，
+# 直接编辑现有 .pnpm_patches/<pkg> 目录再 patch-commit 即可（会叠加到同一 patch 文件）
+
 # 导入翻译文件
 cd backend && pnpm tsx src/scripts/import-json.ts <projectId> <file> <langCode>
 
@@ -247,7 +257,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 |------|:----:|------|
 | BaseButton | 透传 | Element Plus el-button 封装 |
 | BaseCheckbox | 透传 | el-checkbox，defineModel 双向绑定 + label slot |
-| BaseDataViewer | **配置式** | 基于 `data-visor-vue` 的通用数据查看器，lang 支持 json/yaml/xml，Shiki 高亮，含树形/源码（Minified）/分块（Fractured）模式 |
+| BaseDataViewer | **配置式** | 基于 `data-visor-vue` 的通用数据查看器，lang 支持 json/yaml/xml，Shiki 高亮，含树形/源码（Minified）/分块（Fractured）模式。该依赖有 pnpm patch（`frontend/patches/data-visor-vue@0.0.4.patch`），累计 4 处：① YAML Minified 模式保留原文本（原实现误转 JSON）；② XML 树形模式扁平化重复兄弟标签数组，避免 `<tag>` 显示两层；③ 扁平化后 item 深度对齐父级，避免展开父节点后子行不显示；④ XML 属性子行排到子元素之前（默认被解析器放在对象末尾） |
 | BaseDialog | 透传 | el-dialog，defineModel 双向绑定 |
 | BaseForm | 透传 | el-form，卡片式容器 |
 | BaseFormItem | 透传 | el-form-item |

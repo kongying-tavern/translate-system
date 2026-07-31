@@ -64,6 +64,7 @@ const exampleText = computed(() => {
 
 const isJsonExample = computed(() => fmt.value === ImportFormat.JSON)
 const isYamlExample = computed(() => fmt.value === ImportFormat.YAML)
+const isXmlExample = computed(() => fmt.value === ImportFormat.XML)
 
 onMounted(async () => {
   const { data: res } = await client.get(`/projects/${projectSlug.value}/languages`)
@@ -221,7 +222,7 @@ async function doImport() {
             <BaseDataViewer :data="entriesExample.yaml" lang="yaml" max-height="400px" />
           </template>
           <template #tab-xml>
-            <pre class="ex-pre">{{ entriesExample.xml }}</pre>
+            <BaseDataViewer :data="entriesExample.xml" lang="xml" max-height="400px" />
           </template>
         </BaseTabs>
       </template>
@@ -231,6 +232,7 @@ async function doImport() {
         </p>
         <BaseDataViewer v-if="isJsonExample" :data="exampleText" lang="json" max-height="400px" />
         <BaseDataViewer v-else-if="isYamlExample" :data="exampleText" lang="yaml" max-height="400px" />
+        <BaseDataViewer v-else-if="isXmlExample" :data="exampleText" lang="xml" max-height="400px" />
         <pre v-else class="ex-pre">{{ exampleText }}</pre>
       </template>
     </el-card>

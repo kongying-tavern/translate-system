@@ -1,8 +1,97 @@
 diff --git a/dist/index.js b/dist/index.js
-index 3e75e0b95406bb36b7de66610b1f5c368788ee6a..2cc2562710253e0c71c2b693978f17abccb19d8b 100644
+index 3e75e0b95406bb36b7de66610b1f5c368788ee6a..83479544a8325d3c45f36ae7ddf52e5bb5590b13 100644
 --- a/dist/index.js
 +++ b/dist/index.js
-@@ -1313,7 +1313,7 @@ function minifyXmlWhitespace(raw) {
+@@ -1051,9 +1051,10 @@ function sourceLinesTotal(value) {
+ 	if (keys.length === 0) return 1;
+ 	return 2 + keys.reduce((sum, k) => sum + sourceLinesTotal(value[k]), 0);
+ }
+-function buildNodes(value, key, depth, path, result, sourceLine) {
++function buildNodes(value, key, depth, path, result, sourceLine, lang) {
+ 	const type = nodeType(value);
+ 	const count = childCount(value);
++	const isXmlArray = lang === "xml" && type === "array" && count > 0;
+ 	const node = {
+ 		id: path || "$",
+ 		type,
+@@ -1065,33 +1066,41 @@ function buildNodes(value, key, depth, path, result, sourceLine) {
+ 		isCollapsible: count > 0,
+ 		sourceLine
+ 	};
+-	result.push(node);
++	if (!isXmlArray) result.push(node);
+ 	const parentId = path || "$";
+ 	if (type === "array" && count > 0) {
+ 		const arr = value;
+ 		let childLine = sourceLine + 1;
+ 		for (let i = 0; i < arr.length; i++) {
+-			buildNodes(arr[i], i, depth + 1, buildPath(path, i), result, childLine);
++			buildNodes(arr[i], i, isXmlArray ? depth : depth + 1, buildPath(path, i), result, childLine, lang);
+ 			childLine += sourceLinesTotal(arr[i]);
+ 		}
+-		result.push({
+-			id: `${parentId}/$close`,
+-			type,
+-			key: void 0,
+-			value,
+-			depth,
+-			path,
+-			childCount: count,
+-			isCollapsible: false,
+-			sourceLine: sourceLine + sourceLinesTotal(value) - 1,
+-			isClosing: true,
+-			parentId
+-		});
++		if (!isXmlArray) {
++			result.push({
++				id: `${parentId}/$close`,
++				type,
++				key: void 0,
++				value,
++				depth,
++				path,
++				childCount: count,
++				isCollapsible: false,
++				sourceLine: sourceLine + sourceLinesTotal(value) - 1,
++				isClosing: true,
++				parentId
++			});
++		}
+ 	} else if (type === "object" && count > 0) {
+ 		const obj = value;
+ 		let childLine = sourceLine + 1;
+-		for (const k of Object.keys(obj)) {
+-			buildNodes(obj[k], k, depth + 1, buildPath(path, k), result, childLine);
++		let keys = Object.keys(obj);
++		if (lang === "xml") {
++			const attrs = keys.filter((k) => k.startsWith("@_"));
++			const elements = keys.filter((k) => !k.startsWith("@_"));
++			keys = attrs.concat(elements);
++		}
++		for (const k of keys) {
++			buildNodes(obj[k], k, depth + 1, buildPath(path, k), result, childLine, lang);
+ 			childLine += sourceLinesTotal(obj[k]);
+ 		}
+ 		result.push({
+@@ -1111,7 +1120,7 @@ function buildNodes(value, key, depth, path, result, sourceLine) {
+ }
+ function buildTree(value, options = {}) {
+ 	const result = [];
+-	buildNodes(value, void 0, 0, options.rootPath ?? "$", result, 0);
++	buildNodes(value, void 0, 0, options.rootPath ?? "$", result, 0, options.lang);
+ 	return result;
+ }
+ //#endregion
+@@ -1152,7 +1161,7 @@ function useTree(source, lang) {
+ 	});
+ 	const nodes = computed(() => {
+ 		if (parsed.value === null && parseError.value) return [];
+-		return buildTree(parsed.value);
++		return buildTree(parsed.value, { lang: lang.value });
+ 	});
+ 	return {
+ 		nodes,
+@@ -1313,7 +1322,7 @@ function minifyXmlWhitespace(raw) {
  function serializeMinified(raw, lang) {
  	try {
  		if (lang === "json") return JSON.stringify(JSON.parse(raw));
