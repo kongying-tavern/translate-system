@@ -64,6 +64,7 @@ const exampleText = computed(() => {
 
 const isJsonExample = computed(() => fmt.value === ImportFormat.JSON)
 const isCsvExample = computed(() => fmt.value === ImportFormat.CSV)
+const isPropertiesExample = computed(() => fmt.value === ImportFormat.Properties)
 const isYamlExample = computed(() => fmt.value === ImportFormat.YAML)
 const isXmlExample = computed(() => fmt.value === ImportFormat.XML)
 
@@ -235,6 +236,7 @@ async function doImport() {
         <BaseDataViewer v-else-if="isYamlExample" :data="exampleText" lang="yaml" max-height="400px" />
         <BaseDataViewer v-else-if="isXmlExample" :data="exampleText" lang="xml" max-height="400px" />
         <BaseTabularViewer v-else-if="isCsvExample" :data="exampleText" format="csv" max-height="400px" />
+        <BaseTabularViewer v-else-if="isPropertiesExample" :data="exampleText" format="properties" max-height="400px" />
         <pre v-else class="ex-pre">{{ exampleText }}</pre>
       </template>
     </el-card>

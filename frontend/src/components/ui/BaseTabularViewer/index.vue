@@ -91,7 +91,9 @@ const records = computed<string[][]>(() => {
 })
 
 const header = computed<string[]>(() => {
-  if (!props.useFirstRowAsHeader || props.format === 'properties')
+  if (props.format === 'properties')
+    return ['键', '值']
+  if (!props.useFirstRowAsHeader)
     return []
   return records.value[0] ?? []
 })

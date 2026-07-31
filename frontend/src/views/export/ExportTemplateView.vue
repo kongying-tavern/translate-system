@@ -35,7 +35,13 @@ const dataViewLang = computed<'json' | 'yaml' | 'xml' | null>(() => {
     return 'xml'
   return null
 })
-const isCsv = computed(() => selectedFormat.value === ExportFormat.Csv)
+const tabularFormat = computed<'csv' | 'properties' | null>(() => {
+  if (selectedFormat.value === ExportFormat.Csv)
+    return 'csv'
+  if (selectedFormat.value === ExportFormat.Properties)
+    return 'properties'
+  return null
+})
 
 onMounted(() => loadExports())
 watch(projectSlug, () => {
@@ -185,7 +191,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
 
     <BaseDialog v-model="previewVisible" title="导出预览" width="750px">
       <BaseDataViewer v-if="dataViewLang" :data="previewContent" :lang="dataViewLang" max-height="400px" />
-      <BaseTabularViewer v-else-if="isCsv" :data="previewContent" format="csv" max-height="400px" />
+      <BaseTabularViewer v-else-if="tabularFormat" :data="previewContent" :format="tabularFormat" max-height="400px" />
       <BaseInput v-else v-model="previewContent" type="textarea" :rows="22" readonly style="font-family:monospace;font-size:13px" />
     </BaseDialog>
   </div>
