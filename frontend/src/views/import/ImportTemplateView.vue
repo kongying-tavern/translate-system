@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseCheckbox, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -64,6 +64,7 @@ const exampleText = computed(() => {
 
 const entriesJsonData = computed(() => JSON.parse(entriesExample.json) as Record<string, unknown>)
 const isJsonExample = computed(() => fmt.value === ImportFormat.JSON)
+const isYamlExample = computed(() => fmt.value === ImportFormat.YAML)
 const exampleJsonData = computed(() => isJsonExample.value ? JSON.parse(exampleText.value) as Record<string, unknown> : null)
 
 onMounted(async () => {
@@ -219,7 +220,7 @@ async function doImport() {
             <pre class="ex-pre">{{ entriesExample.csv }}</pre>
           </template>
           <template #tab-yaml>
-            <pre class="ex-pre">{{ entriesExample.yaml }}</pre>
+            <BaseDataViewer :data="entriesExample.yaml" lang="yaml" max-height="400px" />
           </template>
           <template #tab-xml>
             <pre class="ex-pre">{{ entriesExample.xml }}</pre>
@@ -231,6 +232,7 @@ async function doImport() {
           {{ exampleTitle }}
         </p>
         <BaseJsonViewer v-if="isJsonExample" :value="exampleJsonData" />
+        <BaseDataViewer v-else-if="isYamlExample" :data="exampleText" lang="yaml" max-height="400px" />
         <pre v-else class="ex-pre">{{ exampleText }}</pre>
       </template>
     </el-card>

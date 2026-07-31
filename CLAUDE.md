@@ -247,6 +247,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 |------|:----:|------|
 | BaseButton | 透传 | Element Plus el-button 封装 |
 | BaseCheckbox | 透传 | el-checkbox，defineModel 双向绑定 + label slot |
+| BaseDataViewer | **配置式** | 基于 `data-visor-vue` 的通用数据查看器，lang 支持 json/yaml/xml，Shiki 高亮 |
 | BaseDialog | 透传 | el-dialog，defineModel 双向绑定 |
 | BaseForm | 透传 | el-form，卡片式容器 |
 | BaseFormItem | 透传 | el-form-item |
@@ -257,7 +258,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseTable | **配置式** | columns 配置驱动，cell 使用 TSX 渲染 |
 | BaseSelect | **配置式** | options 配置驱动，泛型选择器 |
 | BaseTabs | **配置式** | tabs 配置驱动，泛型 tab key，内容通过 `#tab-{key}` 具名插槽 |
-| BaseJsonViewer | **配置式** | 基于 `vue-json-pretty` 封装的 JSON 查看器 |
+| BaseJsonViewer | **配置式** | 基于 `vue-json-pretty` 封装的 JSON 查看器（仅展示 JSON 对象树） |
 
 其中 BaseTable、BaseSelect、BaseRadioGroup、BaseTabs 为**配置式封装**，不同于简单透传：
 

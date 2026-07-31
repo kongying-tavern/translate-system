@@ -8,7 +8,7 @@ import { deleteExportTemplate, generateExport, getExportTemplates } from '@/api/
 import { getProjectLanguages } from '@/api/language'
 import { getTags } from '@/api/translation'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { ExportFormat, getFormatMeta } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -26,6 +26,8 @@ const previewVisible = ref(false)
 const previewContent = ref('')
 const selectedFormat = computed(() => templates.value.find(t => t.id === selectedTemplate.value)?.formatType)
 const isJsonPreview = computed(() => selectedFormat.value === ExportFormat.FlatJson || selectedFormat.value === ExportFormat.NestedJson)
+const isDataPreview = computed(() => selectedFormat.value === ExportFormat.FlatYaml || selectedFormat.value === ExportFormat.NestedYaml)
+const previewLang = computed(() => (isDataPreview.value ? 'yaml' : 'json') as 'yaml' | 'json')
 const previewData = computed(() => {
   try {
     return JSON.parse(previewContent.value)
@@ -185,6 +187,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
       <div v-if="isJsonPreview" class="preview-json">
         <BaseJsonViewer :value="previewData" />
       </div>
+      <BaseDataViewer v-else-if="isDataPreview" :data="previewContent" :lang="previewLang" max-height="400px" />
       <BaseInput v-else v-model="previewContent" type="textarea" :rows="22" readonly style="font-family:monospace;font-size:13px" />
     </BaseDialog>
   </div>

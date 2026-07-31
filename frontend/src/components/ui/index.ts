@@ -1,5 +1,7 @@
 export { default as BaseButton } from './BaseButton/index.vue'
 export { default as BaseCheckbox } from './BaseCheckbox/index.vue'
+export { default as BaseDataViewer } from './BaseDataViewer/index.vue'
+export type { BaseDataViewerProps, DataViewerLang } from './BaseDataViewer/types'
 export { default as BaseDialog } from './BaseDialog/index.vue'
 export { default as BaseForm } from './BaseForm/index.vue'
 export { default as BaseFormItem } from './BaseFormItem/index.vue'

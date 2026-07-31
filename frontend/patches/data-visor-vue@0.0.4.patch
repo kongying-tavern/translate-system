@@ -1,0 +1,13 @@
+diff --git a/dist/index.js b/dist/index.js
+index 3e75e0b95406bb36b7de66610b1f5c368788ee6a..2cc2562710253e0c71c2b693978f17abccb19d8b 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1313,7 +1313,7 @@ function minifyXmlWhitespace(raw) {
+ function serializeMinified(raw, lang) {
+ 	try {
+ 		if (lang === "json") return JSON.stringify(JSON.parse(raw));
+-		if (lang === "yaml") return JSON.stringify(parseYaml(raw));
++		if (lang === "yaml") { parseYaml(raw); return raw; }
+ 		if (lang === "xml") {
+ 			parseXml(raw);
+ 			return minifyXmlWhitespace(raw);
