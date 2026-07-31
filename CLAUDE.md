@@ -246,7 +246,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 **核心规则：**
 - 显式 `defineProps` + `withDefaults` + `defineModel` + `defineEmits`，不使用 `v-bind="$attrs"`
-- 样式通过 `<style lang="scss" scoped>@import './style.scss';</style>` 加载，scoped 隔离 + 外部文件可替换
+- 样式通过 `<style lang="scss" scoped>@use './style.scss';</style>` 加载，scoped 隔离 + 外部文件可替换（用 `@use` 而非 `@import`，Dart Sass 已弃用后者）
 - **子组件内部元素必须用 `:deep()`**：scoped 样式只能命中组件根元素，`.base-xxx .el-input__wrapper` 这类选择器命中不了 el-input 内部 DOM（否则是死样式，圆角/阴影不会生效）。统一格式 `:deep(.el-xxx)`，外层前缀（`.base-xxx`）保持带 scope
 - **封装后必须迁移现有使用处**：将页面中已存在的 `<el-xxx>` 替换为对应 Base 组件，避免新旧混用
 - **封装后必须更新本列表**：新增组件要同步补充到下方「当前组件」表格（含类型和说明），并导出到 `ui/index.ts` barrel

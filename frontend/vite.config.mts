@@ -11,6 +11,13 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_APP_NAME': JSON.stringify(env.VITE_APP_NAME || '翻译管理平台'),
     },
     plugins: [vue(), vueJsx()],
+    css: {
+      preprocessorOptions: {
+        scss: {
+          api: 'modern-compiler',
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': resolve(__dirname, 'src'),

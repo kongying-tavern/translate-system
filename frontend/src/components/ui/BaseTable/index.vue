@@ -100,5 +100,5 @@ function handleRowDblclick(row: unknown, column: object, event: Event) {
 </template>
 
 <style lang="scss" scoped>
-@import './style.scss';
+@use './style.scss';
 </style>
