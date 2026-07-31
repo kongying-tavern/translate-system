@@ -1,0 +1,14 @@
+.base-radio-group {
+  .el-radio__inner {
+    border-radius: 50%;
+    transition: all 0.2s;
+  }
+
+  .el-radio__inner.is-checked {
+    border-color: var(--el-color-primary);
+  }
+
+  &.is-button-group .el-radio-button__inner {
+    transition: all 0.2s;
+  }
+}

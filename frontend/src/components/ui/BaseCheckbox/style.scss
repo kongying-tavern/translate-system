@@ -1,0 +1,14 @@
+.base-checkbox {
+  .el-checkbox__inner {
+    border-radius: 4px;
+    transition: all 0.2s;
+  }
+
+  .el-checkbox__inner.is-checked {
+    background-color: var(--el-color-primary);
+  }
+
+  &:hover .el-checkbox__inner {
+    border-color: var(--el-color-primary);
+  }
+}

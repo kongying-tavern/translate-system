@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
-import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
 import { EXPORT_FORMAT_MAP, ExportFormat } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -108,15 +108,15 @@ async function handleSave() {
       </BaseFormItem>
       <BaseFormItem label="配置">
         <div style="display:flex;flex-direction:column;gap:8px">
-          <el-checkbox v-model="configForm.skipIdentical">
+          <BaseCheckbox v-model="configForm.skipIdentical">
             跳过 Key 和译文相同的行（源语言）
-          </el-checkbox>
-          <el-checkbox v-model="configForm.skipEmpty">
+          </BaseCheckbox>
+          <BaseCheckbox v-model="configForm.skipEmpty">
             跳过译文为空的行
-          </el-checkbox>
-          <el-checkbox v-model="configForm.useCodeKey">
+          </BaseCheckbox>
+          <BaseCheckbox v-model="configForm.useCodeKey">
             使用原始语言 Code（不应用别名）
-          </el-checkbox>
+          </BaseCheckbox>
         </div>
       </BaseFormItem>
       <BaseFormItem>

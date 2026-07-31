@@ -9,7 +9,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, getTranslations, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -494,9 +494,9 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         <BaseInput v-model="filters.search" placeholder="搜索 | #行号 | /正则/" clearable style="width:260px" />
       </BaseFormItem>
       <BaseFormItem>
-        <el-checkbox v-model="untransOnly" @change="load">
+        <BaseCheckbox v-model="untransOnly" @change="load">
           仅未翻译
-        </el-checkbox>
+        </BaseCheckbox>
       </BaseFormItem>
       <BaseFormItem>
         <BaseButton type="primary" @click="doSearch">

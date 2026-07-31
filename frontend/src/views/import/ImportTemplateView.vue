@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseSelect, BaseTabs } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -148,14 +148,7 @@ async function doImport() {
 
     <BaseForm :inline="true" class="import-bar">
       <BaseFormItem label="模式">
-        <el-radio-group v-model="mode">
-          <el-radio-button value="entries">
-            导入条目
-          </el-radio-button>
-          <el-radio-button value="translate">
-            导入翻译
-          </el-radio-button>
-        </el-radio-group>
+        <BaseRadioGroup v-model="mode" button :options="[{ label: '导入条目', value: 'entries' }, { label: '导入翻译', value: 'translate' }]" />
       </BaseFormItem>
     </BaseForm>
 
@@ -176,25 +169,18 @@ async function doImport() {
           </BaseSelect>
         </BaseFormItem>
         <BaseFormItem>
-          <el-checkbox v-model="autoCreate">
+          <BaseCheckbox v-model="autoCreate">
             自动补全新条目
-          </el-checkbox>
+          </BaseCheckbox>
         </BaseFormItem>
       </template>
       <BaseFormItem>
-        <el-checkbox v-model="overwrite">
+        <BaseCheckbox v-model="overwrite">
           {{ mode === 'entries' ? '覆盖已有条目' : '覆盖已有译文' }}
-        </el-checkbox>
+        </BaseCheckbox>
       </BaseFormItem>
       <BaseFormItem>
-        <el-radio-group v-model="inputMode" size="small">
-          <el-radio-button value="file">
-            文件
-          </el-radio-button>
-          <el-radio-button value="text">
-            文本
-          </el-radio-button>
-        </el-radio-group>
+        <BaseRadioGroup v-model="inputMode" button size="small" :options="[{ label: '文件', value: 'file' }, { label: '文本', value: 'text' }]" />
       </BaseFormItem>
       <BaseFormItem v-if="inputMode === 'file'">
         <el-upload :auto-upload="false" :show-file-list="false" :accept="fileAccept" @change="onFileChange">

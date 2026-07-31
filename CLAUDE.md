@@ -232,30 +232,37 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 前端基础 UI 元素封装在 `src/components/ui/`，通过 `@/components/ui` barrel（命名导出）统一导入。每个组件目录含 `index.vue` + `style.scss`，方便后续全局扩展和换肤。
 
+**封装目的**：统一样式入口，便于**换皮肤和全局扩展**（换肤 = 替换 style.scss 即可全局生效；扩展 = 在 base 组件上统一加行为/样式），**不是为了减少使用量**。不要因"用的少"就拒绝封装，凡是出现在页面中的 Element Plus 基础组件都应走 Base 封装。
+
 **核心规则：**
 - 显式 `defineProps` + `withDefaults` + `defineModel` + `defineEmits`，不使用 `v-bind="$attrs"`
 - 样式通过 `<style lang="scss" scoped>@import './style.scss';</style>` 加载，scoped 隔离 + 外部文件可替换
+- **封装后必须迁移现有使用处**：将页面中已存在的 `<el-xxx>` 替换为对应 Base 组件，避免新旧混用
+- **封装后必须更新本列表**：新增组件要同步补充到下方「当前组件」表格（含类型和说明），并导出到 `ui/index.ts` barrel
 
 **当前组件：**
 
 | 组件 | 类型 | 说明 |
 |------|:----:|------|
 | BaseButton | 透传 | Element Plus el-button 封装 |
-| BaseInput | 透传 | el-input，支持 autosize |
+| BaseCheckbox | 透传 | el-checkbox，defineModel 双向绑定 + label slot |
 | BaseDialog | 透传 | el-dialog，defineModel 双向绑定 |
 | BaseForm | 透传 | el-form，卡片式容器 |
 | BaseFormItem | 透传 | el-form-item |
 | BaseIcon | 透传 | el-icon，hover 动画 |
+| BaseInput | 透传 | el-input，支持 autosize |
 | BasePageHeader | 透传 | 页面标题栏 |
+| BaseRadioGroup | **配置式** | el-radio-group，options 驱动，泛型值，支持 button 模式 |
 | BaseTable | **配置式** | columns 配置驱动，cell 使用 TSX 渲染 |
 | BaseSelect | **配置式** | options 配置驱动，泛型选择器 |
 | BaseTabs | **配置式** | tabs 配置驱动，泛型 tab key，内容通过 `#tab-{key}` 具名插槽 |
 | BaseJsonViewer | **配置式** | 基于 `vue-json-pretty` 封装的 JSON 查看器 |
 
-其中 BaseTable 和 BaseSelect 为**配置式封装**，不同于简单透传：
+其中 BaseTable、BaseSelect、BaseRadioGroup、BaseTabs 为**配置式封装**，不同于简单透传：
 
 - **BaseTable `<T extends object>`** — 通过 `columns: BaseTableColumnConfig<T>[]` 配置驱动，`cell` 渲染函数使用 TSX（需 `@vitejs/plugin-vue-jsx`，`tsconfig.json` 设 `jsxImportSource: "vue"`），替代 `<el-table-column>` 手写。`BaseTableColumnConfig` 类型定义在 `./types.ts`。
 - **BaseSelect `<T, TItem>`** — 通过 `options` / `labelKey` / `valueKey` / `labelGetter` / `valueGetter` 配置选项，替代 `<el-option>` 手写循环。
+- **BaseRadioGroup `<T>`** — 通过 `options: BaseRadioOption<T>[]`（`label` / `value` / `disabled`）配置选项，`button` prop 切换 `el-radio-button` / `el-radio` 渲染，泛型值约束为 `string | number | boolean`。
 
 ### 前端关键文件
 
