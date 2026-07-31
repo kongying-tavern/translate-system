@@ -250,6 +250,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseTable | **配置式** | columns 配置驱动，cell 使用 TSX 渲染 |
 | BaseSelect | **配置式** | options 配置驱动，泛型选择器 |
 | BaseTabs | **配置式** | tabs 配置驱动，泛型 tab key，内容通过 `#tab-{key}` 具名插槽 |
+| BaseJsonViewer | **配置式** | 基于 `vue-json-pretty` 封装的 JSON 查看器 |
 
 其中 BaseTable 和 BaseSelect 为**配置式封装**，不同于简单透传：
 

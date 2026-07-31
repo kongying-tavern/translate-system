@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTabs } from '@/components/ui'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseSelect, BaseTabs } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -61,6 +61,10 @@ const exampleText = computed(() => {
     default: return ''
   }
 })
+
+const entriesJsonData = computed(() => JSON.parse(entriesExample.json) as Record<string, unknown>)
+const isJsonExample = computed(() => fmt.value === ImportFormat.JSON)
+const exampleJsonData = computed(() => isJsonExample.value ? JSON.parse(exampleText.value) as Record<string, unknown> : null)
 
 onMounted(async () => {
   const { data: res } = await client.get(`/projects/${projectSlug.value}/languages`)
@@ -223,7 +227,7 @@ async function doImport() {
         </p>
         <BaseTabs v-model="exampleTab" type="card" :tabs="[{ key: 'json', label: 'JSON' }, { key: 'csv', label: 'CSV' }, { key: 'yaml', label: 'YAML' }, { key: 'xml', label: 'XML' }]">
           <template #tab-json>
-            <pre class="ex-pre">{{ entriesExample.json }}</pre>
+            <BaseJsonViewer :value="entriesJsonData" />
           </template>
           <template #tab-csv>
             <pre class="ex-pre">{{ entriesExample.csv }}</pre>
@@ -240,7 +244,8 @@ async function doImport() {
         <p style="margin:0 0 8px;font-size:13px;color:#909399">
           {{ exampleTitle }}
         </p>
-        <pre class="ex-pre">{{ exampleText }}</pre>
+        <BaseJsonViewer v-if="isJsonExample" :value="exampleJsonData" />
+        <pre v-else class="ex-pre">{{ exampleText }}</pre>
       </template>
     </el-card>
   </div>

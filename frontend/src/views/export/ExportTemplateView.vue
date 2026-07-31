@@ -8,8 +8,8 @@ import { deleteExportTemplate, generateExport, getExportTemplates } from '@/api/
 import { getProjectLanguages } from '@/api/language'
 import { getTags } from '@/api/translation'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
-import { getFormatMeta } from '@/data/exportFormats'
+import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { ExportFormat, getFormatMeta } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
 const route = useRoute()
@@ -24,6 +24,16 @@ const exportFilterTags = ref<string[]>([])
 const allTags = ref<string[]>([])
 const previewVisible = ref(false)
 const previewContent = ref('')
+const selectedFormat = computed(() => templates.value.find(t => t.id === selectedTemplate.value)?.formatType)
+const isJsonPreview = computed(() => selectedFormat.value === ExportFormat.FlatJson || selectedFormat.value === ExportFormat.NestedJson)
+const previewData = computed(() => {
+  try {
+    return JSON.parse(previewContent.value)
+  }
+  catch {
+    return null
+  }
+})
 
 onMounted(() => loadExports())
 watch(projectSlug, () => {
@@ -172,7 +182,10 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
     <EmptyState v-else description="暂无导出模板，请先新建一个" />
 
     <BaseDialog v-model="previewVisible" title="导出预览" width="750px">
-      <BaseInput v-model="previewContent" type="textarea" :rows="22" readonly style="font-family:monospace;font-size:13px" />
+      <div v-if="isJsonPreview" class="preview-json">
+        <BaseJsonViewer :value="previewData" />
+      </div>
+      <BaseInput v-else v-model="previewContent" type="textarea" :rows="22" readonly style="font-family:monospace;font-size:13px" />
     </BaseDialog>
   </div>
 </template>
@@ -183,4 +196,5 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
 .opt-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 .opt-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .opt-meta { color: #909399; font-size: 12px; margin-left: 12px; white-space: nowrap; }
+.preview-json { max-height: 400px; overflow-y: auto; }
 </style>
