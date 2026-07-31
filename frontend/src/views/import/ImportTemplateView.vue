@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -63,6 +63,7 @@ const exampleText = computed(() => {
 })
 
 const isJsonExample = computed(() => fmt.value === ImportFormat.JSON)
+const isCsvExample = computed(() => fmt.value === ImportFormat.CSV)
 const isYamlExample = computed(() => fmt.value === ImportFormat.YAML)
 const isXmlExample = computed(() => fmt.value === ImportFormat.XML)
 
@@ -216,7 +217,7 @@ async function doImport() {
             <BaseDataViewer :data="entriesExample.json" lang="json" max-height="400px" />
           </template>
           <template #tab-csv>
-            <pre class="ex-pre">{{ entriesExample.csv }}</pre>
+            <BaseTabularViewer :data="entriesExample.csv" format="csv" max-height="400px" />
           </template>
           <template #tab-yaml>
             <BaseDataViewer :data="entriesExample.yaml" lang="yaml" max-height="400px" />
@@ -233,6 +234,7 @@ async function doImport() {
         <BaseDataViewer v-if="isJsonExample" :data="exampleText" lang="json" max-height="400px" />
         <BaseDataViewer v-else-if="isYamlExample" :data="exampleText" lang="yaml" max-height="400px" />
         <BaseDataViewer v-else-if="isXmlExample" :data="exampleText" lang="xml" max-height="400px" />
+        <BaseTabularViewer v-else-if="isCsvExample" :data="exampleText" format="csv" max-height="400px" />
         <pre v-else class="ex-pre">{{ exampleText }}</pre>
       </template>
     </el-card>

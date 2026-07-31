@@ -8,7 +8,7 @@ import { deleteExportTemplate, generateExport, getExportTemplates } from '@/api/
 import { getProjectLanguages } from '@/api/language'
 import { getTags } from '@/api/translation'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable, BaseTabularViewer } from '@/components/ui'
 import { ExportFormat, getFormatMeta } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -35,6 +35,7 @@ const dataViewLang = computed<'json' | 'yaml' | 'xml' | null>(() => {
     return 'xml'
   return null
 })
+const isCsv = computed(() => selectedFormat.value === ExportFormat.Csv)
 
 onMounted(() => loadExports())
 watch(projectSlug, () => {
@@ -184,6 +185,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
 
     <BaseDialog v-model="previewVisible" title="导出预览" width="750px">
       <BaseDataViewer v-if="dataViewLang" :data="previewContent" :lang="dataViewLang" max-height="400px" />
+      <BaseTabularViewer v-else-if="isCsv" :data="previewContent" format="csv" max-height="400px" />
       <BaseInput v-else v-model="previewContent" type="textarea" :rows="22" readonly style="font-family:monospace;font-size:13px" />
     </BaseDialog>
   </div>
