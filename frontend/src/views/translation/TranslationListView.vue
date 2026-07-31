@@ -42,6 +42,7 @@ const form = reactive({ translationKey: '', sourceText: '', tags: [] as string[]
 const transCache = reactive<Record<string, string>>({})
 const editKey = ref<Map<string, string>>(new Map())
 const editSource = ref<Map<string, string>>(new Map())
+const tagDelimiter = /[,;]/
 
 const appliedSearch = ref('')
 const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
@@ -446,7 +447,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
             modelValue={row.tags}
             onUpdate:modelValue={(v?: string[]) => { row.tags = v ?? row.tags }}
             onChange={() => onTagsChange(row)}
-            delimiter={[',', ';'] as unknown as string | RegExp}
+            delimiter={tagDelimiter}
           />
         )
       }
@@ -513,7 +514,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         </BaseFormItem><BaseFormItem label="原文">
           <BaseInput v-model="form.sourceText" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入原文" />
         </BaseFormItem><BaseFormItem label="标签">
-          <ElInputTag v-model="form.tags" style="width:100%" placeholder="输入标签，回车添加" clearable />
+          <ElInputTag v-model="form.tags" style="width:100%" placeholder="输入标签，回车添加" clearable :delimiter="tagDelimiter" />
         </BaseFormItem>
       </BaseForm>
       <template #footer>
