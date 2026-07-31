@@ -14,4 +14,6 @@ export interface BaseDataViewerProps {
   showLineNumbers?: boolean
   showToolbar?: boolean
   showBreadcrumb?: boolean
+  /** 是否显示 Fractured（分块）模式按钮，默认隐藏（仅 json 有此模式） */
+  showFractured?: boolean
 }

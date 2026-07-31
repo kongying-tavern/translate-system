@@ -12,6 +12,7 @@ withDefaults(defineProps<BaseDataViewerProps>(), {
   showLineNumbers: true,
   showToolbar: true,
   showBreadcrumb: true,
+  showFractured: false,
 })
 
 const emit = defineEmits<{
@@ -46,6 +47,7 @@ function handleExpansionChange(expandedCount: number) {
     :is-dark="isDark" :max-height="maxHeight" :min-height="minHeight"
     :initial-depth="initialDepth" :show-line-numbers="showLineNumbers"
     :show-toolbar="showToolbar" :show-breadcrumb="showBreadcrumb"
+    :show-fractured="showFractured"
     @node-click="handleNodeClick" @copy="handleCopy"
     @search-change="handleSearchChange" @expansion-change="handleExpansionChange"
   />

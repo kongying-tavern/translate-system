@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   data-visor-vue@0.0.4:
-    hash: vmk4z6d7vmw2tbfheaqrhzyom4
+    hash: b537jl5ulbooott4fmldsgpojq
     path: patches/data-visor-vue@0.0.4.patch
 
 importers:
@@ -21,7 +21,7 @@ importers:
         version: 1.18.1
       data-visor-vue:
         specifier: ^0.0.4
-        version: 0.0.4(patch_hash=vmk4z6d7vmw2tbfheaqrhzyom4)(vue@3.5.40(typescript@5.9.3))
+        version: 0.0.4(patch_hash=b537jl5ulbooott4fmldsgpojq)(vue@3.5.40(typescript@5.9.3))
       el-table-infinite-scroll:
         specifier: ^3.0.8
         version: 3.0.8(typescript@5.9.3)
@@ -3590,7 +3590,7 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  data-visor-vue@0.0.4(patch_hash=vmk4z6d7vmw2tbfheaqrhzyom4)(vue@3.5.40(typescript@5.9.3)):
+  data-visor-vue@0.0.4(patch_hash=b537jl5ulbooott4fmldsgpojq)(vue@3.5.40(typescript@5.9.3)):
     dependencies:
       fast-xml-parser: 5.10.1
       fracturedjsonjs: 5.0.1

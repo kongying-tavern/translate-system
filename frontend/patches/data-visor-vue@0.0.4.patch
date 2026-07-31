@@ -1,5 +1,25 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 1f2af82d06e5723d4c5d2600e326a687b226d1f9..85c71c49688d244f617809f25cd21ad6362562f5 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -36,6 +36,7 @@ interface DataVisorProps {
+   showLineNumbers?: boolean;
+   showToolbar?: boolean;
+   showBreadcrumb?: boolean;
++  showFractured?: boolean;
+ }
+ type DataVisorEmit = {
+   'node-click': [node: TreeNode];
+@@ -72,6 +73,7 @@ declare const __VLS_export: _$vue.DefineComponent<__VLS_PublicProps, {}, {}, {},
+   showLineNumbers: boolean;
+   showToolbar: boolean;
+   showBreadcrumb: boolean;
++  showFractured: boolean;
+ }, {}, {}, {}, string, _$vue.ComponentProvideOptions, false, {}, any>;
+ declare const _default: typeof __VLS_export;
+ //#endregion
 diff --git a/dist/index.js b/dist/index.js
-index 3e75e0b95406bb36b7de66610b1f5c368788ee6a..83479544a8325d3c45f36ae7ddf52e5bb5590b13 100644
+index 3e75e0b95406bb36b7de66610b1f5c368788ee6a..e9682be1a3e11a102f6deed7274322f06cf2c666 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -1051,9 +1051,10 @@ function sourceLinesTotal(value) {
@@ -100,3 +120,51 @@ index 3e75e0b95406bb36b7de66610b1f5c368788ee6a..83479544a8325d3c45f36ae7ddf52e5b
  		if (lang === "xml") {
  			parseXml(raw);
  			return minifyXmlWhitespace(raw);
+@@ -1686,7 +1695,8 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
+ 		isAwaitingChord: { type: Boolean },
+ 		displayMode: {},
+ 		lang: {},
+-		treeActionsDisabled: { type: Boolean }
++		treeActionsDisabled: { type: Boolean },
++		showFractured: { type: Boolean, default: true }
+ 	},
+ 	emits: [
+ 		"expandAll",
+@@ -1766,7 +1776,7 @@ const _sfc_main$5 = /* @__PURE__ */ defineComponent({
+ 						"aria-checked": props.displayMode === "tree",
+ 						onClick: _cache[4] || (_cache[4] = ($event) => setDisplayMode("tree"))
+ 					}, " Tree ", 10, _hoisted_6$2),
+-					props.lang === "json" ? (openBlock(), createElementBlock("button", {
++					props.lang === "json" && props.showFractured ? (openBlock(), createElementBlock("button", {
+ 						key: 0,
+ 						type: "button",
+ 						class: normalizeClass(["dv-toolbar__segment-btn", { "dv-toolbar__segment-btn--on": props.displayMode === "fractured" }]),
+@@ -2197,6 +2207,10 @@ var DataVisor_default = /* @__PURE__ */ export_helper_default(/* @__PURE__ */ de
+ 		showBreadcrumb: {
+ 			type: Boolean,
+ 			default: true
++		},
++		showFractured: {
++			type: Boolean,
++			default: true
+ 		}
+ 	}, {
+ 		"displayMode": { default: "tree" },
+@@ -2500,6 +2514,7 @@ var DataVisor_default = /* @__PURE__ */ export_helper_default(/* @__PURE__ */ de
+ 					"display-mode": displayMode.value,
+ 					lang: props.lang,
+ 					"tree-actions-disabled": !isTreeViewMode.value,
++					"show-fractured": props.showFractured,
+ 					"onUpdate:displayMode": setDisplayModeFromToolbar,
+ 					onExpandAll: _cache[0] || (_cache[0] = ($event) => unref(expansion).expandAll()),
+ 					onCollapseAll: _cache[1] || (_cache[1] = ($event) => unref(expansion).collapseAll()),
+@@ -2510,7 +2525,8 @@ var DataVisor_default = /* @__PURE__ */ export_helper_default(/* @__PURE__ */ de
+ 					"is-awaiting-chord",
+ 					"display-mode",
+ 					"lang",
+-					"tree-actions-disabled"
++					"tree-actions-disabled",
++					"show-fractured"
+ 				])) : createCommentVNode("v-if", true),
+ 				isTreeViewMode.value && unref(overlay).searchOpen.value && !unref(overlay).searchAnchorPos.value ? (openBlock(), createBlock(_sfc_main$7, mergeProps({
+ 					key: 1,
