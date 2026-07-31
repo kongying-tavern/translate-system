@@ -1,10 +1,12 @@
 .base-input {
-  .el-input__wrapper {
+  :deep(.el-input__wrapper),
+  :deep(.el-textarea__inner) {
     border-radius: 8px;
     transition: box-shadow 0.2s;
   }
 
-  .el-input__wrapper.is-focus {
+  :deep(.el-input__wrapper.is-focus),
+  :deep(.el-textarea__inner:focus) {
     box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2) !important;
   }
 }

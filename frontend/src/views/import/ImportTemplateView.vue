@@ -180,7 +180,7 @@ async function doImport() {
         </BaseCheckbox>
       </BaseFormItem>
       <BaseFormItem>
-        <BaseRadioGroup v-model="inputMode" button size="small" :options="[{ label: '文件', value: 'file' }, { label: '文本', value: 'text' }]" />
+        <BaseRadioGroup v-model="inputMode" button :options="[{ label: '文件', value: 'file' }, { label: '文本', value: 'text' }]" />
       </BaseFormItem>
       <BaseFormItem v-if="inputMode === 'file'">
         <el-upload :auto-upload="false" :show-file-list="false" :accept="fileAccept" @change="onFileChange">

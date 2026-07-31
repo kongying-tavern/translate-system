@@ -1,5 +1,5 @@
 .base-tabs {
-  .el-tabs__content { display: none; }
+  :deep(.el-tabs__content) { display: none; }
 
   &.el-tabs--border-card {
     border: none;
