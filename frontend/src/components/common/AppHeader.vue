@@ -108,7 +108,6 @@ watch(projectSlug, async (slug) => {
   }
   else {
     projectName.value = ''
-    auth.setActiveProject('', '', undefined, null)
   }
 }, { immediate: true })
 
