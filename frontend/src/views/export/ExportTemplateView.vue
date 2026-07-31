@@ -8,7 +8,7 @@ import { deleteExportTemplate, generateExport, getExportTemplates } from '@/api/
 import { getProjectLanguages } from '@/api/language'
 import { getTags } from '@/api/translation'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { ExportFormat, getFormatMeta } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -25,16 +25,15 @@ const allTags = ref<string[]>([])
 const previewVisible = ref(false)
 const previewContent = ref('')
 const selectedFormat = computed(() => templates.value.find(t => t.id === selectedTemplate.value)?.formatType)
-const isJsonPreview = computed(() => selectedFormat.value === ExportFormat.FlatJson || selectedFormat.value === ExportFormat.NestedJson)
-const isDataPreview = computed(() => selectedFormat.value === ExportFormat.FlatYaml || selectedFormat.value === ExportFormat.NestedYaml)
-const previewLang = computed(() => (isDataPreview.value ? 'yaml' : 'json') as 'yaml' | 'json')
-const previewData = computed(() => {
-  try {
-    return JSON.parse(previewContent.value)
-  }
-  catch {
-    return null
-  }
+const dataViewLang = computed<'json' | 'yaml' | 'xml' | null>(() => {
+  const fmt = selectedFormat.value
+  if (fmt === ExportFormat.FlatYaml || fmt === ExportFormat.NestedYaml)
+    return 'yaml'
+  if (fmt === ExportFormat.FlatJson || fmt === ExportFormat.NestedJson)
+    return 'json'
+  if (fmt === ExportFormat.FlatXml || fmt === ExportFormat.NestedXml)
+    return 'xml'
+  return null
 })
 
 onMounted(() => loadExports())
@@ -184,10 +183,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
     <EmptyState v-else description="暂无导出模板，请先新建一个" />
 
     <BaseDialog v-model="previewVisible" title="导出预览" width="750px">
-      <div v-if="isJsonPreview" class="preview-json">
-        <BaseJsonViewer :value="previewData" />
-      </div>
-      <BaseDataViewer v-else-if="isDataPreview" :data="previewContent" :lang="previewLang" max-height="400px" />
+      <BaseDataViewer v-if="dataViewLang" :data="previewContent" :lang="dataViewLang" max-height="400px" />
       <BaseInput v-else v-model="previewContent" type="textarea" :rows="22" readonly style="font-family:monospace;font-size:13px" />
     </BaseDialog>
   </div>
@@ -199,5 +195,4 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
 .opt-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
 .opt-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .opt-meta { color: #909399; font-size: 12px; margin-left: 12px; white-space: nowrap; }
-.preview-json { max-height: 400px; overflow-y: auto; }
 </style>

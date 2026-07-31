@@ -5,7 +5,7 @@ import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BaseJsonViewer, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 
@@ -62,10 +62,8 @@ const exampleText = computed(() => {
   }
 })
 
-const entriesJsonData = computed(() => JSON.parse(entriesExample.json) as Record<string, unknown>)
 const isJsonExample = computed(() => fmt.value === ImportFormat.JSON)
 const isYamlExample = computed(() => fmt.value === ImportFormat.YAML)
-const exampleJsonData = computed(() => isJsonExample.value ? JSON.parse(exampleText.value) as Record<string, unknown> : null)
 
 onMounted(async () => {
   const { data: res } = await client.get(`/projects/${projectSlug.value}/languages`)
@@ -214,7 +212,7 @@ async function doImport() {
         </p>
         <BaseTabs v-model="exampleTab" type="card" :tabs="[{ key: 'json', label: 'JSON' }, { key: 'csv', label: 'CSV' }, { key: 'yaml', label: 'YAML' }, { key: 'xml', label: 'XML' }]">
           <template #tab-json>
-            <BaseJsonViewer :value="entriesJsonData" />
+            <BaseDataViewer :data="entriesExample.json" lang="json" max-height="400px" />
           </template>
           <template #tab-csv>
             <pre class="ex-pre">{{ entriesExample.csv }}</pre>
@@ -231,7 +229,7 @@ async function doImport() {
         <p style="margin:0 0 8px;font-size:13px;color:#909399">
           {{ exampleTitle }}
         </p>
-        <BaseJsonViewer v-if="isJsonExample" :value="exampleJsonData" />
+        <BaseDataViewer v-if="isJsonExample" :data="exampleText" lang="json" max-height="400px" />
         <BaseDataViewer v-else-if="isYamlExample" :data="exampleText" lang="yaml" max-height="400px" />
         <pre v-else class="ex-pre">{{ exampleText }}</pre>
       </template>
