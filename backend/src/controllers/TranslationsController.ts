@@ -248,7 +248,7 @@ export class TranslationsController extends Controller {
   @Put('{projectSlug}/translations/{key}')
   @Security('auth')
   public async saveForKey(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() key: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
-    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     return ok(await transService.saveForLang(access.projectId, key, '', body))
   }
 
@@ -264,6 +264,6 @@ export class TranslationsController extends Controller {
   @Security('auth')
   public async saveForLang(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() key: string, @Path() langCode: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
-    return ok(await transService.saveForLang(access.projectId, key, langCode, body))
+    return ok(await transService.saveForLang(access.projectId, key, langCode, body, false))
   }
 }

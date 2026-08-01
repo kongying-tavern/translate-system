@@ -115,9 +115,11 @@ export async function saveForLang(projectId: string, translationKey: string, lan
   translatedText?: string
   tags?: string[]
   context?: string
-}) {
+}, createIfMissing = true) {
   let key = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: translationKey } } })
   if (!key) {
+    if (!createIfMissing)
+      throw new AppError(1003, 'Key not found')
     key = await prisma.translationKey.create({
       data: { projectId, key: translationKey, sourceText: translationKey, context: data.context || '', tags: data.tags || [] },
     })
