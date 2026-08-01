@@ -44,6 +44,9 @@ const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
           </el-menu-item>
         </el-sub-menu>
       </template>
+      <el-menu-item v-else index="/projects">
+        <BaseIcon><Monitor /></BaseIcon><span>项目管理</span>
+      </el-menu-item>
     </el-menu>
     <div class="sidebar-bottom">
       <el-menu :default-active="route.path" router background-color="#1d1e2c" text-color="#bfcbd9" active-text-color="#409eff">

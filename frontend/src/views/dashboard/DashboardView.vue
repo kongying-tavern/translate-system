@@ -21,6 +21,8 @@ onMounted(async () => {
   }
   else {
     noProject.value = true
+    auth.activeProjectSlug = ''
+    auth.activeProjectName = ''
     localStorage.removeItem('activeProjectSlug')
     localStorage.removeItem('activeProjectName')
   }
