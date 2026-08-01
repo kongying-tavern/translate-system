@@ -48,7 +48,7 @@ const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
     <div class="sidebar-bottom">
       <el-menu :default-active="route.path" router background-color="#1d1e2c" text-color="#bfcbd9" active-text-color="#409eff">
         <el-menu-item index="/api-doc">
-          <BaseIcon><Document /></BaseIcon><span>API 说明</span>
+          <BaseIcon><Document /></BaseIcon><span>开放接口说明</span>
         </el-menu-item>
       </el-menu>
     </div>

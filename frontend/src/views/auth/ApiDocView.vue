@@ -97,6 +97,24 @@ function onEndpointTabChange(key: string, v: unknown): void {
   activeEndpoint.value[key] = v == null ? '' : String(v)
 }
 
+const detailTab = ref<Record<string, string>>({})
+
+/** 接口详情子标签：按需返回非空的三个区块 */
+function detailTabs(ep: Endpoint): { name: string, label: string }[] {
+  const tabs: { name: string, label: string }[] = []
+  if (ep.paramRows.length)
+    tabs.push({ name: 'params', label: 'Path / Query 参数' })
+  if (ep.bodyFields.length)
+    tabs.push({ name: 'body', label: '请求体字段' })
+  if (ep.responseFields.length)
+    tabs.push({ name: 'response', label: '响应 data 字段' })
+  return tabs
+}
+
+function onDetailTabChange(key: string, v: unknown): void {
+  detailTab.value[key] = v == null ? '' : String(v)
+}
+
 const groups = computed<EndpointGroup[]>(() => {
   const order: string[] = []
   const map = new Map<string, Endpoint[]>()
@@ -197,7 +215,7 @@ onMounted(async () => {
     parseOpenApi(res.data)
   }
   catch {
-    ElMessage.error('加载 API 文档失败')
+    ElMessage.error('加载开放接口说明失败')
   }
   finally {
     loading.value = false
@@ -207,14 +225,14 @@ onMounted(async () => {
 
 <template>
   <div class="api-doc-page">
-    <BasePageHeader title="API 文档" />
+    <BasePageHeader title="开放接口说明" />
 
     <el-tabs v-model="activeTab" tab-position="left" class="doc-tabs">
       <el-tab-pane label="鉴权与调用方式" name="auth">
         <div class="pane-body">
           <el-card shadow="never" class="auth-card">
             <p class="intro">
-              通过 <code>x-api-key</code> + <code>x-api-secret</code> 请求头鉴权，在 API 路径前加 <code>/api/v1/apikey</code> 前缀代理访问白名单接口。
+              以下为<strong>供外部方调用</strong>的开放接口（均加入白名单）。通过 <code>x-api-key</code> + <code>x-api-secret</code> 请求头鉴权，在 API 路径前加 <code>/api/v1/apikey</code> 前缀代理访问。
             </p>
             <h4 class="section-title">
               请求头
@@ -230,7 +248,7 @@ onMounted(async () => {
 
       <el-tab-pane v-for="g in groups" :key="g.key" :label="g.label" :name="g.key">
         <div class="pane-body">
-          <div v-loading="loading">
+          <div v-loading="loading" class="group-wrap">
             <template v-if="g.items.length">
               <el-tabs
                 class="endpoint-tabs"
@@ -238,35 +256,48 @@ onMounted(async () => {
                 @update:model-value="onEndpointTabChange(g.key, $event)"
               >
                 <el-tab-pane v-for="ep in g.items" :key="`${ep.method}-${ep.path}`" :name="`${ep.method}-${ep.path}`" :label="ep.label">
-                  <el-card class="endpoint-card" shadow="never">
-                    <template #header>
+                  <div class="endpoint-panel">
+                    <div class="endpoint-head">
                       <div class="endpoint-header">
                         <span class="method-badge" :style="{ background: methodColor[ep.method] }">{{ ep.method.toUpperCase() }}</span>
                         <code class="endpoint-path">{{ ep.path }}</code>
                       </div>
-                    </template>
-                    <p v-if="ep.summary" class="endpoint-summary">
-                      {{ ep.summary }}
-                    </p>
-                    <template v-if="ep.paramRows.length">
-                      <h5 class="section-title">
-                        Path / Query 参数
-                      </h5>
-                      <BaseTable :data="ep.paramRows" :columns="paramColumns" stripe size="small" />
-                    </template>
-                    <template v-if="ep.bodyFields.length">
-                      <h5 class="section-title">
-                        请求体字段
-                      </h5>
-                      <BaseTable :data="ep.bodyFields" :columns="fieldColumns" stripe size="small" />
-                    </template>
-                    <template v-if="ep.responseFields.length">
-                      <h5 class="section-title">
-                        响应 data 字段
-                      </h5>
-                      <BaseTable :data="ep.responseFields" :columns="fieldColumns" stripe size="small" />
-                    </template>
-                  </el-card>
+                      <p v-if="ep.summary" class="endpoint-summary">
+                        {{ ep.summary }}
+                      </p>
+                    </div>
+                    <div class="endpoint-detail">
+                      <el-tabs
+                        class="detail-tabs"
+                        :model-value="detailTab[endpointKey(ep)] ?? detailTabs(ep)[0]?.name"
+                        @update:model-value="onDetailTabChange(endpointKey(ep), $event)"
+                      >
+                        <el-tab-pane v-for="t in detailTabs(ep)" :key="t.name" :name="t.name" :label="t.label">
+                          <BaseTable
+                            v-if="t.name === 'params'"
+                            :data="ep.paramRows"
+                            :columns="paramColumns"
+                            stripe
+                            size="small"
+                          />
+                          <BaseTable
+                            v-else-if="t.name === 'body'"
+                            :data="ep.bodyFields"
+                            :columns="fieldColumns"
+                            stripe
+                            size="small"
+                          />
+                          <BaseTable
+                            v-else
+                            :data="ep.responseFields"
+                            :columns="fieldColumns"
+                            stripe
+                            size="small"
+                          />
+                        </el-tab-pane>
+                      </el-tabs>
+                    </div>
+                  </div>
                 </el-tab-pane>
               </el-tabs>
             </template>
@@ -290,26 +321,108 @@ onMounted(async () => {
   min-height: 0;
 }
 
-.api-doc-page :deep(.el-tabs__content) {
-  overflow-y: auto;
+.api-doc-page :deep(.doc-tabs .el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-/* 第二层横向 tab 固定在可视区顶部，不随内容滚动 */
-.endpoint-tabs :deep(.el-tabs__header) {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: #fff;
-  margin-bottom: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .06);
+.api-doc-page :deep(.doc-tabs .el-tab-pane) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
+/* 接口选择横向 tab：header 固定，内容区占满剩余高度 */
 .endpoint-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   margin: 0;
+  overflow: hidden;
+}
+
+.endpoint-tabs :deep(.el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.endpoint-tabs :deep(.el-tab-pane) {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .pane-body {
-  padding: 0 8px 16px 12px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0 8px 0 12px;
+  overflow-y: auto;
+}
+
+.group-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 接口详情：上部方法+路径+描述固定，下部子标签区滚动 */
+.endpoint-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.endpoint-head {
+  flex-shrink: 0;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+}
+
+.endpoint-detail {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  padding: 10px 16px;
+}
+
+.detail-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.detail-tabs :deep(.el-tabs__header) {
+  flex-shrink: 0;
+}
+
+.detail-tabs :deep(.el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .auth-card {
@@ -336,10 +449,6 @@ onMounted(async () => {
   background: #f8f9fa;
 }
 
-.endpoint-card :deep(.el-card__header) {
-  padding: 10px 16px;
-}
-
 .endpoint-header {
   display: flex;
   align-items: center;
@@ -350,23 +459,30 @@ onMounted(async () => {
   flex-shrink: 0;
   min-width: 52px;
   text-align: center;
-  padding: 2px 8px;
+  padding: 3px 10px;
   border-radius: 4px;
   color: #fff;
   font-size: 12px;
   font-weight: 600;
+  letter-spacing: .5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
 }
 
 .endpoint-path {
   font-family: 'JetBrains Mono', Consolas, monospace;
   font-size: 13px;
+  font-weight: 500;
+  color: #4a5568;
   overflow-wrap: anywhere;
 }
 
 .endpoint-summary {
-  margin: 0 0 8px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed #ebeef5;
   color: #606266;
   font-size: 13px;
+  line-height: 1.6;
 }
 
 .section-title {
