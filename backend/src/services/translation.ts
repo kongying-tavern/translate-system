@@ -4,11 +4,17 @@ import { AppError } from '../utils/AppError'
 import { resolveProject } from './project'
 
 export interface BatchUpsertItem {
+  /** 翻译 Key */
   translationKey: string
+  /** 原文 */
   sourceText?: string
+  /** 备注 */
   context?: string
+  /** 标签 */
   tags?: string[]
+  /** 语言代码 */
   languageCode: string
+  /** 译文 */
   translatedText?: string
 }
 

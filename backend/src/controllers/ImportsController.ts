@@ -17,21 +17,31 @@ import { yamlParse } from '../services/import/yaml'
 import { AppError } from '../utils/AppError'
 
 export interface ImportResult {
+  /** 导入总数 */
   imported: number
+  /** 新建数量 */
   created: number
+  /** 跳过数量 */
   skipped: number
 }
 
 export interface ImportEntriesBody {
+  /** 导入数据 */
   data: string | Record<string, unknown>
+  /** 覆盖已有Key */
   overwrite?: boolean
 }
 
 export interface ImportTranslationsBody {
+  /** 目标语言代码 */
   languageCode?: string
+  /** 数据格式类型 */
   formatType: string
+  /** 导入数据 */
   data: string | Record<string, unknown>
+  /** 覆盖已有译文 */
   overwrite?: boolean
+  /** 自动创建Key */
   autoCreate?: boolean
 }
 
@@ -157,6 +167,9 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
 export class ImportsController extends Controller {
   /**
    * 批量导入 key（json/yaml/xml/properties/csv，自动识别格式）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
    * @summary 批量导入 Key
    */
   @Post('{projectSlug}/imports/entries')
@@ -169,6 +182,9 @@ export class ImportsController extends Controller {
 
   /**
    * 批量导入译文（需指定格式类型）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
    * @summary 批量导入译文
    */
   @Post('{projectSlug}/imports/translations')

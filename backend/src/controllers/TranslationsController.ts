@@ -11,59 +11,89 @@ import * as transService from '../services/translation'
 import { AppError } from '../utils/AppError'
 
 export interface TranslationValue {
+  /** 译文记录ID */
   id: string
+  /** 已翻译文本 */
   translatedText: string
+  /** 是否已审核 */
   isReviewed: boolean
+  /** 审核备注（可空） */
   reviewerComment: string | null
 }
 
 export interface GroupedRow {
+  /** 行序号 */
   rowIndex: number
+  /** 排序值 */
   sortOrder: number
+  /** 翻译键名 */
   translationKey: string
+  /** 原文文本 */
   sourceText: string
+  /** 备注上下文 */
   context: string
+  /** 标签列表 */
   tags: string[]
+  /** 键ID */
   keyId: string
+  /** 各语言译文（键为语言代码） */
   translations: Record<string, TranslationValue>
 }
 
 export interface TranslationCount {
+  /** 总条数 */
   total: number
+  /** 已翻译条数 */
   translated: number
+  /** 语言代码 */
   languageCode: string
 }
 
 export interface CreateTranslationBody {
+  /** 翻译键名 */
   translationKey: string
+  /** 语言代码 */
   languageCode: string
+  /** 原文文本 */
   sourceText: string
+  /** 已翻译文本（可空） */
   translatedText?: string
+  /** 备注上下文（可空） */
   context?: string
+  /** 标签列表（可空） */
   tags?: string[]
 }
 
 export interface UpdateKeyBody {
+  /** 新的翻译键名 */
   translationKey: string
+  /** 原文文本（可空） */
   sourceText?: string
 }
 
 export interface SaveForLangBody {
+  /** 已翻译文本（可空） */
   translatedText?: string
+  /** 标签列表（可空） */
   tags?: string[]
+  /** 备注上下文（可空） */
   context?: string
 }
 
 export interface SortOrderItem {
+  /** 键ID */
   keyId: string
+  /** 排序值 */
   sortOrder: number
 }
 
 export interface SortOrdersBody {
+  /** 排序项列表 */
   orders: SortOrderItem[]
 }
 
 export interface BatchBody {
+  /** 批量导入的翻译项 */
   translations: BatchUpsertItem[]
 }
 
@@ -72,6 +102,14 @@ export interface BatchBody {
 export class TranslationsController extends Controller {
   /**
    * 分组翻译列表（每 key 一行，内嵌各语言译文）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param page 页码
+   * @param pageSize 每页条数
+   * @param languageCode 语言代码
+   * @param search 搜索关键词
+   * @param tags 标签列表
+   * @param untransOnly 仅未翻译
    * @summary 分组翻译列表
    */
   @Get('{projectSlug}/translations')
@@ -100,7 +138,12 @@ export class TranslationsController extends Controller {
     return okPage(result.list as GroupedRow[], result.total, p, size)
   }
 
-  /** 新增 key */
+  /**
+   * 新增 key
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
+   */
   @Post('{projectSlug}/translations')
   @Security('auth')
   public async create(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: CreateTranslationBody): Promise<ApiOk<unknown>> {
@@ -108,7 +151,13 @@ export class TranslationsController extends Controller {
     return ok(await transService.createTranslation(access.projectId, body))
   }
 
-  /** 更新 key 与原文（必须在 translations/{key}/{langCode} 之前） */
+  /**
+   * 更新 key 与原文（必须在 translations/{key}/{langCode} 之前）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param oldKey 原键名
+   * @param body 请求体
+   */
   @Put('{projectSlug}/translations/key/{oldKey}')
   @Security('auth')
   public async updateKey(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() oldKey: string, @Body() body: UpdateKeyBody): Promise<ApiOk<unknown>> {
@@ -120,6 +169,10 @@ export class TranslationsController extends Controller {
 
   /**
    * 统计某语言维度下已翻译/总数
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param languageCode 语言代码
+   * @param tags 标签列表
    * @summary 翻译数量统计
    */
   @Get('{projectSlug}/translations/count')
@@ -131,6 +184,8 @@ export class TranslationsController extends Controller {
 
   /**
    * 项目全部标签列表
+   * @param req 请求对象
+   * @param projectSlug 项目标识
    * @summary 标签列表
    */
   @Get('{projectSlug}/translations/tags/list')
@@ -140,7 +195,12 @@ export class TranslationsController extends Controller {
     return ok(await transService.getAllTags(access.projectId))
   }
 
-  /** 删除 key */
+  /**
+   * 删除 key
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param translationId 翻译记录ID
+   */
   @Delete('{projectSlug}/translations/{translationId}')
   @Security('auth')
   public async remove(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() translationId: string): Promise<ApiOk<null>> {
@@ -149,7 +209,12 @@ export class TranslationsController extends Controller {
     return ok(null)
   }
 
-  /** 批量保存排序 */
+  /**
+   * 批量保存排序
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
+   */
   @Put('{projectSlug}/translations/sortOrders')
   @Security('auth')
   public async updateSortOrders(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: SortOrdersBody): Promise<ApiOk<null>> {
@@ -159,7 +224,12 @@ export class TranslationsController extends Controller {
     return ok(null)
   }
 
-  /** 批量导入译文 */
+  /**
+   * 批量导入译文
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
+   */
   @Post('{projectSlug}/translations/batch')
   @Security('auth')
   public async batch(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: BatchBody): Promise<ApiOk<null>> {
@@ -168,7 +238,13 @@ export class TranslationsController extends Controller {
     return ok(null)
   }
 
-  /** 保存 key 级属性（context/tags，无语言维度） */
+  /**
+   * 保存 key 级属性（context/tags，无语言维度）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param key 翻译键名
+   * @param body 请求体
+   */
   @Put('{projectSlug}/translations/{key}')
   @Security('auth')
   public async saveForKey(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() key: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
@@ -176,7 +252,14 @@ export class TranslationsController extends Controller {
     return ok(await transService.saveForLang(access.projectId, key, '', body))
   }
 
-  /** 保存指定语言的译文 */
+  /**
+   * 保存指定语言的译文
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param key 翻译键名
+   * @param langCode 语言代码
+   * @param body 请求体
+   */
   @Put('{projectSlug}/translations/{key}/{langCode}')
   @Security('auth')
   public async saveForLang(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() key: string, @Path() langCode: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {

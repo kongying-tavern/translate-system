@@ -107,6 +107,8 @@ middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴�
 - tsoa 不支持可选路径参数（`{langCode?}`），需拆成两条路由：`PUT .../{key}`（key 级属性）与 `PUT .../{key}/{langCode}`（语言级）。
 - 路由注册顺序 = 方法声明顺序，literal 路由（`key/:oldKey`、`sortOrders`、`batch`）必须声明在参数路由（`{key}`、`{key}/{langCode}`）之前，否则被吃掉。
 - 响应类型用 `Date`（tsoa 序列化为 ISO），`description` 等可空字段用 `string | null`；Prisma 返回行与自定义 Row 接口不一致时用 `as unknown as` 转换。
+- OpenAPI 字段描述来源：接口/模型属性上方的 `/** 中文说明 */` JSDoc 会映射到 schema 的 `description`；tsoa 无法穿透 Prisma 生成的 client 类型，直接暴露的 Prisma 模型（如 `ProjectLanguage`）应改为控制器内自定义 Row 接口（如 `ProjectLanguageRow`）并加 JSDoc，服务层返回的 Prisma 行结构兼容可直接断言赋值。
+- Path/Query 参数描述来自方法 JSDoc 的 `@param 参数名 中文描述`（`@Body` 用 `@param body` 会成为 requestBody 描述）；`@Request() req` 用 `@param req`。ESLint jsdoc 规则要求 `@param` 覆盖方法全部参数（req → path/query → body）且多行块 `/**` 独占一行，`@summary` 保持最后一个标签，否则 `pnpm lint` 报 warning。
 - 路由拆分后前端调用 `saveTranslation(projectId, key, '', { context })` 会产生尾部斜杠 `/key/`，Express 非严格模式会匹配 `/{key}` 路由。
 
 ### 前端分层

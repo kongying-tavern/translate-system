@@ -8,24 +8,41 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 
 export interface ApiKeyRow {
+  /** 密钥 ID */
   id: string
+  /** 密钥名称 */
   name: string
+  /** 密钥标识 */
   apiKey: string
+  /** 是否启用 */
   enabled: boolean
+  /** 最后使用时间 */
   lastUsed: string | null
+  /** 创建时间 */
   createdAt: string
 }
 
 export interface ApiKeyCreated {
+  /** 密钥 ID */
   id: string
+  /** 密钥名称 */
   name: string
+  /** 密钥标识 */
   apiKey: string
+  /** 一次性完整密钥 */
   secret: string
+  /** 创建时间 */
   createdAt: string
 }
 
 export interface CreateApiKeyBody {
+  /** 密钥名称 */
   name: string
+}
+
+export interface UpdateApiKeyBody {
+  /** 是否启用 */
+  enabled: boolean
 }
 
 @Route('me')
@@ -56,15 +73,24 @@ export class ApiKeysController extends Controller {
     return ok({ id: k.id, name: k.name, apiKey: k.apiKey, secret: rawSecret, createdAt: k.createdAt.toISOString() })
   }
 
-  /** 启用/禁用 API Key */
+  /**
+   * 启用/禁用 API Key
+   * @param req 请求对象
+   * @param id 密钥 ID
+   * @param body 请求体
+   */
   @Put('keys/{id}')
   @Security('auth')
-  public async updateKey(@Request() req: AuthRequest, @Path() id: string, @Body() body: { enabled: boolean }): Promise<ApiOk<null>> {
+  public async updateKey(@Request() req: AuthRequest, @Path() id: string, @Body() body: UpdateApiKeyBody): Promise<ApiOk<null>> {
     await prisma.apiKey.update({ where: { id, userId: req.userId! }, data: { enabled: body.enabled } })
     return ok(null)
   }
 
-  /** 删除 API Key */
+  /**
+   * 删除 API Key
+   * @param req 请求对象
+   * @param id 密钥 ID
+   */
   @Delete('keys/{id}')
   @Security('auth')
   public async deleteKey(@Request() req: AuthRequest, @Path() id: string): Promise<ApiOk<null>> {

@@ -1,4 +1,3 @@
-import type { ProjectLanguage } from '@prisma/client'
 import type { ApiOk, ApiPage } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
 import { Body, Controller, Delete, Get, Path, Post, Put, Query, Request, Route, Security, Tags } from '@tsoa/runtime'
@@ -12,66 +11,116 @@ import * as projectService from '../services/project'
 import { AppError } from '../utils/AppError'
 
 export interface ProjectRow {
+  /** 项目 ID */
   id: string
+  /** 创建者用户 ID */
   userId: string
+  /** 项目标识 */
   code: string
+  /** 项目名称 */
   name: string
+  /** 项目描述 */
   description: string | null
+  /** 源语言 */
   sourceLanguage: string
+  /** 创建时间 */
   createdAt: Date
+  /** 更新时间 */
   updatedAt: Date
+  /** 当前用户项目角色 */
   projectRole?: string | null
 }
 
 export interface CreateProjectBody {
+  /** 项目名称 */
   name: string
+  /** 项目标识 */
   code: string
+  /** 项目描述 */
   description?: string
+  /** 源语言 */
   sourceLanguage?: string
 }
 
 export interface UpdateProjectBody {
+  /** 项目名称 */
   name?: string
+  /** 项目标识 */
   code?: string
+  /** 项目描述 */
   description?: string
+  /** 源语言 */
   sourceLanguage?: string
 }
 
 export interface AddLanguageBody {
+  /** 语言代码 */
   languageCode: string
 }
 
 export interface AliasBody {
+  /** 语言别名 */
   alias: string
 }
 
 export interface SortOrderBody {
+  /** 语言排序值 */
   sortOrder: number
 }
 
 export interface MemberRow {
+  /** 成员关系 ID */
   id: string
+  /** 用户 ID */
   userId: string
+  /** 用户名 */
   username: string
+  /** 邮箱 */
   email: string
+  /** 系统角色 */
   role: string
+  /** 项目角色 */
   projectRole: string
+  /** 加入时间 */
   createdAt: Date
 }
 
 export interface AddMemberBody {
+  /** 用户邮箱 */
   email: string
+  /** 项目角色 */
   projectRole: string
 }
 
 export interface MemberRoleBody {
+  /** 项目角色 */
   projectRole: string
+}
+
+export interface ProjectLanguageRow {
+  /** 语言记录 ID */
+  id: string
+  /** 项目 ID */
+  projectId: string
+  /** 语言代码 */
+  languageCode: string
+  /** 语言别名 */
+  alias: string | null
+  /** 排序值 */
+  sortOrder: number
+  /** 创建时间 */
+  createdAt: Date
 }
 
 @Route('projects')
 @Tags('Projects')
 export class ProjectsController extends Controller {
-  /** 项目列表（分页，仅返回自己有成员/owner 身份的项目） */
+  /**
+   * 项目列表（分页，仅返回自己有成员/owner 身份的项目）
+   * @param req 请求对象
+   * @param page 页码
+   * @param pageSize 每页数量
+   */
   @Get()
   @Security('auth')
   public async list(@Request() req: AuthRequest, @Query() page?: string, @Query() pageSize?: string): Promise<ApiOk<ApiPage<ProjectRow>>> {
@@ -81,7 +130,11 @@ export class ProjectsController extends Controller {
     return okPage(projects as unknown as ProjectRow[], total, p, size)
   }
 
-  /** 创建项目（仅系统超管） */
+  /**
+   * 创建项目（仅系统超管）
+   * @param req 请求对象
+   * @param body 请求体
+   */
   @Post()
   @Security('auth')
   public async create(@Request() req: AuthRequest, @Body() body: CreateProjectBody): Promise<ApiOk<ProjectRow>> {
@@ -93,7 +146,11 @@ export class ProjectsController extends Controller {
     return ok(await projectService.createProject(req.userId!, body))
   }
 
-  /** 获取项目详情 */
+  /**
+   * 获取项目详情
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   */
   @Get('{projectSlug}')
   @Security('auth')
   public async getOne(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string): Promise<ApiOk<ProjectRow>> {
@@ -102,7 +159,12 @@ export class ProjectsController extends Controller {
     return ok({ ...project, projectRole: access.projectRole || null })
   }
 
-  /** 更新项目（仅系统超管） */
+  /**
+   * 更新项目（仅系统超管）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
+   */
   @Put('{projectSlug}')
   @Security('auth')
   public async update(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: UpdateProjectBody): Promise<ApiOk<ProjectRow>> {
@@ -111,7 +173,11 @@ export class ProjectsController extends Controller {
     return ok(await projectService.updateProject(access.projectId, body))
   }
 
-  /** 删除项目（仅系统超管） */
+  /**
+   * 删除项目（仅系统超管）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   */
   @Delete('{projectSlug}')
   @Security('auth')
   public async remove(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string): Promise<ApiOk<null>> {
@@ -123,26 +189,38 @@ export class ProjectsController extends Controller {
 
   /**
    * 项目语言列表
+   * @param req 请求对象
+   * @param projectSlug 项目标识
    * @summary 项目语言列表
    */
   @Get('{projectSlug}/languages')
   @Security('auth')
-  public async listLanguages(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string): Promise<ApiOk<ProjectLanguage[]>> {
+  public async listLanguages(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string): Promise<ApiOk<ProjectLanguageRow[]>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
-    return ok(await langService.listProjectLanguages(access.projectId))
+    return ok(await langService.listProjectLanguages(access.projectId) as ProjectLanguageRow[])
   }
 
-  /** 添加项目语言 */
+  /**
+   * 添加项目语言
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
+   */
   @Post('{projectSlug}/languages')
   @Security('auth')
-  public async addLanguage(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: AddLanguageBody): Promise<ApiOk<ProjectLanguage>> {
+  public async addLanguage(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: AddLanguageBody): Promise<ApiOk<ProjectLanguageRow>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     if (!body.languageCode)
       throw new AppError(ErrCode.InvalidParams, 'languageCode is required')
-    return ok(await langService.addProjectLanguage(access.projectId, body.languageCode))
+    return ok(await langService.addProjectLanguage(access.projectId, body.languageCode) as ProjectLanguageRow)
   }
 
-  /** 移除项目语言 */
+  /**
+   * 移除项目语言
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param langCode 语言代码
+   */
   @Delete('{projectSlug}/languages/{langCode}')
   @Security('auth')
   public async removeLanguage(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string): Promise<ApiOk<null>> {
@@ -151,23 +229,39 @@ export class ProjectsController extends Controller {
     return ok(null)
   }
 
-  /** 设置语言别名 */
+  /**
+   * 设置语言别名
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param langCode 语言代码
+   * @param body 请求体
+   */
   @Put('{projectSlug}/languages/{langCode}/alias')
   @Security('auth')
-  public async updateAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: AliasBody): Promise<ApiOk<ProjectLanguage>> {
+  public async updateAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: AliasBody): Promise<ApiOk<ProjectLanguageRow>> {
     await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    return ok(await langService.updateLanguageAlias(langCode, body.alias))
+    return ok(await langService.updateLanguageAlias(langCode, body.alias) as ProjectLanguageRow)
   }
 
-  /** 设置语言排序 */
+  /**
+   * 设置语言排序
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param langCode 语言代码
+   * @param body 请求体
+   */
   @Put('{projectSlug}/languages/{langCode}/sortOrder')
   @Security('auth')
-  public async updateSortOrder(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: SortOrderBody): Promise<ApiOk<ProjectLanguage>> {
+  public async updateSortOrder(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: SortOrderBody): Promise<ApiOk<ProjectLanguageRow>> {
     await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    return ok(await langService.updateLanguageSortOrder(langCode, body.sortOrder))
+    return ok(await langService.updateLanguageSortOrder(langCode, body.sortOrder) as ProjectLanguageRow)
   }
 
-  /** 项目成员列表 */
+  /**
+   * 项目成员列表
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   */
   @Get('{projectSlug}/members')
   @Security('auth')
   public async listMembers(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string): Promise<ApiOk<MemberRow[]>> {
@@ -180,7 +274,12 @@ export class ProjectsController extends Controller {
     return ok(members.map(m => ({ id: m.id, userId: m.userId, username: m.user.username, email: m.user.email, role: m.user.role, projectRole: m.projectRole, createdAt: m.createdAt })))
   }
 
-  /** 添加项目成员 */
+  /**
+   * 添加项目成员
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
+   */
   @Post('{projectSlug}/members')
   @Security('auth')
   public async addMember(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: AddMemberBody): Promise<ApiOk<MemberRow>> {
@@ -199,7 +298,13 @@ export class ProjectsController extends Controller {
     return ok({ id: m.id, userId: user.id, username: user.username, email: user.email, role: user.role, projectRole: m.projectRole, createdAt: m.createdAt })
   }
 
-  /** 修改成员项目角色 */
+  /**
+   * 修改成员项目角色
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param memberId 成员关系 ID
+   * @param body 请求体
+   */
   @Put('{projectSlug}/members/{memberId}/role')
   @Security('auth')
   public async updateMemberRole(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() memberId: string, @Body() body: MemberRoleBody): Promise<ApiOk<null>> {
@@ -208,7 +313,12 @@ export class ProjectsController extends Controller {
     return ok(null)
   }
 
-  /** 移除项目成员 */
+  /**
+   * 移除项目成员
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param memberId 成员关系 ID
+   */
   @Delete('{projectSlug}/members/{memberId}')
   @Security('auth')
   public async removeMember(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() memberId: string): Promise<ApiOk<null>> {

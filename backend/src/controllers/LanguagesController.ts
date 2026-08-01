@@ -5,6 +5,11 @@ import { ErrCode } from '../lib/errors'
 import * as langService from '../services/language'
 import { AppError } from '../utils/AppError'
 
+export interface SearchQuery {
+  /** 搜索关键词 */
+  q: string
+}
+
 @Route('languages')
 @Tags('Languages')
 export class LanguagesController extends Controller {
@@ -18,7 +23,7 @@ export class LanguagesController extends Controller {
   /** 搜索基础语言 */
   @Get('search')
   @Security('auth')
-  public async search(@Queries() q: { q: string }): Promise<ApiOk<unknown[]>> {
+  public async search(@Queries() q: SearchQuery): Promise<ApiOk<unknown[]>> {
     if (!q.q)
       throw new AppError(ErrCode.InvalidParams, 'query q is required')
     return ok(await langService.searchBaseLanguages(q.q))
