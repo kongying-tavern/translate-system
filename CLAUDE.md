@@ -128,8 +128,8 @@ layouts/AppLayout — 主界面布局
 
 | 角色 | 新建/编辑项目 | 用户管理 | 说明 |
 |------|:--:|:--:|------|
-| super_admin | ✅ | ✅ | 首位注册用户自动成为超管 |
-| admin | ❌ | ❌ | 可管理用户，不能管理 super_admin |
+| super_admin | ✅ | ✅ | 首位注册用户自动成为超管，可管理所有人 |
+| admin | ❌ | ✅ | 可管理用户，但不能管理 super_admin，只能创建 user 角色、不能提升他人角色到高于自己 |
 | user | ❌ | ❌ | 默认角色（普通用户） |
 
 权限常量: `ROLE_LEVEL = { super_admin:3, admin:2, user:1 }`
@@ -187,24 +187,40 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。路由由 tsoa 从 `controllers/` 生成（`pnpm gen` 更新 `docs/routes.ts`）。
 
 ```
-/auth/register|login|refresh|me        — 公开 (除了 me)， login 支持用户名或邮箱
-/auth/users|users/:id/role|users/:id/password  — 需 auth + admin+
-/projects CRUD                          — 需 auth
-/projects/:id/translations              — 需 ownership
-/projects/:id/translations/key/:oldKey  — PUT 更新 Key (必须在 /:key/:langCode 之前)
-/projects/:id/translations/:key         — PUT 保存 key 级属性 (context/tags)
-/projects/:id/translations/:key/:langCode — PUT 保存译文
-/projects/:id/translations/tags/list     — GET 标签列表
-/projects/:id/imports/entries|translations — POST 批量导入
-/projects/:id/layouts/templates|configs — 布局模板/配置 CRUD
-/projects/:id/languages/:code/alias      — PUT 语言别名
-/projects/:id/languages/:code/sortOrder  — PUT 语言排序
-/projects/:id/members                    — GET/POST 项目成员管理
-/projects/:id/members/:id/role           — PUT 修改成员项目角色
-/projects/:id/exports/templates          — 导出模板 CRUD
-/projects/:id/exports/preview|generate   — POST
-/me/keys                                 — API Key CRUD（JWT）
-/languages|/languages/search             — 基础语言
+POST   /auth/register|login|refresh    — 公开，login 支持用户名或邮箱
+GET    /auth/me                        — 需 auth
+GET    /auth/users                     — 需 auth + admin+
+PUT    /auth/users/:id/role            — 修改用户角色（admin+，不能管理 super_admin、不能提升到高于自己）
+POST   /auth/users                     — 创建用户（admin+，admin 只能创建 user 角色）
+PUT    /auth/users/:id/password        — 重置密码（admin+）
+DELETE /auth/users/:id                 — 删除用户（admin+，不能删除 super_admin）
+GET    /projects                       — 需 auth（仅返回自己参与的项目）
+POST   /projects                       — 创建项目（仅 super_admin）
+PUT|DELETE /projects/:id               — 编辑/删除项目（仅 super_admin）
+GET    /projects/:id                   — 需 auth + 项目访问（super_admin/owner 放行，成员按角色）
+GET    /projects/:id/translations      — 需项目访问
+POST   /projects/:id/translations      — 新增 Key（Maintainer+）
+PUT    /projects/:id/translations/key/:oldKey — 更新 Key/原文（Maintainer+，必须在 /:key/:langCode 之前）
+PUT    /projects/:id/translations/sortOrders — 批量排序（Maintainer+）
+POST   /projects/:id/translations/batch      — 批量导入（Maintainer+）
+PUT    /projects/:id/translations/{key}      — 保存 key 级属性 context/tags（Maintainer+）
+PUT    /projects/:id/translations/{key}/{langCode} — 保存译文（任意项目成员）
+DELETE /projects/:id/translations/{translationId} — 删除 Key（Maintainer+）
+GET    /projects/:id/translations/count|tags/list — 需项目访问
+POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+）
+GET|POST|PUT|DELETE /projects/:id/layouts/templates|configs — 布局模板/配置 CRUD（需项目访问）
+GET    /projects/:id/languages         — 需项目访问
+POST|DELETE /projects/:id/languages    — 增删语言（Maintainer+）
+PUT    /projects/:id/languages/:code/alias|sortOrder — 别名/排序（Maintainer+）
+GET    /projects/:id/members           — 需项目访问
+POST   /projects/:id/members           — 添加成员（Project-Admin）
+PUT    /projects/:id/members/:id/role  — 修改成员角色（Project-Admin）
+DELETE /projects/:id/members/:id       — 移除成员（Project-Admin）
+GET    /projects/:id/exports/templates — 需项目访问
+POST|PUT|DELETE /projects/:id/exports/templates — 导出模板增删改（Maintainer+）
+POST   /projects/:id/exports/preview|generate — 需项目访问
+GET|POST|PUT|DELETE /me/keys           — API Key CRUD（JWT）
+GET    /languages|/languages/search    — 基础语言
 ```
 
 ### 翻译页面关键逻辑
@@ -307,7 +323,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | `stores/auth.ts` | 用户信息、系统角色、项目角色、activeProjectId |
 | `stores/translation.ts` | 翻译列表、GroupedRow 类型 |
 | `stores/loading.ts` | 全局 loading 遮罩 |
-| `composables/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
+| `hooks/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
 | `api/client.ts` | Axios 实例、401 自动 refresh token |
 | `router/index.ts` | 路由守卫、auth.init() 初始化 |
 
