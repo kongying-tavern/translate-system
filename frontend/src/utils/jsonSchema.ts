@@ -14,6 +14,7 @@ export interface JsonSchema {
   required?: string[]
   properties?: Record<string, JsonSchema>
   items?: JsonSchema
+  additionalProperties?: JsonSchema | boolean
   oneOf?: JsonSchema[]
   anyOf?: JsonSchema[]
   allOf?: JsonSchema[]
@@ -37,6 +38,62 @@ export function resolveSchemaRef(schema: JsonSchema, schemas: SchemaMap): JsonSc
     s = { ...target }
   }
   return s
+}
+
+/**
+ * 深解引用：递归解析 properties/items/additionalProperties 中的 $ref，
+ * 使结果 schema 自包含（不依赖外部 components.schemas 上下文）。
+ * 递归自引用会沿路径检测并保留原 $ref，避免无限展开。
+ */
+export function dereferenceSchema(schema: JsonSchema, schemas: SchemaMap): JsonSchema {
+  const visit = (s: JsonSchema, stack: string[]): JsonSchema => {
+    const resolved = resolveSchemaRef(s, schemas)
+    if (resolved.$ref)
+      return resolved
+    const out: JsonSchema = { ...resolved }
+    if (resolved.properties) {
+      out.properties = {}
+      for (const [key, value] of Object.entries(resolved.properties)) {
+        const refName = value.$ref?.split('/').pop() ?? ''
+        if (refName && stack.includes(refName)) {
+          out.properties[key] = value
+        }
+        else {
+          out.properties[key] = visit(value, refName ? [...stack, refName] : stack)
+        }
+      }
+    }
+    if (resolved.items) {
+      const refName = resolved.items.$ref?.split('/').pop() ?? ''
+      if (refName && stack.includes(refName)) {
+        out.items = resolved.items
+      }
+      else {
+        out.items = visit(resolved.items, refName ? [...stack, refName] : stack)
+      }
+    }
+    if (resolved.additionalProperties && typeof resolved.additionalProperties === 'object') {
+      const refName = (resolved.additionalProperties as JsonSchema).$ref?.split('/').pop() ?? ''
+      if (refName && stack.includes(refName)) {
+        out.additionalProperties = resolved.additionalProperties
+      }
+      else {
+        out.additionalProperties = visit(resolved.additionalProperties as JsonSchema, refName ? [...stack, refName] : stack)
+      }
+    }
+    for (const key of ['allOf', 'oneOf', 'anyOf'] as const) {
+      if (resolved[key]) {
+        out[key] = resolved[key]!.map((sub) => {
+          const refName = sub.$ref?.split('/').pop() ?? ''
+          if (refName && stack.includes(refName))
+            return sub
+          return visit(sub, refName ? [...stack, refName] : stack)
+        })
+      }
+    }
+    return out
+  }
+  return visit(schema, [])
 }
 
 function normalize(schema: JsonSchema, schemas: SchemaMap): JsonSchema {

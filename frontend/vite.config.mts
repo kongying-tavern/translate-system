@@ -23,6 +23,14 @@ export default defineConfig(({ mode }) => {
         '@': resolve(__dirname, 'src'),
       },
     },
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react/jsx-runtime',
+        'cf-json-schema-viz',
+      ],
+    },
     server: {
       port: 3000,
       proxy: {

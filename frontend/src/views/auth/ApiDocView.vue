@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
-import type { JsonSchema, JsonSchemaField } from '@/utils/jsonSchema'
+import type { JsonSchema } from '@/utils/jsonSchema'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import client from '@/api/client'
-import { BaseInput, BasePageHeader, BaseTable } from '@/components/ui'
-import { resolveSchemaRef, schemaToFields, typeLabel } from '@/utils/jsonSchema'
+import { BaseInput, BaseJsonSchemaViewer, BasePageHeader, BaseTable } from '@/components/ui'
+import { dereferenceSchema, resolveSchemaRef, typeLabel } from '@/utils/jsonSchema'
 
 interface OpenApiParameter {
   name: string
@@ -46,8 +46,8 @@ interface Endpoint {
   summary: string
   group: string
   paramRows: ParamRow[]
-  bodyFields: JsonSchemaField[]
-  responseFields: JsonSchemaField[]
+  bodySchema?: JsonSchema
+  responseSchema?: JsonSchema
 }
 
 interface EndpointGroup {
@@ -104,9 +104,9 @@ function detailTabs(ep: Endpoint): { name: string, label: string }[] {
   const tabs: { name: string, label: string }[] = []
   if (ep.paramRows.length)
     tabs.push({ name: 'params', label: 'Path / Query 参数' })
-  if (ep.bodyFields.length)
+  if (ep.bodySchema)
     tabs.push({ name: 'body', label: '请求体字段' })
-  if (ep.responseFields.length)
+  if (ep.responseSchema)
     tabs.push({ name: 'response', label: '响应 data 字段' })
   return tabs
 }
@@ -164,13 +164,6 @@ const paramColumns: BaseTableColumnConfig<ParamRow>[] = [
   { dataKey: 'desc', title: '说明' },
 ]
 
-const fieldColumns: BaseTableColumnConfig<JsonSchemaField>[] = [
-  { dataKey: 'name', title: '字段', width: 170 },
-  { dataKey: 'type', title: '类型', width: 110 },
-  { dataKey: 'required', title: '必填', width: 60, cell: row => (row.required ? '是' : '否') },
-  { dataKey: 'desc', title: '说明' },
-]
-
 function toParamRows(params: OpenApiParameter[]): ParamRow[] {
   const inLabel: Record<string, string> = { path: '路径', query: '查询', header: '请求头' }
   return params.map(p => ({
@@ -190,9 +183,9 @@ function parseOpenApi(spec: OpenApiSpec) {
     for (const [method, op] of Object.entries(item)) {
       const summary = op.summary ?? ''
       const desc = op.description ?? op.summary ?? ''
-      const bodySchema = op.requestBody?.content?.['application/json']?.schema
+      const bodySchemaRaw = op.requestBody?.content?.['application/json']?.schema
       const respSchemaRaw = op.responses?.['200']?.content?.['application/json']?.schema
-      const dataSchema = respSchemaRaw ? resolveSchemaRef(respSchemaRaw, schemas).properties?.data : undefined
+      const dataProp = respSchemaRaw ? resolveSchemaRef(respSchemaRaw, schemas).properties?.data : undefined
       list.push({
         method,
         path: apiKeyPath,
@@ -200,8 +193,8 @@ function parseOpenApi(spec: OpenApiSpec) {
         summary: desc,
         group: groupOf(rawPath),
         paramRows: op.parameters ? toParamRows(op.parameters) : [],
-        bodyFields: bodySchema ? schemaToFields(bodySchema, '', false, -1, schemas) : [],
-        responseFields: dataSchema ? schemaToFields(dataSchema, 'data', false, 0, schemas) : [],
+        bodySchema: bodySchemaRaw ? dereferenceSchema(bodySchemaRaw, schemas) : undefined,
+        responseSchema: dataProp ? dereferenceSchema(dataProp, schemas) : undefined,
       })
     }
   }
@@ -252,6 +245,7 @@ onMounted(async () => {
             <template v-if="g.items.length">
               <el-tabs
                 class="endpoint-tabs"
+                lazy
                 :model-value="activeEndpoint[g.key] ?? endpointKey(g.items[0])"
                 @update:model-value="onEndpointTabChange(g.key, $event)"
               >
@@ -269,6 +263,7 @@ onMounted(async () => {
                     <div class="endpoint-detail">
                       <el-tabs
                         class="detail-tabs"
+                        lazy
                         :model-value="detailTab[endpointKey(ep)] ?? detailTabs(ep)[0]?.name"
                         @update:model-value="onDetailTabChange(endpointKey(ep), $event)"
                       >
@@ -280,19 +275,13 @@ onMounted(async () => {
                             stripe
                             size="small"
                           />
-                          <BaseTable
+                          <BaseJsonSchemaViewer
                             v-else-if="t.name === 'body'"
-                            :data="ep.bodyFields"
-                            :columns="fieldColumns"
-                            stripe
-                            size="small"
+                            :schema="ep.bodySchema ?? {}"
                           />
-                          <BaseTable
-                            v-else
-                            :data="ep.responseFields"
-                            :columns="fieldColumns"
-                            stripe
-                            size="small"
+                          <BaseJsonSchemaViewer
+                            v-else-if="t.name === 'response'"
+                            :schema="ep.responseSchema ?? {}"
                           />
                         </el-tab-pane>
                       </el-tabs>
@@ -344,6 +333,11 @@ onMounted(async () => {
   flex-direction: column;
   margin: 0;
   overflow: hidden;
+}
+
+.endpoint-tabs :deep(.el-tabs__item),
+.detail-tabs :deep(.el-tabs__item) {
+  font-size: 13px;
 }
 
 .endpoint-tabs :deep(.el-tabs__content) {
@@ -423,6 +417,18 @@ onMounted(async () => {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+}
+
+.detail-tabs :deep(.el-tab-pane) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.detail-tabs :deep(.base-json-schema-viewer) {
+  flex: 1;
+  min-height: 0;
 }
 
 .auth-card {

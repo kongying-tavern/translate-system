@@ -1,0 +1,32 @@
+.base-json-schema-viewer {
+  width: 100%;
+  min-height: 60px;
+
+  :deep(.jsv-root) {
+    width: 100%;
+    height: 100%;
+
+    // 字体
+    --jsv-font-sans: var(--el-font-family);
+    --jsv-font-mono: var(--el-font-family-monospace, ui-monospace, monospace);
+    --jsv-font-size: var(--el-font-size-base, 0.875rem);
+
+    // 背景色
+    --jsv-color-bg: var(--el-bg-color);
+    --jsv-color-canvas: var(--el-fill-color-lighter);
+    --jsv-color-canvas-tint: var(--el-fill-color-light);
+
+    // 边框和分割线
+    --jsv-color-border: var(--el-border-color);
+
+    // 文本颜色
+    --jsv-color-body: var(--el-text-color-primary);
+    --jsv-color-muted: var(--el-text-color-secondary);
+
+    // 状态颜色（使用 Element Plus 语义色）
+    --jsv-color-primary: var(--el-color-primary);
+    --jsv-color-danger: var(--el-color-danger);
+    --jsv-color-warning: var(--el-color-warning);
+    --jsv-color-success: var(--el-color-success);
+  }
+}
