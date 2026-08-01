@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import crypto from 'node:crypto'
 import { ROLE_LEVEL } from '../constants/roles'
-import { prisma } from '../index'
+import { prisma } from '../lib/prisma'
 
 export interface ApiKeyRequest extends Request {
   userId?: string

@@ -1,22 +1,14 @@
 import type { NextFunction, Request, Response } from 'express'
 import process from 'node:process'
-import { PrismaClient } from '@prisma/client'
 import cors from 'cors'
 import express from 'express'
 import swaggerUi from 'swagger-ui-express'
+import { RegisterRoutes } from './docs/routes'
 import { swaggerSpec } from './docs/swagger'
+import { APIKEY_WHITELIST } from './lib/apikey-whitelist'
 import { apiKeyAuth } from './middleware/apikey'
 import { errorHandler } from './middleware/errorHandler'
-import { apiKeyRoutes } from './routes/apikeys'
-import { authRoutes } from './routes/auth'
-import { exportRoutes } from './routes/exports'
-import { importRoutes } from './routes/imports'
-import { languageRoutes } from './routes/languages'
-import { layoutRoutes } from './routes/layouts'
-import { projectRoutes } from './routes/projects'
-import { translationRoutes } from './routes/translations'
-
-export const prisma = new PrismaClient()
+import { docsRoutes } from './routes/docs'
 
 const app = express()
 const PORT = process.env.PORT || 8080
@@ -27,34 +19,17 @@ app.use(express.json())
 // Swagger docs
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
-// API Key management (JWT only, no API key proxy)
-app.use('/api/v1/apikey', apiKeyRoutes)
+// JWT routes (tsoa controllers)
+const jwtRouter = express.Router()
+RegisterRoutes(jwtRouter)
+app.use('/api/v1', jwtRouter)
 
-// JWT routes
-app.use('/api/v1/auth', authRoutes)
-app.use('/api/v1/projects', projectRoutes)
-app.use('/api/v1/languages', languageRoutes)
-app.use('/api/v1/projects', translationRoutes)
-app.use('/api/v1/projects', layoutRoutes)
-app.use('/api/v1/projects', exportRoutes)
-app.use('/api/v1/projects', importRoutes)
+// API doc summary (JWT required)
+app.use('/api/v1/docs', docsRoutes)
 
-// API Key proxy: whitelist of exposed routes
-const APIKEY_WHITELIST = [
-  { method: 'GET', path: /^\/projects\/[^/]+\/translations$/ },
-  { method: 'GET', path: /^\/projects\/[^/]+\/translations\/count$/ },
-  { method: 'GET', path: /^\/projects\/[^/]+\/translations\/tags\/list$/ },
-  { method: 'GET', path: /^\/projects\/[^/]+\/languages$/ },
-  { method: 'POST', path: /^\/projects\/[^/]+\/imports\/entries$/ },
-  { method: 'POST', path: /^\/projects\/[^/]+\/imports\/translations$/ },
-  { method: 'GET', path: /^\/projects\/[^/]+\/exports\/templates\/[^/]+$/ },
-  { method: 'POST', path: /^\/projects\/[^/]+\/exports\/preview$/ },
-  { method: 'POST', path: /^\/projects\/[^/]+\/exports\/generate$/ },
-]
-
+// API Key proxy: same tsoa routes behind apiKeyAuth + whitelist guard
 const apikeyProxy = express.Router()
 apikeyProxy.use(apiKeyAuth())
-// Whitelist guard
 apikeyProxy.use((req: Request, res: Response, next: NextFunction) => {
   const allowed = APIKEY_WHITELIST.some(w =>
     w.method === req.method && w.path.test(req.path),
@@ -63,10 +38,7 @@ apikeyProxy.use((req: Request, res: Response, next: NextFunction) => {
     return res.status(403).json({ code: 1002, message: '接口不在白名单', data: null })
   next()
 })
-apikeyProxy.use('/projects', projectRoutes)
-apikeyProxy.use('/projects', translationRoutes)
-apikeyProxy.use('/projects', importRoutes)
-apikeyProxy.use('/projects', exportRoutes)
+RegisterRoutes(apikeyProxy)
 app.use('/api/v1/apikey', apikeyProxy)
 
 app.use(errorHandler)

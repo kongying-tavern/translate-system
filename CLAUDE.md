@@ -35,7 +35,8 @@ docker compose down              # 停止所有服务
 docker compose logs -f           # 查看日志
 
 # 后端 (localhost:8080)
-cd backend && pnpm dev           # tsx watch 热重载（开发者手动启动）
+cd backend && pnpm dev           # tsx watch 热重载（开发者手动启动，predev 会自动先跑 pnpm gen）
+pnpm gen                         # 重新生成 tsoa docs/routes.ts + swagger.json（改控制器后必须执行）
 pnpm db:generate                 # 重新生成 Prisma Client
 pnpm db:push                     # 推送 schema 到 DB（仅本地快速原型用，不产生迁移文件）
 pnpm db:migrate                  # 交互式：创建新迁移文件 + 应用到 DB（用于改 schema 后）
@@ -85,14 +86,28 @@ context 和 tags 为 Key 级别属性，跨语言共享
 project_languages (alias 别名字段) — 导出和 UI 优先显示别名
 ```
 
-### 后端分层
+### 后端分层（tsoa 注解式路由）
 
 ```
-routes/ → services/ → Prisma Client
-middleware/auth.ts         — JWT 验证，从 token 提取 userId 和 userRole
-middleware/ownership.ts    — 检查用户是项目 owner 或 member
-middleware/role.ts         — requireRole(minRole) 角色等级检查
+controllers/ → services/ → Prisma Client
+authentication.ts          — tsoa expressAuthentication：@Security('auth'/'admin')，解析 JWT 或复用 apiKey 预置身份，回写 req.userId/userRole
+lib/access.ts              — assertProjectAccess(userId, userRole, slug, minProjectRole?) / assertSystemRole(role, minRole)
+lib/api.ts                 — ok<T>() / okPage<T>() 统一响应包装 { code, message, data }
+lib/prisma.ts              — PrismaClient 单例（独立文件，避免 tsoa 扫描循环依赖）
+docs/swagger.ts          — 手写包装（import swagger.json + 加 basePath），必须提交
+docs/routes.ts + swagger.json — tsoa 生成产物（`pnpm gen` 重新生成，勿手改），已 gitignore（`backend/src/docs/*` + `!swagger.ts`），由 `predev`（开发启动）和 Dockerfile `RUN pnpm gen`（镜像构建）自动生成
+middleware/auth.ts         — AuthRequest 类型 + authMiddleware（JWT，docs 路由仍用）
+middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000）
 ```
+
+**tsoa 用法**：控制器用 `@Route` / `@Get|@Post|@Put|@Delete` / `@Path` / `@Query` / `@Body` / `@Security` 注解，改完控制器后必须 `cd backend && pnpm gen` 重新生成 `docs/routes.ts`（挂载用）和 `docs/swagger.json`（OpenAPI）。
+
+**注意**：
+- 字面量类型陷阱：`{ deleted: true }` 这类内联字面量会让 tsoa 崩溃（`isEnumMember` TypeError），必须命名接口（如 `DeletedResult`）。
+- tsoa 不支持可选路径参数（`{langCode?}`），需拆成两条路由：`PUT .../{key}`（key 级属性）与 `PUT .../{key}/{langCode}`（语言级）。
+- 路由注册顺序 = 方法声明顺序，literal 路由（`key/:oldKey`、`sortOrders`、`batch`）必须声明在参数路由（`{key}`、`{key}/{langCode}`）之前，否则被吃掉。
+- 响应类型用 `Date`（tsoa 序列化为 ISO），`description` 等可空字段用 `string | null`；Prisma 返回行与自定义 Row 接口不一致时用 `as unknown as` 转换。
+- 路由拆分后前端调用 `saveTranslation(projectId, key, '', { context })` 会产生尾部斜杠 `/key/`，Express 非严格模式会匹配 `/{key}` 路由。
 
 ### 前端分层
 
@@ -155,7 +170,7 @@ layouts/AppLayout — 主界面布局
 
 **前端权限工具**：使用 `hooks/useProjectPermission.ts` 的 `useProjectPermission()` 获取所有权限 computed，替代直接判断 `auth.role`。提供 `canManageContent`（Admin/Maintainer 或 super_admin）、`canManageProject`（Admin 或 super_admin）等权限属性。
 
-**后端中间件链**：`authMiddleware` → `requireOwnership` → `requireProjectRole(minRole)` → handler。`requireProjectRole` 自动放行 super_admin。敏感路由（创建 Key、管理成员、语言、导入、模板增删改）已加上对应 `requireProjectRole` 保护。
+**后端权限链（tsoa）**：`@Security('auth'/'admin')`（expressAuthentication）→ 控制器内 `assertProjectAccess(userId, userRole, slug, minProjectRole?)` / `assertSystemRole(role, minRole)` → handler。`assertProjectAccess` 内部自动放行 super_admin，返回 `{ projectId, projectRole }`。敏感路由（创建 Key、管理成员、语言、导入、模板增删改）已传 `ProjectRole.Maintainer`/`ProjectRole.Admin`。
 
 ### Slug
 
@@ -163,11 +178,11 @@ layouts/AppLayout — 主界面布局
 
 显示时优先展示 code（可读标识符），如 `my-project`；没有 code 时才回退到 UUID。
 
-Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifier)`。模板 slug 同理，使用 `services/export/index.ts` 导出的 `resolveTemplate(templateSlug, projectSlug)`。
+Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifier)`（先按 UUID 正则判断，合法 UUID 才查 id，否则直接按 code 查，避免 UUID 列抛错）。模板 slug 同理，使用 `services/export/index.ts` 导出的 `resolveTemplate(templateSlug, projectSlug)`。
 
 ### API 路由
 
-所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。
+所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。路由由 tsoa 从 `controllers/` 生成（`pnpm gen` 更新 `docs/routes.ts`）。
 
 ```
 /auth/register|login|refresh|me        — 公开 (除了 me)， login 支持用户名或邮箱
@@ -175,13 +190,19 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 /projects CRUD                          — 需 auth
 /projects/:id/translations              — 需 ownership
 /projects/:id/translations/key/:oldKey  — PUT 更新 Key (必须在 /:key/:langCode 之前)
-/projects/:id/translations/:key/:langCode — PUT 保存译文/标签/备注
+/projects/:id/translations/:key         — PUT 保存 key 级属性 (context/tags)
+/projects/:id/translations/:key/:langCode — PUT 保存译文
 /projects/:id/translations/tags/list     — GET 标签列表
+/projects/:id/imports/entries|translations — POST 批量导入
+/projects/:id/layouts/templates|configs — 布局模板/配置 CRUD
 /projects/:id/languages/:code/alias      — PUT 语言别名
 /projects/:id/languages/:code/sortOrder  — PUT 语言排序
 /projects/:id/members                    — GET/POST 项目成员管理
 /projects/:id/members/:id/role           — PUT 修改成员项目角色
+/projects/:id/exports/templates          — 导出模板 CRUD
 /projects/:id/exports/preview|generate   — POST
+/me/keys                                 — API Key CRUD（JWT）
+/languages|/languages/search             — 基础语言
 ```
 
 ### 翻译页面关键逻辑
@@ -206,7 +227,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
   -d '{"templateSlug":"...","languageCodes":["zh-Hans"]}'
 ```
 
-白名单配置在 `backend/src/index.ts` 的 `APIKEY_WHITELIST` 数组。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
+白名单配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组（9 个接口，`index.ts` 守卫与 `services/docs.ts` 抽取共用）。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
 
 ### 导出格式
 
@@ -234,7 +255,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 1. **Vite 模块找不到** — `rm -rf node_modules/.vite && pnpm dev`
 2. **Prisma 文件锁** — `rm -rf node_modules/.prisma && pnpm prisma generate`
 3. **`psql` 中文乱码** — 用 `pnpm tsx -e "import{PrismaClient}..."` 查数据
-4. **路由冲突** — `/:key/:langCode` 会吃掉 `/key/:oldKey`，必须把 literal 路由放前面
+4. **路由冲突** — `/:key/:langCode` 会吃掉 `/key/:oldKey`，tsoa 按方法声明顺序注册路由，必须把 literal 路由（`key/:oldKey`、`sortOrders`、`batch`）声明在参数路由前面
 5. **`cannot edit` 报错** — GateGuard hook，用 `ECC_GATEGUARD=off` 前缀或加到 `settings.json`
 6. **前端 TS 报错（`Property 'xxx' does not exist on type`）** — 改 schema 后未同步 `frontend/src/types/models.d.ts`，检查并添加对应字段
 
@@ -289,7 +310,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 ### 改动翻译相关功能
 
-1. 先改 `services/translation.ts` → 再改 `routes/translations.ts` → 最后改前端
+1. 先改 `services/translation.ts` → 再改 `controllers/TranslationsController.ts` → `cd backend && pnpm gen` → 最后改前端
 2. 改 `prisma/schema.prisma` → `pnpm db:migrate` 生成迁移文件 → 更新 service。必须创建迁移文件（不要用 `db:push` 绕过），否则 Docker 部署时 `migrate deploy` 会遗漏变更
    - 注意：`db:push` 后的 DB 没有 `_prisma_migrations` 记录，直接用 `migrate deploy` 会因列已存在报错，需先用 `migrate resolve --applied` 手动标记已存在的迁移
 3. 翻译列表分页在 `listGrouped` 中处理，导出不过滤在 `getForExport`

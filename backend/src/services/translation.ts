@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client'
-import { prisma } from '../index'
+import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 import { resolveProject } from './project'
 

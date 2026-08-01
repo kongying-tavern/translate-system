@@ -116,13 +116,15 @@ translate-system/
 │   │   ├── schema.prisma          # 数据模型
 │   │   ├── migrations/            # 数据库迁移文件
 │   └── src/
-│       ├── index.ts               # Express 入口
+│       ├── index.ts               # Express 入口（tsoa 双 Router：/api/v1 + /api/v1/apikey）
 │       ├── config.ts              # 环境配置
-│       ├── docs/swagger.ts        # OpenAPI 配置
-│       ├── lib/                   # 工具库
-│       ├── middleware/            # JWT, 权限中间件
-│       ├── routes/               # API 路由
-│       ├── services/             # 业务逻辑
+│       ├── authentication.ts      # tsoa expressAuthentication（JWT / API Key）
+│       ├── controllers/           # tsoa 注解式控制器（@Route/@Get/@Security）
+│       ├── docs/                  # swagger.ts（手写，提交）+ tsoa 生成产物 routes.ts、swagger.json（gitignore，dev/构建时自动生成）
+│       ├── lib/                   # 工具库（access/api/prisma/apikey-whitelist）
+│       ├── middleware/            # auth（JWT + AuthRequest）、errorHandler、apikey
+│       ├── routes/docs.ts         # GET /api/v1/docs/openapi（白名单 OpenAPI 抽取）
+│       ├── services/              # 业务逻辑
 │       └── scripts/              # 导入脚本
 ├── frontend/
 │   ├── Dockerfile

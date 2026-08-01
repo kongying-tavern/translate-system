@@ -1,14 +1,14 @@
 import type { Prisma } from '@prisma/client'
+import type { ApiOk } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
 import type { ImportEntry } from '../services/import/types'
-import { Router } from 'express'
+import { Body, Controller, Path, Post, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { ProjectRole } from '../constants/roles'
-import { prisma } from '../index'
+import { assertProjectAccess } from '../lib/access'
+import { ok } from '../lib/api'
 import { ErrCode } from '../lib/errors'
 import { ImportFormat } from '../lib/formats'
-import { error, success } from '../lib/response'
-import { authMiddleware } from '../middleware/auth'
-import { requireOwnership, requireProjectRole } from '../middleware/ownership'
+import { prisma } from '../lib/prisma'
 import { csvParse } from '../services/import/csv'
 import { JSONParse } from '../services/import/json'
 import { propertiesParse } from '../services/import/properties'
@@ -16,7 +16,24 @@ import { xmlParse } from '../services/import/xml'
 import { yamlParse } from '../services/import/yaml'
 import { AppError } from '../utils/AppError'
 
-export const importRoutes = Router()
+export interface ImportResult {
+  imported: number
+  created: number
+  skipped: number
+}
+
+export interface ImportEntriesBody {
+  data: string | Record<string, unknown>
+  overwrite?: boolean
+}
+
+export interface ImportTranslationsBody {
+  languageCode?: string
+  formatType: string
+  data: string | Record<string, unknown>
+  overwrite?: boolean
+  autoCreate?: boolean
+}
 
 function sniffFormat(raw: string): ImportFormat {
   const t = raw.trim()
@@ -54,22 +71,22 @@ function parseImportData(raw: string, fmt: string): ImportEntry[] {
   }
 }
 
-async function importKeys(projectSlug: string, raw: string, fmt: ImportFormat, overwrite: boolean): Promise<{ imported: number, created: number, skipped: number }> {
+async function importKeys(projectId: string, raw: string, fmt: ImportFormat, overwrite: boolean): Promise<ImportResult> {
   const entries = parseImportData(raw, fmt)
   let imported = 0
   let created = 0
   let skipped = 0
   for (const entry of entries) {
     const { key, context, tags, sourceText } = entry
-    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId: projectSlug, key } } })
+    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key } } })
     const keyExisted = !!tk
     if (keyExisted && !overwrite) {
       skipped++
     }
     else {
       if (!tk) {
-        const maxSo = await prisma.translationKey.aggregate({ where: { projectId: projectSlug }, _max: { sortOrder: true } })
-        tk = await prisma.translationKey.create({ data: { projectId: projectSlug, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+        const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
+        tk = await prisma.translationKey.create({ data: { projectId, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
       }
       if (context !== undefined || tags?.length) {
         const updates: Prisma.TranslationKeyUpdateInput = {}
@@ -87,7 +104,7 @@ async function importKeys(projectSlug: string, raw: string, fmt: ImportFormat, o
   return { imported, created, skipped }
 }
 
-async function importTranslations(projectSlug: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean): Promise<{ imported: number, created: number, skipped: number }> {
+async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean): Promise<ImportResult> {
   const entries = parseImportData(raw, fmt)
   let imported = 0
   let created = 0
@@ -95,10 +112,10 @@ async function importTranslations(projectSlug: string, raw: string, fmt: string,
   for (const entry of entries) {
     const { key, translatedText, context, tags, sourceText, lang } = entry
     const langCode = lang || languageCode
-    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId: projectSlug, key } } })
+    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key } } })
     if (!tk && autoCreate !== false) {
-      const maxSo = await prisma.translationKey.aggregate({ where: { projectId: projectSlug }, _max: { sortOrder: true } })
-      tk = await prisma.translationKey.create({ data: { projectId: projectSlug, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+      const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
+      tk = await prisma.translationKey.create({ data: { projectId, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
     }
     if (tk) {
       if (context !== undefined || tags?.length) {
@@ -135,22 +152,32 @@ async function importTranslations(projectSlug: string, raw: string, fmt: string,
   return { imported, created, skipped }
 }
 
-importRoutes.post('/:projectSlug/imports/entries', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req: AuthRequest, res) => {
-  try {
-    const { data, overwrite } = req.body
-    const raw = typeof data === 'string' ? data : JSON.stringify(data)
-    success(res, await importKeys(req.params.projectSlug, raw, sniffFormat(raw), overwrite))
+@Route('projects')
+@Tags('Imports')
+export class ImportsController extends Controller {
+  /**
+   * 批量导入 key（json/yaml/xml/properties/csv，自动识别格式）
+   * @summary 批量导入 Key
+   */
+  @Post('{projectSlug}/imports/entries')
+  @Security('auth')
+  public async importEntries(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: ImportEntriesBody): Promise<ApiOk<ImportResult>> {
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
+    const raw = typeof body.data === 'string' ? body.data : JSON.stringify(body.data)
+    return ok(await importKeys(access.projectId, raw, sniffFormat(raw), body.overwrite ?? false))
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
-})
 
-importRoutes.post('/:projectSlug/imports/translations', authMiddleware, requireOwnership, requireProjectRole(ProjectRole.Maintainer), async (req: AuthRequest, res) => {
-  try {
-    const { languageCode, formatType, data, overwrite, autoCreate } = req.body
-    if (!formatType)
-      return error(res, ErrCode.InvalidParams, 'formatType is required')
-    const raw = typeof data === 'string' ? data : JSON.stringify(data)
-    success(res, await importTranslations(req.params.projectSlug, raw, formatType as ImportFormat, languageCode, overwrite, autoCreate))
+  /**
+   * 批量导入译文（需指定格式类型）
+   * @summary 批量导入译文
+   */
+  @Post('{projectSlug}/imports/translations')
+  @Security('auth')
+  public async importTranslations(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: ImportTranslationsBody): Promise<ApiOk<ImportResult>> {
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
+    if (!body.formatType)
+      throw new AppError(ErrCode.InvalidParams, 'formatType is required')
+    const raw = typeof body.data === 'string' ? body.data : JSON.stringify(body.data)
+    return ok(await applyTranslations(access.projectId, raw, body.formatType, body.languageCode ?? '', body.overwrite ?? false, body.autoCreate ?? true))
   }
-  catch (e: unknown) { error(res, ErrCode.Internal, e instanceof AppError ? e.message : '') }
-})
+}

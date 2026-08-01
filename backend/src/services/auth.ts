@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import { config } from '../config'
 import { ROLE_LEVEL, SystemRole } from '../constants/roles'
-import { prisma } from '../index'
+import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 
 export async function login(account: string, password: string) {

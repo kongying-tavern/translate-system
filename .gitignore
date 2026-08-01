@@ -13,5 +13,7 @@ zh-Hans copy.json
 backend/.env
 backend/migrate-data.ts
 backend/test-export.ts
+backend/src/docs/*
+!backend/src/docs/swagger.ts
 /data/
 .history/

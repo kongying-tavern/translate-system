@@ -13,6 +13,7 @@ COPY package.json pnpm-lock.yaml .npmrc .
 RUN corepack enable && pnpm install
 COPY . .
 RUN chmod +x startup.sh
+RUN pnpm gen
 RUN pnpm prisma generate
 EXPOSE 8080
 CMD ["pnpm", "tsx", "src/index.ts"]

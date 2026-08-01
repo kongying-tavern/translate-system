@@ -1,4 +1,4 @@
-import { prisma } from '../index'
+import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 
 export async function listProjects(userId: string, page: number, pageSize: number) {
@@ -12,8 +12,10 @@ export async function listProjects(userId: string, page: number, pageSize: numbe
   return { projects, total }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function resolveProject(projectSlug: string) {
-  let p = await prisma.project.findUnique({ where: { id: projectSlug } })
+  let p = UUID_RE.test(projectSlug) ? await prisma.project.findUnique({ where: { id: projectSlug } }) : null
   if (!p)
     p = await prisma.project.findUnique({ where: { code: projectSlug } })
   return p
@@ -41,7 +43,7 @@ export async function createProject(userId: string, data: { name: string, descri
   })
 }
 
-export async function updateProject(projectSlug: string, data: { name: string, description?: string, sourceLanguage?: string, code?: string }) {
+export async function updateProject(projectSlug: string, data: { name?: string, description?: string, sourceLanguage?: string, code?: string }) {
   const p = await resolveProject(projectSlug)
   if (!p)
     throw new AppError(1003, 'project not found')

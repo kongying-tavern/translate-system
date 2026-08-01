@@ -1,0 +1,15 @@
+{
+  "entryFile": "src/index.ts",
+  "noImplicitAdditionalProperties": "silently-remove-extras",
+  "controllerPathGlobs": ["src/controllers/**/*.ts"],
+  "spec": {
+    "outputDirectory": "src/docs",
+    "specVersion": 3,
+    "basePath": "/api/v1",
+    "outputFile": "swagger.json"
+  },
+  "routes": {
+    "routesDir": "src/docs",
+    "authenticationModule": "src/authentication.ts"
+  }
+}

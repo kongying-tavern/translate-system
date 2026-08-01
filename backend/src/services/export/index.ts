@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import type { ExportKey, FlatTranslation } from './types'
-import { prisma } from '../../index'
 import { ExportFormat } from '../../lib/formats'
+import { prisma } from '../../lib/prisma'
 import { AppError } from '../../utils/AppError'
 import { exportCSV } from './csv'
 import { exportFlatJSON, exportNestedJSON } from './json'
