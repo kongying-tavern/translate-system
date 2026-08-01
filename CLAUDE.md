@@ -279,13 +279,18 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 ### Base UI 组件体系
 
-前端基础 UI 元素封装在 `src/components/ui/`，通过 `@/components/ui` barrel（命名导出）统一导入。每个组件目录含 `index.vue` + `style.scss`，方便后续全局扩展和换肤。
+前端基础 UI 元素封装在 `src/components/ui/`，通过 `@/components/ui` barrel（命名导出）统一导入。每个组件目录含 `index.vue` + `style.scss`（组件自定义样式，**可改**），修正 Element Plus 默认间距的组件另有 `reset.scss`（EP 样式重置，**不可改**），方便后续全局扩展和换肤。
 
 **封装目的**：统一样式入口，便于**换皮肤和全局扩展**（换肤 = 替换 style.scss 即可全局生效；扩展 = 在 base 组件上统一加行为/样式），**不是为了减少使用量**。不要因"用的少"就拒绝封装，凡是出现在页面中的 Element Plus 基础组件都应走 Base 封装。
 
+**样式分离约定**：每个组件的样式分为两部分——
+- `reset.scss`（**不可修改**）：Element Plus 样式重置，仅放修正 EP 默认 margin/padding 在布局中产生大空白的规则（如 `.el-form-item` 边距、`.el-dialog` 各区块内边距）。EP 新发现的间距问题一律加到这里。
+- `style.scss`（**可修改**）：组件自定义外观（圆角/颜色/阴影/过渡/布局等）。调样式只允许改这里。
+- 无需重置间距的组件只有 `style.scss`，不建 `reset.scss`。
+
 **核心规则：**
 - 显式 `defineProps` + `withDefaults` + `defineModel` + `defineEmits`，不使用 `v-bind="$attrs"`
-- 样式通过 `<style lang="scss" scoped>@use './style.scss';</style>` 加载，scoped 隔离 + 外部文件可替换（用 `@use` 而非 `@import`，Dart Sass 已弃用后者）
+- 样式通过 `<style lang="scss" scoped>@use './reset.scss'; @use './style.scss';</style>` 加载（无需重置的组件只 `@use './style.scss'`），scoped 隔离 + 外部文件可替换（用 `@use` 而非 `@import`，Dart Sass 已弃用后者）
 - **子组件内部元素必须用 `:deep()`**：scoped 样式只能命中组件根元素，`.base-xxx .el-input__wrapper` 这类选择器命中不了 el-input 内部 DOM（否则是死样式，圆角/阴影不会生效）。统一格式 `:deep(.el-xxx)`，外层前缀（`.base-xxx`）保持带 scope
 - **封装后必须迁移现有使用处**：将页面中已存在的 `<el-xxx>` 替换为对应 Base 组件，避免新旧混用
 - **封装后必须更新本列表**：新增组件要同步补充到下方「当前组件」表格（含类型和说明），并导出到 `ui/index.ts` barrel

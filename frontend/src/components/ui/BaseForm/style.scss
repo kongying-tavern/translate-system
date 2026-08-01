@@ -2,12 +2,4 @@
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-
-  :deep(.el-form-item) {
-    margin-bottom: 0;
-  }
-
-  &.el-form--inline :deep(.el-form-item) {
-    margin-right: 8px;
-  }
 }

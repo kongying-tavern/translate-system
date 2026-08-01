@@ -26,5 +26,6 @@ withDefaults(defineProps<{
 </template>
 
 <style lang="scss" scoped>
+@use './reset.scss';
 @use './style.scss';
 </style>
