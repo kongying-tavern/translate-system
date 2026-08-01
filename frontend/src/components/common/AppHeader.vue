@@ -2,7 +2,7 @@
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { ApiKey, Project } from '@/types/models'
 import { ArrowDown, Setting } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
+import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
@@ -224,6 +224,10 @@ async function createApiKey() {
     ElMessage.error('创建失败')
   }
 }
+function goApiDoc() {
+  apikeyVisible.value = false
+  router.push('/api-doc')
+}
 async function toggleApiKey(row: ApiKey) {
   try {
     await client.put(`/apikey/me/keys/${row.id}`, { enabled: !row.enabled })
@@ -336,9 +340,12 @@ async function deleteApiKey(row: ApiKey) {
       </p>
       <code style="word-break:break-all;font-size:13px">{{ newSecret }}</code>
     </div>
-    <p style="margin-top:12px;font-size:13px;color:#909399">
-      使用方式：请求头 <code>x-api-key</code> 和 <code>x-api-secret</code>
-    </p>
+    <div style="margin-top:12px;font-size:13px;color:#909399;display:flex;align-items:center;justify-content:space-between">
+      <span>使用方式：请求头 <code>x-api-key</code> 和 <code>x-api-secret</code></span>
+      <ElLink type="primary" style="font-size:13px" @click="goApiDoc">
+        查看使用文档
+      </ElLink>
+    </div>
   </BaseDialog>
 
   <BaseDialog v-model="pwdVisible" title="修改密码" width="400px">
