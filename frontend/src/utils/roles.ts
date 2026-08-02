@@ -18,3 +18,12 @@ export function roleLabel(r: string): string {
   }
   return labels[r] || r
 }
+
+export function projectRoleLabel(r: string | null): string {
+  const labels: Record<string, string> = {
+    [ProjectRole.Admin]: '管理员',
+    [ProjectRole.Maintainer]: '维护者',
+    [ProjectRole.Member]: '成员',
+  }
+  return r ? labels[r] || r : '-'
+}

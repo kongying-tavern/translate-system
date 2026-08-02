@@ -115,7 +115,7 @@ middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴�
 
 ```
 views/ → stores/ → api/ → Express (/api/v1/*)
-components/common/ — AppHeader(项目切换+设置), AppSidebar(菜单+权限), AppTabs(顶部标签页, 基于 BaseTabButton)
+components/common/ — AppHeader(项目切换+设置), AppSidebar(菜单+权限), AppTabs(顶部标签页, 基于 BaseTabButton；首位固定「首页」标签，点击进 DashboardView；右键菜单只显示可执行操作——首页无「关闭自身/关闭左侧」、最左侧/最右侧标签无对应关闭项、标签≤1 无「关闭其他」，不可操作用隐藏而非禁用)
 layouts/AuthLayout — 登录/注册卡片布局
 layouts/AppLayout — 主界面布局（Header + AppTabs 标签栏 + 内容区）
 ```
@@ -330,7 +330,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | `stores/auth.ts` | 用户信息、系统角色、项目角色、activeProjectId |
 | `stores/translation.ts` | 翻译列表、GroupedRow 类型 |
 | `stores/loading.ts` | 全局 loading 遮罩 |
-| `stores/tabs.ts` | 顶部标签页（AppTabs）：已打开页面列表、activePath、增删标签 |
+| `stores/tabs.ts` | 顶部标签页（AppTabs）：已打开页面列表、activePath、增删标签（首页标签为固定首项，不在 store 中，不可关闭，右键只显示「关闭右侧/关闭其他」） |
 | `hooks/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
 | `api/client.ts` | Axios 实例、401 自动 refresh token |
 | `router/index.ts` | 路由守卫、auth.init() 初始化 |

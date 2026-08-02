@@ -39,12 +39,20 @@ const menuPath = ref('')
 const tabsBarRef = ref<HTMLDivElement | null>(null)
 const menuAnchorEl = ref<HTMLElement | null>(null)
 
-const ctxItems = computed<ContextMenuItem[]>(() => [
-  ...(tabsStore.tabs.length > 1 ? [{ key: 'close', label: '关闭标签页', onClick: () => closeCtxTab(menuPath.value) }] : []),
-  { key: 'close-left', label: '关闭左侧', onClick: () => closeCtxLeft(menuPath.value) },
-  { key: 'close-right', label: '关闭右侧', onClick: () => closeCtxRight(menuPath.value) },
-  { key: 'close-others', label: '关闭其他', onClick: () => closeCtxOthers(menuPath.value) },
-])
+const ctxItems = computed<ContextMenuItem[]>(() => {
+  const isHome = menuPath.value === '/'
+  const idx = tabsStore.tabs.findIndex(t => t.path === menuPath.value)
+  const items: ContextMenuItem[] = []
+  if (!isHome)
+    items.push({ key: 'close', label: '关闭标签页', onClick: () => closeCtxTab(menuPath.value) })
+  if (!isHome && idx > 0)
+    items.push({ key: 'close-left', label: '关闭左侧', onClick: () => closeCtxLeft(menuPath.value) })
+  if (isHome ? tabsStore.tabs.length > 0 : idx < tabsStore.tabs.length - 1)
+    items.push({ key: 'close-right', label: '关闭右侧', onClick: () => closeCtxRight(menuPath.value) })
+  if (tabsStore.tabs.length > 1)
+    items.push({ key: 'close-others', label: '关闭其他', onClick: () => closeCtxOthers(menuPath.value) })
+  return items
+})
 
 function computeMenuPos(): { x: number, y: number } {
   const x = menuAnchorEl.value?.getBoundingClientRect().left ?? 0
@@ -60,6 +68,8 @@ function computeMenuPos(): { x: number, y: number } {
 function openMenu(path: string, e: MouseEvent): void {
   menuPath.value = path
   menuAnchorEl.value = e.currentTarget as HTMLElement
+  if (ctxItems.value.length === 0)
+    return
   menuPos.value = computeMenuPos()
   menuVisible.value = true
 }
@@ -88,6 +98,11 @@ function handleTabClick(path: string): void {
     router.push(path)
 }
 
+function handleHomeClick(): void {
+  if (route.path !== '/')
+    router.push('/')
+}
+
 function handleTabClose(path: string): void {
   menuVisible.value = false
   navigate(tabsStore.removeTab(path))
@@ -102,20 +117,42 @@ function closeCtxLeft(path: string): void {
 }
 
 function closeCtxRight(path: string): void {
+  if (path === '/') {
+    closeAllDynamic()
+    return
+  }
   navigate(tabsStore.closeRight(path))
 }
 
 function closeCtxOthers(path: string): void {
+  if (path === '/') {
+    closeAllDynamic()
+    return
+  }
   navigate(tabsStore.closeOthers(path))
+}
+
+function closeAllDynamic(): void {
+  const removedActive = tabsStore.tabs.some(t => t.path === tabsStore.activePath)
+  tabsStore.tabs = []
+  tabsStore.activePath = ''
+  if (removedActive)
+    router.push('/')
 }
 </script>
 
 <template>
   <div ref="tabsBarRef" class="app-tabs">
     <BaseTabButton
+      label="首页"
+      :active="route.path === '/' || route.path === '/projects'"
+      @click="handleHomeClick"
+      @contextmenu.prevent.stop="openMenu('/', $event)"
+    />
+    <BaseTabButton
       v-for="tab in tabsStore.tabs" :key="tab.path"
       :label="tab.title" :active="tab.path === tabsStore.activePath"
-      :closable="tabsStore.tabs.length > 1"
+      closable
       @click="handleTabClick(tab.path)" @close="handleTabClose(tab.path)"
       @contextmenu.prevent.stop="openMenu(tab.path, $event)"
     />
