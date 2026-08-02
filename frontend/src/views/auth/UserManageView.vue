@@ -156,7 +156,7 @@ const userColumns: BaseTableColumnConfig<User>[] = [
     </BasePageHeader>
     <BaseTable :data="users" :columns="userColumns" stripe />
     <BaseDialog v-model="createVisible" title="添加用户" width="450px">
-      <BaseForm label-width="80px">
+      <BaseForm label-width="80px" class="dialog-form">
         <BaseFormItem label="用户名">
           <BaseInput v-model="createForm.username" />
         </BaseFormItem><BaseFormItem label="邮箱">
@@ -178,7 +178,7 @@ const userColumns: BaseTableColumnConfig<User>[] = [
       </template>
     </BaseDialog>
     <BaseDialog v-model="pwdVisible" title="修改密码" width="400px">
-      <BaseForm label-width="100px">
+      <BaseForm label-width="100px" class="dialog-form">
         <BaseFormItem label="用户">
           {{ pwdTarget?.username }}
         </BaseFormItem><BaseFormItem label="新密码">

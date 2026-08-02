@@ -197,7 +197,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .export-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .export-bar .el-form-item { margin-bottom: 0; }
 .opt-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }

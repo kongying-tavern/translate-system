@@ -70,7 +70,7 @@ async function handleRegister() {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .login-wrap { display: flex; flex-direction: column; gap: 16px; }
 .input-group { position: relative; display: flex; align-items: center; }
 .input-icon { position: absolute; left: 14px; color: #909399; font-size: 18px; z-index: 1; }

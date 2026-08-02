@@ -145,3 +145,7 @@ const memberColumns: BaseTableColumnConfig<ProjectMember>[] = [
     <EmptyState v-if="!members.length" description="暂无项目成员" />
   </div>
 </template>
+
+<style lang="scss" scoped>
+.add-bar { padding: 16px; margin-bottom: 16px; }
+</style>

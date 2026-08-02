@@ -301,7 +301,7 @@ async function deleteApiKey(row: ApiKey) {
   </BaseDialog>
 
   <BaseDialog v-model="settingsVisible" title="项目设置" width="500px">
-    <BaseForm :model="settingsForm" label-width="80px">
+    <BaseForm :model="settingsForm" label-width="80px" class="dialog-form">
       <BaseFormItem label="名称">
         <BaseInput v-model="settingsForm.name" />
       </BaseFormItem>
@@ -349,7 +349,7 @@ async function deleteApiKey(row: ApiKey) {
   </BaseDialog>
 
   <BaseDialog v-model="pwdVisible" title="修改密码" width="400px">
-    <BaseForm label-width="100px">
+    <BaseForm label-width="100px" class="dialog-form">
       <BaseFormItem label="当前密码">
         <BaseInput v-model="pwdForm.oldPassword" show-password />
       </BaseFormItem>
@@ -370,7 +370,7 @@ async function deleteApiKey(row: ApiKey) {
   </BaseDialog>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .header-left { flex: 1; display: flex; align-items: center; }
 .header-right { display: flex; align-items: center; }
 .user-info { cursor: pointer; display: flex; align-items: center; gap: 4px; }

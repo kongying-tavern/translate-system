@@ -11,4 +11,10 @@
   &.el-form--inline :deep(.el-form-item) {
     margin-right: 8px;
   }
+
+  // 独立卡片面板内边距（弹窗内 .dialog-form 与 inline 筛选栏不适用，
+  // 前者已有弹窗 body 内边距，后者自带 padding）
+  &:not(.el-form--inline):not(.dialog-form) {
+    padding: 8px;
+  }
 }

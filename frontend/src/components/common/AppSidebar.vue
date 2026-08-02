@@ -55,7 +55,7 @@ const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .sidebar { height: 100%; display: flex; flex-direction: column; }
 .sidebar-logo { color: #fff; font-size: 18px; font-weight: bold; text-align: center; padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
 .sidebar-menu { flex: 1; border-right: none; }

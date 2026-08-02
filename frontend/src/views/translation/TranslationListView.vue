@@ -508,7 +508,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     </BaseForm>
     <BaseTable :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" :columns="translationColumns" stripe row-key="translationKey" height="100%" class="trans-table" />
     <BaseDialog v-model="showCreateDialog" title="新增 Key" width="500px">
-      <BaseForm label-width="60px">
+      <BaseForm label-width="60px" class="dialog-form">
         <BaseFormItem label="Key">
           <BaseInput v-model="form.translationKey" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入翻译 Key" />
         </BaseFormItem><BaseFormItem label="原文">

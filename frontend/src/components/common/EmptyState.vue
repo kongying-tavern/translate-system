@@ -15,7 +15,7 @@ withDefaults(defineProps<{ description?: string }>(), { description: '暂无数�
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .empty-state { text-align: center; padding: 60px 0; color: #909399; }
 .empty-state p { margin: 16px 0; }
 </style>

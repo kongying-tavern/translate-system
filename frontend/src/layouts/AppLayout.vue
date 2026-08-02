@@ -31,7 +31,7 @@ const loadingStore = useLoadingStore()
   </el-container>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .app-layout { height: 100vh; }
 .el-aside { background: #1d1e2c; overflow-x: hidden; }
 .el-header { background: #fff; border-bottom: 1px solid #e4e7ed; display: flex; align-items: center; padding: 0 20px; }

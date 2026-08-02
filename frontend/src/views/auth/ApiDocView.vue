@@ -298,7 +298,7 @@ onMounted(async () => {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .api-doc-page {
   display: flex;
   flex-direction: column;

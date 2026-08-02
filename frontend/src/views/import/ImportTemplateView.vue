@@ -243,7 +243,7 @@ async function doImport() {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .import-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .import-bar .el-form-item { margin-bottom: 0; }
 .ex-pre { font-size:13px; white-space:pre-wrap; margin:0; }

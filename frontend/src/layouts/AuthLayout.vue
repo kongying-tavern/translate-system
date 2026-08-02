@@ -16,7 +16,7 @@ const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .auth-layout {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, #e8edf5 0%, #dce3f0 50%, #e3e8f5 100%);
