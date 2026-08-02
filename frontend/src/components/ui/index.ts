@@ -1,5 +1,7 @@
 export { default as BaseButton } from './BaseButton/index.vue'
 export { default as BaseCheckbox } from './BaseCheckbox/index.vue'
+export { default as BaseContextMenu } from './BaseContextMenu/index.vue'
+export type { BaseContextMenuProps, ContextMenuItem } from './BaseContextMenu/types'
 export { default as BaseDataViewer } from './BaseDataViewer/index.vue'
 export type { BaseDataViewerProps, DataViewerLang } from './BaseDataViewer/types'
 export { default as BaseDialog } from './BaseDialog/index.vue'

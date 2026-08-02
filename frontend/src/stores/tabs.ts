@@ -28,10 +28,37 @@ export const useTabsStore = defineStore('tabs', () => {
     return next ? next.path : null
   }
 
+  function closeLeft(path: string): string | null {
+    const idx = tabs.value.findIndex(t => t.path === path)
+    if (idx <= 0)
+      return null
+    const removedActive = tabs.value.slice(0, idx).some(t => t.path === activePath.value)
+    tabs.value.splice(0, idx)
+    return removedActive ? path : null
+  }
+
+  function closeRight(path: string): string | null {
+    const idx = tabs.value.findIndex(t => t.path === path)
+    if (idx === -1 || idx === tabs.value.length - 1)
+      return null
+    const removedActive = tabs.value.slice(idx + 1).some(t => t.path === activePath.value)
+    tabs.value.splice(idx + 1)
+    return removedActive ? path : null
+  }
+
+  function closeOthers(path: string): string | null {
+    const target = tabs.value.find(t => t.path === path)
+    if (!target)
+      return null
+    const removedActive = activePath.value !== path
+    tabs.value = [target]
+    return removedActive ? path : null
+  }
+
   function reset(): void {
     tabs.value = []
     activePath.value = ''
   }
 
-  return { tabs, activePath, addTab, removeTab, reset }
+  return { tabs, activePath, addTab, removeTab, closeLeft, closeRight, closeOthers, reset }
 })

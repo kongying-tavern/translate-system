@@ -301,6 +301,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 |------|:----:|------|
 | BaseButton | 透传 | Element Plus el-button 封装 |
 | BaseCheckbox | 透传 | el-checkbox，defineModel 双向绑定 + label slot |
+| BaseContextMenu | **配置式** | 右键菜单容器：`items: ContextMenuItem[]`（`key`/`label`/`danger`/`disabled`/`divided`/`render?: () => VNode`（TSX 渲染）/`onClick`）驱动，`v-model:visible` 显隐 + `x`/`y` 定位；自动视口收拢、外部点击/滚轮/Esc 关闭（点击菜单内部不关闭，disabled 项不触发），点击项 emit `select(key)`；颜色/背景用 Element Plus CSS 变量实现换肤 |
 | BaseDataViewer | **配置式** | 基于 `data-visor-vue` 的通用数据查看器，lang 支持 json/yaml/xml，Shiki 高亮，含树形/源码（Minified）/分块（Fractured）模式，`showFractured` 默认 false（隐藏 Fractured 按钮，需要时传 true）。该依赖有 pnpm patch（`frontend/patches/data-visor-vue@0.0.4.patch`），累计 5 处：① YAML Minified 模式保留原文本（原实现误转 JSON）；② XML 树形模式扁平化重复兄弟标签数组，避免 `<tag>` 显示两层；③ 扁平化后 item 深度对齐父级，避免展开父节点后子行不显示；④ XML 属性子行排到子元素之前（默认被解析器放在对象末尾）；⑤ 新增 `showFractured` prop（DataVisor + Toolbar + d.ts），控制 Fractured 模式按钮显隐（默认 true） |
 | BaseDialog | 透传 | el-dialog，defineModel 双向绑定 |
 | BaseForm | 透传 | el-form，卡片式容器 |
