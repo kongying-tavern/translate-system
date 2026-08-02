@@ -385,7 +385,7 @@ async function handleDelete(row: GroupedRow) {
 const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
   const cols: BaseTableColumnConfig<GroupedRow>[] = []
 
-  if (!hasFilter.value) {
+  if (!hasFilter.value && perm.canReorderRows.value) {
     cols.push({
       width: 44,
       fixed: 'left',
@@ -506,7 +506,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         </BaseButton>
       </BaseFormItem>
     </BaseForm>
-    <BaseTable :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" :columns="translationColumns" stripe row-key="translationKey" height="100%" />
+    <BaseTable :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" :columns="translationColumns" stripe row-key="translationKey" height="100%" class="trans-table" />
     <BaseDialog v-model="showCreateDialog" title="新增 Key" width="500px">
       <BaseForm label-width="60px">
         <BaseFormItem label="Key">
@@ -528,7 +528,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .trans-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .trans-page .el-table { flex: 1; }
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
@@ -536,7 +536,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 .pagination-wrap { display: flex; justify-content: center; margin-top: 16px; }
 .inline-input { } .inline-input :deep(.el-textarea__inner) { padding: 2px 6px; font-size: 13px; }
 .pre-wrap { white-space: pre-wrap; word-break: break-word; }
-.drag-handle { color: #c0c4cc; cursor: grab; font-size: 18px; display: block; text-align: center; line-height: 1; padding: 8px 0; }
-.drag-handle:hover { color: #409eff; }
-.drag-handle-col { user-select: none; }
+.trans-table :deep(.el-table__body .el-table__cell) { vertical-align: top; }
+.trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; padding: 8px 0; }
+.trans-table :deep(.drag-handle:hover) { color: #409eff; }
 </style>
