@@ -8,6 +8,11 @@
     margin-bottom: 8px;
   }
 
+  // 字段报错时下方留出空间显示错误文案，避免与下一行重叠
+  :deep(.el-form-item.is-error) {
+    margin-bottom: 18px;
+  }
+
   &.el-form--inline :deep(.el-form-item) {
     margin-right: 8px;
   }
