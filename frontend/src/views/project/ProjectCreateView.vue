@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import type { ComponentExposed } from 'vue-component-type-helpers'
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { reactive, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
 import { useProjectStore } from '@/stores/project'
@@ -9,9 +10,18 @@ const router = useRouter()
 const store = useProjectStore()
 const loading = ref(false)
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en' })
+const formRef = useTemplateRef<ComponentExposed<typeof BaseForm>>('formRef')
 const rules = { name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }], code: [{ required: true, message: '请输入项目标识', trigger: 'blur' }] }
 
 async function handleCreate() {
+  if (!formRef.value)
+    return
+  try {
+    await formRef.value.validate()
+  }
+  catch {
+    return
+  }
   loading.value = true
   try {
     const p = await store.create(form.name, form.code, form.description, form.sourceLanguage)
@@ -30,7 +40,7 @@ async function handleCreate() {
 <template>
   <div>
     <BasePageHeader title="新建项目" />
-    <BaseForm :model="form" :rules="rules" label-width="100px" style="max-width:600px">
+    <BaseForm ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:600px">
       <BaseFormItem label="项目名称" prop="name">
         <BaseInput v-model="form.name" placeholder="请输入项目名称" />
       </BaseFormItem>

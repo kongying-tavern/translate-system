@@ -294,6 +294,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 - **子组件内部元素必须用 `:deep()`**：scoped 样式只能命中组件根元素，`.base-xxx .el-input__wrapper` 这类选择器命中不了 el-input 内部 DOM（否则是死样式，圆角/阴影不会生效）。统一格式 `:deep(.el-xxx)`，外层前缀（`.base-xxx`）保持带 scope
 - **封装后必须迁移现有使用处**：将页面中已存在的 `<el-xxx>` 替换为对应 Base 组件，避免新旧混用
 - **封装后必须更新本列表**：新增组件要同步补充到下方「当前组件」表格（含类型和说明），并导出到 `ui/index.ts` barrel
+- **defineExpose 组件的父组件 ref 类型**：用 `useTemplateRef<ComponentExposed<typeof Child>>('xx')`（`import type { ComponentExposed } from 'vue-component-type-helpers'`），不能用 `InstanceType<typeof Child>`——后者是组件实例类型，提取不到 `defineExpose` 暴露的方法（如 BaseForm 的 validate 等）
 
 **当前组件：**
 
@@ -304,7 +305,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseContextMenu | **配置式** | 右键菜单容器：`items: ContextMenuItem[]`（`key`/`label`/`danger`/`disabled`/`divided`/`render?: () => VNode`（TSX 渲染）/`onClick`）驱动，`v-model:visible` 显隐 + `x`/`y` 定位；自动视口收拢、外部点击/滚轮/Esc 关闭（点击菜单内部不关闭，disabled 项不触发），点击项 emit `select(key)`；颜色/背景用 Element Plus CSS 变量实现换肤 |
 | BaseDataViewer | **配置式** | 基于 `data-visor-vue` 的通用数据查看器，lang 支持 json/yaml/xml，Shiki 高亮，含树形/源码（Minified）/分块（Fractured）模式，`showFractured` 默认 false（隐藏 Fractured 按钮，需要时传 true）。该依赖有 pnpm patch（`frontend/patches/data-visor-vue@0.0.4.patch`），累计 5 处：① YAML Minified 模式保留原文本（原实现误转 JSON）；② XML 树形模式扁平化重复兄弟标签数组，避免 `<tag>` 显示两层；③ 扁平化后 item 深度对齐父级，避免展开父节点后子行不显示；④ XML 属性子行排到子元素之前（默认被解析器放在对象末尾）；⑤ 新增 `showFractured` prop（DataVisor + Toolbar + d.ts），控制 Fractured 模式按钮显隐（默认 true） |
 | BaseDialog | 透传 | el-dialog，defineModel 双向绑定 |
-| BaseForm | 透传 | el-form，卡片式容器 |
+| BaseForm | 透传 | el-form，卡片式容器；内部 el-form 实例方法（validate/validateField/resetFields/clearValidate）经 defineExpose 暴露，父组件 `ref` 可直接调用 |
 | BaseFormItem | 透传 | el-form-item |
 | BaseIcon | 透传 | el-icon，hover 动画 |
 | BaseInput | 透传 | el-input，支持 autosize |

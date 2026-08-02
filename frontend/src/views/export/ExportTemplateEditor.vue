@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { FormInstance, FormRules } from 'element-plus'
+import type { FormRules } from 'element-plus'
+import type { ComponentExposed } from 'vue-component-type-helpers'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
 import { BaseButton, BaseCheckbox, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
@@ -15,7 +16,7 @@ const projectSlug = computed(() => route.params.projectSlug as string)
 const templateId = computed(() => route.params.templateId as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
-const formRef = ref<FormInstance>()
+const formRef = useTemplateRef<ComponentExposed<typeof BaseForm>>('formRef')
 
 const formatOptions = computed(() =>
   Object.entries(EXPORT_FORMAT_MAP).map(([value, meta]) => ({
@@ -29,8 +30,15 @@ const form: { name: string, code: string, description: string, formatType: Expor
 const configForm = reactive({ skipIdentical: false, skipEmpty: false, useCodeKey: false })
 
 const rules: FormRules = {
-  name: [{ required: true, message: '名称不能为空', trigger: 'blur' }],
-  code: [{ required: true, message: '标识不能为空', trigger: 'blur' }],
+  name: [
+    { required: true, message: '名称不能为空', trigger: 'blur' },
+    { max: 50, message: '名称长度不能超过 50 字符', trigger: 'blur' },
+  ],
+  code: [
+    { required: true, message: '标识不能为空', trigger: 'blur' },
+    { pattern: /^[a-z0-9][\w.-]*$/i, message: '仅支持字母、数字、中划线、下划线、点', trigger: 'blur' },
+  ],
+  formatType: [{ required: true, message: '请选择输出格式', trigger: 'change' }],
 }
 
 onMounted(async () => {
@@ -98,7 +106,7 @@ async function handleSave() {
       <BaseFormItem label="描述">
         <BaseInput v-model="form.description" type="textarea" />
       </BaseFormItem>
-      <BaseFormItem label="输出格式">
+      <BaseFormItem label="输出格式" prop="formatType">
         <BaseSelect v-model="form.formatType" style="width:100%">
           <el-option v-for="fmt in formatOptions" :key="fmt.value" class="base-option" :label="fmt.label" :value="fmt.value">
             <span>{{ fmt.value }}</span>
