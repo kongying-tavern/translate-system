@@ -11,6 +11,7 @@ withDefaults(defineProps<{
   size?: 'large' | 'default' | 'small'
   labelWidth?: string | number
 }>(), {
+  required: undefined,
   showMessage: true,
 })
 </script>
