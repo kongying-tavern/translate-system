@@ -333,7 +333,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | `stores/tabs.ts` | 顶部标签页（AppTabs）：已打开页面列表、activePath、增删标签（首页标签为固定首项，不在 store 中，不可关闭，右键只显示「关闭右侧/关闭其他」） |
 | `hooks/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
 | `api/client.ts` | Axios 实例、401 自动 refresh token |
-| `router/index.ts` | 路由守卫、auth.init() 初始化 |
+| `router/index.ts` | 路由守卫、auth.init() 初始化；路由 `meta.isStatic: true` 标记固定标签页（不进 tabs store、不可关闭），AppTabs 通过 `router.resolve(path).meta.isStatic` 判断 |
 
 ### 改动翻译相关功能
 

@@ -21,11 +21,10 @@ const router = createRouter({
       component: () => import('@/layouts/AppLayout.vue'),
       meta: { requiresAuth: true },
       children: [
-        { path: '', name: 'Dashboard', component: () => import('@/views/dashboard/DashboardView.vue'), meta: { title: '项目管理' } },
+        { path: '', name: 'Dashboard', component: () => import('@/views/dashboard/DashboardView.vue'), meta: { title: '项目管理', isStatic: true } },
         { path: 'users', name: 'Users', component: () => import('@/views/auth/UserManageView.vue'), meta: { title: '用户管理' } },
         { path: 'api-doc', name: 'ApiDoc', component: () => import('@/views/auth/ApiDocView.vue'), meta: { title: '开放接口说明' } },
         { path: 'projects/new', name: 'ProjectCreate', component: () => import('@/views/project/ProjectCreateView.vue'), meta: { title: '新建项目' } },
-        { path: 'projects', name: 'Projects', component: () => import('@/views/dashboard/DashboardView.vue'), meta: { title: '项目管理' } },
         {
           path: 'projects/:projectSlug',
           children: [

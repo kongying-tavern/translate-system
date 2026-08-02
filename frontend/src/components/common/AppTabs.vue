@@ -11,7 +11,11 @@ const router = useRouter()
 const tabsStore = useTabsStore()
 const auth = useAuthStore()
 
-const IGNORE_PATHS = new Set(['/', '/projects'])
+function isStaticPath(path: string): boolean {
+  if (!path)
+    return false
+  return router.resolve(path).meta.isStatic === true
+}
 
 function resolveTitle(): string {
   const metaTitle = (route.meta.title as string | undefined) || route.path
@@ -23,7 +27,7 @@ function resolveTitle(): string {
 
 watch(() => route.path, (path) => {
   tabsStore.activePath = path
-  if (IGNORE_PATHS.has(path))
+  if (isStaticPath(path))
     return
   tabsStore.addTab({ path, title: resolveTitle() })
 }, { immediate: true })
@@ -40,14 +44,14 @@ const tabsBarRef = ref<HTMLDivElement | null>(null)
 const menuAnchorEl = ref<HTMLElement | null>(null)
 
 const ctxItems = computed<ContextMenuItem[]>(() => {
-  const isHome = menuPath.value === '/'
+  const isStatic = isStaticPath(menuPath.value)
   const idx = tabsStore.tabs.findIndex(t => t.path === menuPath.value)
   const items: ContextMenuItem[] = []
-  if (!isHome)
+  if (!isStatic)
     items.push({ key: 'close', label: '关闭标签页', onClick: () => closeCtxTab(menuPath.value) })
-  if (!isHome && idx > 0)
+  if (!isStatic && idx > 0)
     items.push({ key: 'close-left', label: '关闭左侧', onClick: () => closeCtxLeft(menuPath.value) })
-  if (isHome ? tabsStore.tabs.length > 0 : idx < tabsStore.tabs.length - 1)
+  if (isStatic ? tabsStore.tabs.length > 0 : idx < tabsStore.tabs.length - 1)
     items.push({ key: 'close-right', label: '关闭右侧', onClick: () => closeCtxRight(menuPath.value) })
   if (tabsStore.tabs.length > 1)
     items.push({ key: 'close-others', label: '关闭其他', onClick: () => closeCtxOthers(menuPath.value) })
@@ -117,7 +121,7 @@ function closeCtxLeft(path: string): void {
 }
 
 function closeCtxRight(path: string): void {
-  if (path === '/') {
+  if (isStaticPath(path)) {
     closeAllDynamic()
     return
   }
@@ -125,7 +129,7 @@ function closeCtxRight(path: string): void {
 }
 
 function closeCtxOthers(path: string): void {
-  if (path === '/') {
+  if (isStaticPath(path)) {
     closeAllDynamic()
     return
   }
@@ -145,7 +149,7 @@ function closeAllDynamic(): void {
   <div ref="tabsBarRef" class="app-tabs">
     <BaseTabButton
       label="首页"
-      :active="route.path === '/' || route.path === '/projects'"
+      :active="route.path === '/'"
       @click="handleHomeClick"
       @contextmenu.prevent.stop="openMenu('/', $event)"
     />
