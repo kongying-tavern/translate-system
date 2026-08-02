@@ -2,6 +2,7 @@
 import { Loading } from '@element-plus/icons-vue'
 import AppHeader from '@/components/common/AppHeader.vue'
 import AppSidebar from '@/components/common/AppSidebar.vue'
+import AppTabs from '@/components/common/AppTabs.vue'
 import { BaseIcon } from '@/components/ui'
 import { useLoadingStore } from '@/stores/loading'
 
@@ -17,6 +18,7 @@ const loadingStore = useLoadingStore()
       <el-header height="56px">
         <AppHeader />
       </el-header>
+      <AppTabs />
       <el-main style="position:relative">
         <router-view />
         <div v-if="loadingStore.loading" class="loading-overlay">
