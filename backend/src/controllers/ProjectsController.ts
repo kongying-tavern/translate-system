@@ -126,8 +126,8 @@ export class ProjectsController extends Controller {
   public async list(@Request() req: AuthRequest, @Query() page?: string, @Query() pageSize?: string): Promise<ApiOk<ApiPage<ProjectRow>>> {
     const p = Math.max(1, parseInt(page || '1'))
     const size = Math.min(parseInt(pageSize || '20'), 100)
-    const { projects, total } = await projectService.listProjects(req.userId!, p, size)
-    return okPage(projects as unknown as ProjectRow[], total, p, size)
+    const { rows, total } = await projectService.listProjects(req.userId!, req.userRole!, p, size)
+    return okPage(rows as unknown as ProjectRow[], total, p, size)
   }
 
   /**

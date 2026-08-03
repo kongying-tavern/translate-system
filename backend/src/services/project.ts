@@ -1,7 +1,8 @@
+import { ProjectRole, SystemRole } from '../constants/roles'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 
-export async function listProjects(userId: string, page: number, pageSize: number) {
+export async function listProjects(userId: string, userRole: string, page: number, pageSize: number) {
   const memberProjectIds = await prisma.projectMember.findMany({ where: { userId }, select: { projectId: true } })
   const ids = memberProjectIds.map(m => m.projectId)
   const where = { OR: [{ userId }, { id: { in: ids } }] }
@@ -9,7 +10,24 @@ export async function listProjects(userId: string, page: number, pageSize: numbe
     prisma.project.findMany({ where, orderBy: { createdAt: 'asc' }, skip: (page - 1) * pageSize, take: pageSize }),
     prisma.project.count({ where }),
   ])
-  return { projects, total }
+  return { rows: await attachProjectRole(userId, userRole, projects), total }
+}
+
+/** 为项目列表附加当前用户在每个项目的角色（与 assertProjectAccess 保持一致） */
+async function attachProjectRole(userId: string, userRole: string, projects: Array<{ id: string, userId: string } & Record<string, unknown>>) {
+  const members = await prisma.projectMember.findMany({
+    where: { userId, projectId: { in: projects.map(p => p.id) } },
+    select: { projectId: true, projectRole: true },
+  })
+  const roleByProject: Record<string, string> = {}
+  for (const m of members)
+    roleByProject[m.projectId] = m.projectRole
+  return projects.map(p => ({
+    ...p,
+    projectRole: userRole === SystemRole.SuperAdmin || p.userId === userId
+      ? ProjectRole.Admin
+      : (roleByProject[p.id] ?? null),
+  }))
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
