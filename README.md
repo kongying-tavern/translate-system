@@ -95,7 +95,7 @@ cd backend && pnpm dev     # -> http://localhost:8080
 cd frontend && pnpm install && pnpm dev  # -> http://localhost:3000
 ```
 
-Swagger 文档: `http://localhost:8080/api-docs`（Docker 部署时为 `http://localhost:20080/api-docs`）
+Swagger 文档: `http://localhost:8080/api-docs`（Docker 部署时为 `http://localhost:20080/api-docs`，开发者文档，静态全量）。
 
 #### 5. 导入翻译文件
 
