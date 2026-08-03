@@ -124,6 +124,8 @@ layouts/AppLayout — 主界面布局（Header + AppTabs 标签栏 + 内容区�
 
 ### 角色权限
 
+> 完整的三维权限模型（作用层级 / 实现方案 / 接口层面）与维护指引见 `docs/PERMISSION_GUIDE.md`。以下是核心矩阵。
+
 系统角色与项目角色分离。
 
 **系统角色** (`users.role`):
@@ -249,7 +251,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
   -d '{"templateSlug":"...","languageCodes":["zh-Hans"]}'
 ```
 
-白名单配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组（9 个接口，`index.ts` 守卫与 `services/docs.ts` 抽取共用）。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
+白名单配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组（**每条声明「方法 + 路径正则」**，新增开放接口在此追加一条即生效，无需改守卫；`index.ts` 守卫与 `services/docs.ts` 抽取共用）。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
 
 ### 导出格式
 
