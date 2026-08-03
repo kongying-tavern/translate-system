@@ -11,20 +11,28 @@ import { getAccessToken } from '@/utils/token'
  */
 type RoutePerm = 'sys:admin' | 'sys:super_admin' | 'proj:admin' | 'proj:maintainer' | 'proj:member'
 
-/** 校验当前用户是否有权进入目标路由（基于 meta.perm） */
+/** 校验当前用户是否有权进入目标路由（基于 meta.perm + 项目成员兜底） */
 function hasRoutePermission(to: RouteLocationGeneric): boolean {
+  const auth = useAuthStore()
+  const slug = to.params.projectSlug as string | undefined
+  const projectRole = slug ? useProjectStore().getProject(slug)?.projectRole ?? null : null
+
+  // 兜底：项目内页面必须先满足「是该项目成员/owner 或 super_admin」，否则一律拒绝
+  if (slug && auth.role !== SystemRole.SuperAdmin && !projectRole)
+    return false
+
   const perm = to.meta.perm as RoutePerm | undefined
   if (!perm)
     return true
-  const auth = useAuthStore()
+
   const [kind, role] = perm.split(':')
   if (kind === 'sys')
     return (SYS_ROLE_LEVEL[auth.role] ?? 0) >= (SYS_ROLE_LEVEL[role] ?? 0)
+
+  // proj:* — super_admin 恒放行，其余按 URL 项目角色门槛
   if (auth.role === SystemRole.SuperAdmin)
     return true
-  const slug = to.params.projectSlug as string | undefined
-  const projectRole = slug ? useProjectStore().getProject(slug)?.projectRole ?? null : null
-  return !!projectRole && (PROJECT_ROLE_LEVEL[projectRole] ?? 0) >= (PROJECT_ROLE_LEVEL[role] ?? 0)
+  return !!(projectRole && (PROJECT_ROLE_LEVEL[projectRole] ?? 0) >= (PROJECT_ROLE_LEVEL[role] ?? 0))
 }
 
 const router = createRouter({
