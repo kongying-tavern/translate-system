@@ -17,12 +17,17 @@ function isStaticPath(path: string): boolean {
   return router.resolve(path).meta.isStatic === true
 }
 
-function resolveTitle(): string {
-  const metaTitle = (route.meta.title as string | undefined) || route.path
-  const projectSlug = route.params.projectSlug as string | undefined
+function resolveTitleForPath(path: string): string {
+  const resolved = router.resolve(path)
+  const metaTitle = (resolved.meta.title as string | undefined) || path
+  const projectSlug = resolved.params.projectSlug as string | undefined
   if (projectSlug)
     return `${metaTitle} · ${auth.activeProjectName || projectSlug}`
   return metaTitle
+}
+
+function resolveTitle(): string {
+  return resolveTitleForPath(route.path)
 }
 
 watch(() => route.path, (path) => {
@@ -31,6 +36,17 @@ watch(() => route.path, (path) => {
     return
   tabsStore.addTab({ path, title: resolveTitle() })
 }, { immediate: true })
+
+watch(() => auth.activeProjectName, () => {
+  const activeSlug = auth.activeProjectSlug
+  if (!activeSlug)
+    return
+  tabsStore.tabs = tabsStore.tabs.map((t) => {
+    if (t.path.startsWith('/projects/') && t.path.split('/')[2] === activeSlug)
+      return { ...t, title: resolveTitleForPath(t.path) }
+    return t
+  })
+})
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)

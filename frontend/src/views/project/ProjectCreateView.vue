@@ -26,7 +26,7 @@ async function handleCreate() {
   try {
     const p = await store.create(form.name, form.code, form.description, form.sourceLanguage)
     ElMessage.success('项目创建成功')
-    router.push(`/projects/${p.id}`)
+    router.push(`/projects/${p.code || p.id}`)
   }
   catch {
     ElMessage.error('创建失败')

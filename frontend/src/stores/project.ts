@@ -1,41 +1,63 @@
 import type { Project } from '@/types/models'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import * as projectApi from '@/api/project'
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
-  const currentProject = ref<Project | null>(null)
+  const loaded = ref(false)
 
-  async function fetchProjects() {
-    const { data: res } = await projectApi.getProjects()
-    projects.value = res.data.list
+  const bySlug = computed<Record<string, Project>>(() => {
+    const map: Record<string, Project> = {}
+    for (const p of projects.value)
+      map[p.code || p.id] = p
+    return map
+  })
+
+  function getProject(slug: string): Project | undefined {
+    return bySlug.value[slug]
   }
 
-  async function fetchProject(id: string) {
-    const { data: res } = await projectApi.getProject(id)
-    currentProject.value = res.data
+  async function fetchProjects(force = false) {
+    if (loaded.value && !force)
+      return
+    const { data: res } = await projectApi.getProjects(1, 100)
+    projects.value = res.data.list
+    loaded.value = true
+  }
+
+  function upsert(p: Project) {
+    const idx = projects.value.findIndex(x => x.id === p.id)
+    if (idx === -1)
+      projects.value.unshift(p)
+    else
+      projects.value[idx] = p
   }
 
   async function create(name: string, code: string, description: string, sourceLanguage: string): Promise<Project> {
     const { data: res } = await projectApi.createProject({ name, code, description, sourceLanguage })
-    projects.value.unshift(res.data)
+    upsert(res.data)
+    loaded.value = true
     return res.data
   }
 
-  async function update(id: string, data: { name: string, code?: string, description?: string, sourceLanguage?: string }) {
-    const { data: res } = await projectApi.updateProject(id, data)
-    const idx = projects.value.findIndex(p => p.id === id)
-    if (idx !== -1)
-      projects.value[idx] = res.data
-    if (currentProject.value?.id === id)
-      currentProject.value = res.data
+  async function update(slug: string, data: { name: string, code?: string, description?: string, sourceLanguage?: string }): Promise<Project> {
+    const { data: res } = await projectApi.updateProject(slug, data)
+    upsert(res.data)
+    return res.data
   }
 
-  async function remove(id: string) {
-    await projectApi.deleteProject(id)
-    projects.value = projects.value.filter(p => p.id !== id)
+  async function remove(slug: string) {
+    await projectApi.deleteProject(slug)
+    const p = bySlug.value[slug]
+    if (p)
+      projects.value = projects.value.filter(x => x.id !== p.id)
   }
 
-  return { projects, currentProject, fetchProjects, fetchProject, create, update, remove }
+  function clear() {
+    projects.value = []
+    loaded.value = false
+  }
+
+  return { projects, loaded, bySlug, getProject, fetchProjects, create, update, remove, clear }
 })

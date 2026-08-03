@@ -60,5 +60,25 @@ export const useTabsStore = defineStore('tabs', () => {
     activePath.value = ''
   }
 
-  return { tabs, activePath, addTab, removeTab, closeLeft, closeRight, closeOthers, reset }
+  function isProjectPath(path: string, slug: string): boolean {
+    return path === `/projects/${slug}` || path.startsWith(`/projects/${slug}/`)
+  }
+
+  function renameProjectSlug(oldSlug: string, newSlug: string): void {
+    tabs.value = tabs.value.map((t) => {
+      if (isProjectPath(t.path, oldSlug))
+        return { ...t, path: t.path.replace(oldSlug, newSlug) }
+      return t
+    })
+    if (isProjectPath(activePath.value, oldSlug))
+      activePath.value = activePath.value.replace(oldSlug, newSlug)
+  }
+
+  function removeProjectTabs(slug: string): void {
+    tabs.value = tabs.value.filter(t => !isProjectPath(t.path, slug))
+    if (isProjectPath(activePath.value, slug))
+      activePath.value = ''
+  }
+
+  return { tabs, activePath, addTab, removeTab, closeLeft, closeRight, closeOthers, reset, renameProjectSlug, removeProjectTabs }
 })

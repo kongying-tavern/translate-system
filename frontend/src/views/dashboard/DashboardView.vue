@@ -15,12 +15,8 @@ const loading = ref(true)
 onMounted(async () => {
   await store.fetchProjects()
   loading.value = false
-  if (store.projects.length === 0) {
-    auth.activeProjectSlug = ''
-    auth.activeProjectName = ''
-    localStorage.removeItem('activeProjectSlug')
-    localStorage.removeItem('activeProjectName')
-  }
+  if (store.projects.length === 0)
+    auth.setActiveProject('')
 })
 
 function goProject(p: Project): void {

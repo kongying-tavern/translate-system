@@ -1,7 +1,8 @@
 import type { User } from '@/types/models'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import * as authApi from '@/api/auth'
+import { useProjectStore } from '@/stores/project'
 import { SystemRole } from '@/utils/roles'
 import { clearTokens, getAccessToken, setTokens } from '@/utils/token'
 
@@ -9,6 +10,20 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const isAuthenticated = ref(!!getAccessToken())
   const role = ref<string>(SystemRole.User)
+
+  const projectStore = useProjectStore()
+
+  const activeProjectSlug = ref(localStorage.getItem('activeProjectSlug') || '')
+  const activeProjectName = computed(() => projectStore.getProject(activeProjectSlug.value)?.name ?? '')
+  const projectRole = computed(() => projectStore.getProject(activeProjectSlug.value)?.projectRole ?? null)
+
+  function setActiveProject(slug: string) {
+    activeProjectSlug.value = slug
+    if (slug)
+      localStorage.setItem('activeProjectSlug', slug)
+    else
+      localStorage.removeItem('activeProjectSlug')
+  }
 
   async function init() {
     if (!getAccessToken())
@@ -19,6 +34,12 @@ export const useAuthStore = defineStore('auth', () => {
       role.value = res.data.role || SystemRole.User
     }
     catch { /* token might be expired, refresh will handle it */ }
+    try {
+      await projectStore.fetchProjects()
+    }
+    catch { /* 项目列表加载失败不阻断启动 */ }
+    if (projectStore.loaded && activeProjectSlug.value && !projectStore.getProject(activeProjectSlug.value))
+      setActiveProject('')
   }
 
   async function login(account: string, password: string) {
@@ -35,29 +56,13 @@ export const useAuthStore = defineStore('auth', () => {
     await init()
   }
 
-  const projectRole = ref<string | null>(null)
-  const activeProjectSlug = ref(localStorage.getItem('activeProjectSlug') || '')
-  const activeProjectName = ref(localStorage.getItem('activeProjectName') || '')
-
   function logout() {
     clearTokens()
     user.value = null
     isAuthenticated.value = false
     role.value = SystemRole.User
-    projectRole.value = null
-    activeProjectSlug.value = ''
-    activeProjectName.value = ''
-    localStorage.removeItem('activeProjectSlug')
-    localStorage.removeItem('activeProjectName')
-  }
-
-  function setActiveProject(id: string, name: string, code?: string, pr?: string | null) {
-    const slug = code || id
-    activeProjectSlug.value = slug
-    activeProjectName.value = name
-    projectRole.value = pr || null
-    localStorage.setItem('activeProjectSlug', slug)
-    localStorage.setItem('activeProjectName', name)
+    setActiveProject('')
+    projectStore.clear()
   }
 
   return { user, isAuthenticated, role, projectRole, activeProjectSlug, activeProjectName, setActiveProject, init, login, register, logout }

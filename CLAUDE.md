@@ -120,6 +120,8 @@ layouts/AuthLayout — 登录/注册卡片布局
 layouts/AppLayout — 主界面布局（Header + AppTabs 标签栏 + 内容区）
 ```
 
+**项目数据单源（project store）**：用户可见的所有项目统一存 `stores/project.ts`（`projects` 数组 + `bySlug` computed map，key 为 slug=`code || id`）。`auth.init()` 启动时加载一次（`fetchProjects` 带 `loaded` 守卫），`auth` store 的 `activeProjectName` / `projectRole` 均为从 `bySlug[activeProjectSlug]` 派生出的 computed，不再各自存储重复状态。所有项目变更必须走 project store（`create`/`update`/`remove`），保证 map 一致；项目 **code 变更** 时 `AppHeader.saveSettings` 会同步：更新 `activeProjectSlug`（ref+localStorage）、`tabsStore.renameProjectSlug` 重写已打开标签路径、`router.replace` 到新 slug 路由。AppTabs 标签标题用 `auth.activeProjectName` 计算，项目名异步加载完成后自动刷新，`logout` 时 `projectStore.clear()` 防串号。
+
 ### 角色权限
 
 系统角色与项目角色分离。
@@ -328,10 +330,11 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 | 文件 | 职责 |
 |------|------|
-| `stores/auth.ts` | 用户信息、系统角色、项目角色、activeProjectId |
+| `stores/auth.ts` | 用户信息、系统角色、`activeProjectSlug`；`activeProjectName` / `projectRole` 为从 project store `bySlug` map 派生的 computed，`setActiveProject(slug)` 只写 slug + localStorage |
+| `stores/project.ts` | 用户参与的项目列表 + `bySlug` computed（slug=`code||id` → Project）；`auth.init()` 启动加载（`loaded` 守卫），增删改（`create`/`update`/`remove`）统一走 store 保证 map 一致，`clear()` 供 logout 调用 |
 | `stores/translation.ts` | 翻译列表、GroupedRow 类型 |
 | `stores/loading.ts` | 全局 loading 遮罩 |
-| `stores/tabs.ts` | 顶部标签页（AppTabs）：已打开页面列表、activePath、增删标签（首页标签为固定首项，不在 store 中，不可关闭，右键只显示「关闭右侧/关闭其他」） |
+| `stores/tabs.ts` | 顶部标签页（AppTabs）：已打开页面列表、activePath、增删标签（首页标签为固定首项，不在 store 中，不可关闭，右键只显示「关闭右侧/关闭其他」）；`renameProjectSlug` 重写项目 tab 路径（code 变更）、`removeProjectTabs` 关闭某项目全部 tab（删除项目） |
 | `hooks/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
 | `api/client.ts` | Axios 实例、401 自动 refresh token |
 | `router/index.ts` | 路由守卫、auth.init() 初始化；路由 `meta.isStatic: true` 标记固定标签页（不进 tabs store、不可关闭），AppTabs 通过 `router.resolve(path).meta.isStatic` 判断 |

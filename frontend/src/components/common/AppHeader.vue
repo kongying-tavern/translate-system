@@ -6,24 +6,25 @@ import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
-import { deleteProject, getProject, getProjects, updateProject } from '@/api/project'
 import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
+import { useProjectStore } from '@/stores/project'
+import { useTabsStore } from '@/stores/tabs'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
+const projectStore = useProjectStore()
+const tabsStore = useTabsStore()
 const perm = useProjectPermission()
 const router = useRouter()
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string | undefined)
 const isProjectRoute = computed(() => route.path.startsWith('/projects/'))
-const projectName = ref('')
 const pwdVisible = ref(false)
 const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const switcherVisible = ref(false)
 const searchProject = ref('')
-const allProjects = ref<Project[]>([])
 const settingsVisible = ref(false)
 const settingsSaving = ref(false)
 const settingsForm = reactive({ name: '', code: '', description: '' })
@@ -90,45 +91,31 @@ async function handlePwd() {
 
 const filteredProjects = computed(() => {
   if (!searchProject.value)
-    return allProjects.value
+    return projectStore.projects
   const q = searchProject.value.toLowerCase()
-  return allProjects.value.filter(p => p.name.toLowerCase().includes(q))
+  return projectStore.projects.filter(p => p.name.toLowerCase().includes(q))
 })
 
-watch(projectSlug, async (slug) => {
-  if (slug) {
-    try {
-      const { data: res } = await getProject(slug)
-      projectName.value = res.data.name
-      auth.setActiveProject(res.data.id, res.data.name, res.data.code, res.data.projectRole)
-    }
-    catch {
-      projectName.value = slug
-    }
-  }
-  else {
-    projectName.value = ''
-  }
+watch(projectSlug, (slug) => {
+  if (slug)
+    auth.setActiveProject(slug)
 }, { immediate: true })
 
 watch(switcherVisible, async (v) => {
   if (v) {
     searchProject.value = ''
     try {
-      const { data: res } = await getProjects(1, 100)
-      allProjects.value = res.data.list
+      await projectStore.fetchProjects(true)
     }
     catch {}
   }
 })
 
-watch(settingsVisible, async (v) => {
+watch(settingsVisible, (v) => {
   if (v && projectSlug.value) {
-    try {
-      const { data: res } = await getProject(projectSlug.value)
-      Object.assign(settingsForm, { name: res.data.name, code: res.data.code || '', description: res.data.description || '' })
-    }
-    catch {}
+    const p = projectStore.getProject(projectSlug.value)
+    if (p)
+      Object.assign(settingsForm, { name: p.name, code: p.code || '', description: p.description || '' })
   }
 })
 
@@ -145,16 +132,16 @@ function goCreateProject() {
 
 async function handleDeleteProject() {
   try {
-    await ElMessageBox.confirm(`确定要删除项目「${projectName.value}」吗？该操作不可恢复。`, '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+    await ElMessageBox.confirm(`确定要删除项目「${auth.activeProjectName || projectSlug.value}」吗？该操作不可恢复。`, '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
   }
   catch {
     return
   }
   try {
-    await deleteProject(projectSlug.value!)
+    await projectStore.remove(projectSlug.value!)
     settingsVisible.value = false
-    localStorage.removeItem('activeProjectSlug')
-    localStorage.removeItem('activeProjectName')
+    auth.setActiveProject('')
+    tabsStore.removeProjectTabs(projectSlug.value!)
     router.push('/')
     ElMessage.success('项目已删除')
   }
@@ -170,10 +157,14 @@ async function saveSettings() {
   }
   settingsSaving.value = true
   try {
-    await updateProject(projectSlug.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description })
+    const updated = await projectStore.update(projectSlug.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description })
     settingsVisible.value = false
-    projectName.value = settingsForm.name
-    auth.setActiveProject(projectSlug.value!, settingsForm.name, settingsForm.code)
+    const newSlug = updated.code || updated.id
+    if (newSlug !== projectSlug.value) {
+      tabsStore.renameProjectSlug(projectSlug.value!, newSlug)
+      auth.setActiveProject(newSlug)
+      router.replace(route.path.split(projectSlug.value!).join(newSlug))
+    }
     ElMessage.success('已保存')
   }
   catch {
@@ -257,7 +248,7 @@ async function deleteApiKey(row: ApiKey) {
   <div class="header-left">
     <template v-if="isProjectRoute && projectSlug">
       <div class="project-switcher" @click="switcherVisible = true">
-        {{ auth.activeProjectName || projectName }} <BaseIcon style="margin-left:4px">
+        {{ auth.activeProjectName || projectSlug }} <BaseIcon style="margin-left:4px">
           <ArrowDown />
         </BaseIcon>
       </div>
