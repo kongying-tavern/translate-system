@@ -2,7 +2,7 @@
 import type { FormRules } from 'element-plus'
 import type { ComponentExposed } from 'vue-component-type-helpers'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
+import { computed, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@/api/export'
 import { BaseButton, BaseCheckbox, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
@@ -41,7 +41,7 @@ const rules: FormRules = {
   formatType: [{ required: true, message: '请选择输出格式', trigger: 'change' }],
 }
 
-onMounted(async () => {
+watch(projectSlug, async () => {
   if (!perm.canManageExportTemplates.value) {
     ElMessage.warning('没有权限')
     router.back()
@@ -60,7 +60,7 @@ onMounted(async () => {
       configForm.useCodeKey = !!cfg.useCodeKey
     }
   }
-})
+}, { immediate: true })
 
 async function handleSave() {
   if (!formRef.value)

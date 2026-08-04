@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { LayoutTemplate } from '@/types/models'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createConfig, getConfig, getTemplates, updateConfig } from '@/api/layout'
 import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
@@ -17,7 +17,7 @@ const templates = ref<LayoutTemplate[]>([])
 const form = reactive({ name: '', templateId: '' as string | null })
 const overrideStr = ref('{}')
 
-onMounted(async () => {
+watch(projectSlug, async () => {
   const { data: tRes } = await getTemplates(projectSlug.value)
   templates.value = tRes.data
   if (isEdit.value) {
@@ -26,7 +26,7 @@ onMounted(async () => {
     form.templateId = res.data.templateId
     overrideStr.value = JSON.stringify(res.data.overrideConfig, null, 2)
   }
-})
+}, { immediate: true })
 
 async function handleSave() {
   saving.value = true

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ProjectLanguage } from '@/types/models'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProjectLanguages } from '@/api/language'
 import { getProject, updateProject } from '@/api/project'
@@ -14,14 +14,15 @@ const projectLanguages = ref<ProjectLanguage[]>([])
 const saving = ref(false)
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en' })
 
-onMounted(async () => {
+async function loadProject() {
   const [pRes, lRes] = await Promise.all([getProject(projectSlug.value), getProjectLanguages(projectSlug.value)])
   form.name = pRes.data.data.name
   form.code = pRes.data.data.code || ''
   form.description = pRes.data.data.description || ''
   form.sourceLanguage = pRes.data.data.sourceLanguage
   projectLanguages.value = lRes.data.data
-})
+}
+watch(projectSlug, loadProject, { immediate: true })
 
 async function handleSave() {
   if (!form.name.trim()) {

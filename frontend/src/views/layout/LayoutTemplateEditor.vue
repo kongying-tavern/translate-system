@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createTemplate, getTemplate, updateTemplate } from '@/api/layout'
 import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
@@ -15,7 +15,7 @@ const saving = ref(false)
 const form = reactive({ name: '', description: '', thumbnailUrl: '', isDefault: false })
 const configStr = ref('{}')
 
-onMounted(async () => {
+watch(projectSlug, async () => {
   if (isEdit.value) {
     const { data: res } = await getTemplate(projectSlug.value, templateId.value)
     const t = res.data
@@ -25,7 +25,7 @@ onMounted(async () => {
     form.isDefault = t.isDefault
     configStr.value = JSON.stringify(t.config, null, 2)
   }
-})
+}, { immediate: true })
 
 async function handleSave() {
   saving.value = true

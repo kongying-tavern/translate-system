@@ -2,7 +2,7 @@
 import type { UploadFile } from 'element-plus'
 import type { ProjectLanguage } from '@/types/models'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
@@ -68,12 +68,17 @@ const isPropertiesExample = computed(() => fmt.value === ImportFormat.Properties
 const isYamlExample = computed(() => fmt.value === ImportFormat.YAML)
 const isXmlExample = computed(() => fmt.value === ImportFormat.XML)
 
-onMounted(async () => {
+async function loadLanguages() {
   const { data: res } = await client.get(`/projects/${projectSlug.value}/languages`)
   projectLanguages.value = res.data || []
   if (projectLanguages.value.length)
     importLang.value = projectLanguages.value[0].languageCode
-})
+}
+watch(projectSlug, () => {
+  importFile.value = null
+  textInput.value = ''
+  loadLanguages()
+}, { immediate: true })
 
 const extMap: Record<string, string> = {
   json: ImportFormat.JSON,

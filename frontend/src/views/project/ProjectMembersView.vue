@@ -2,7 +2,7 @@
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { ProjectMember, User } from '@/types/models'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getUsers } from '@/api/auth'
 import client from '@/api/client'
@@ -23,10 +23,12 @@ const newMemberRole = ref('member')
 const userOptions = ref<User[]>([])
 const searching = ref(false)
 
-onMounted(async () => {
+async function loadMembers() {
+  members.value = []
   const { data: res } = await getMembers(projectSlug.value)
   members.value = res.data
-})
+}
+watch(projectSlug, loadMembers, { immediate: true })
 
 async function searchUsers(q: string) {
   if (!q) {
