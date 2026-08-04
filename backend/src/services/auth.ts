@@ -79,9 +79,12 @@ export async function updateUserRole(operatorId: string, targetId: string, newRo
 }
 
 export async function createUser(username: string, email: string, password: string, role: string, operatorRole?: string) {
-  const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing)
+  const existingEmail = await prisma.user.findUnique({ where: { email } })
+  if (existingEmail)
     throw new AppError(1004, '邮箱已注册')
+  const existingUsername = await prisma.user.findUnique({ where: { username } })
+  if (existingUsername)
+    throw new AppError(1004, '用户名已存在')
   if (operatorRole === SystemRole.Admin && role !== SystemRole.User)
     throw new AppError(1002, '系统管理员只能创建普通用户')
   const passwordHash = await bcrypt.hash(password, 10)

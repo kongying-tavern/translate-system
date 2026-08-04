@@ -28,7 +28,15 @@ client.interceptors.request.use((config) => {
 })
 
 client.interceptors.response.use(
-  response => response,
+  (response) => {
+    const body = response.data as { code?: number, message?: string } | null
+    if (body && typeof body.code === 'number' && body.code !== 0) {
+      const err = new Error(body.message || '请求失败') as Error & { response: unknown }
+      err.response = response
+      return Promise.reject(err)
+    }
+    return response
+  },
   async (error) => {
     const originalRequest = error.config
     if (error.response?.status === 401 && !originalRequest._retry) {
