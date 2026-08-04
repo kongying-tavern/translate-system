@@ -340,7 +340,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | `stores/loading.ts` | 全局 loading 遮罩 |
 | `stores/tabs.ts` | 顶部标签页（AppTabs）：已打开页面列表、activePath、增删标签（首页标签为固定首项，不在 store 中，不可关闭，右键只显示「关闭右侧/关闭其他」）；`renameProjectSlug` 重写项目 tab 路径（code 变更）、`removeProjectTabs` 关闭某项目全部 tab（删除项目） |
 | `hooks/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
-| `api/client.ts` | Axios 实例、401 自动 refresh token |
+| `api/client.ts` | Axios 实例、401 自动 refresh token；响应拦截器对 `code !== 0` 的业务错误（HTTP 200）统一 reject 并携带 `response`，让各页面 catch 能拿到 `e.response?.data?.message` |
 | `router/index.ts` | 路由守卫、auth.init() 初始化；路由 `meta.isStatic: true` 标记固定标签页（不进 tabs store、不可关闭），AppTabs 通过 `router.resolve(path).meta.isStatic` 判断；`meta.perm` 做 URL 直达拦截（`sys:admin`/`sys:super_admin` 按系统角色、`proj:admin`/`proj:maintainer`/`proj:member` 按 URL 项目角色，`hasRoutePermission` 校验，super_admin 项目级恒放行，无权限重定向 `/`）。新增受限页面需设置 `meta.perm` |
 
 ### 改动翻译相关功能
