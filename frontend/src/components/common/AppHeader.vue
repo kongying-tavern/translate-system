@@ -11,6 +11,7 @@ import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
+import { encSlug } from '@/utils/slug'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
@@ -122,8 +123,8 @@ watch(settingsVisible, (v) => {
 function switchProject(p: Project) {
   switcherVisible.value = false
   const slug = p.code || p.id
-  const suffix = projectSlug.value ? route.path.split(projectSlug.value)[1] || '/translations' : ''
-  router.push(`/projects/${slug}${suffix}`)
+  const suffix = projectSlug.value ? route.path.split(encSlug(projectSlug.value))[1] || '/translations' : ''
+  router.push(`/projects/${encSlug(slug)}${suffix}`)
 }
 function goCreateProject() {
   switcherVisible.value = false
@@ -163,7 +164,7 @@ async function saveSettings() {
     if (newSlug !== projectSlug.value) {
       tabsStore.renameProjectSlug(projectSlug.value!, newSlug)
       auth.setActiveProject(newSlug)
-      router.replace(route.path.split(projectSlug.value!).join(newSlug))
+      router.replace(route.path.split(encSlug(projectSlug.value!)).join(encSlug(newSlug)))
     }
     ElMessage.success('已保存')
   }

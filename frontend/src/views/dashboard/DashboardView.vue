@@ -6,6 +6,7 @@ import { BaseButton } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { projectRoleLabel, SystemRole } from '@/utils/roles'
+import { encSlug } from '@/utils/slug'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -20,7 +21,7 @@ onMounted(async () => {
 })
 
 function goProject(p: Project): void {
-  router.push(`/projects/${p.code || p.id}`)
+  router.push(`/projects/${encSlug(p.code || p.id)}`)
 }
 </script>
 

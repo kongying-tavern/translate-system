@@ -12,6 +12,7 @@ import { BaseButton, BaseForm, BaseFormItem, BasePageHeader, BaseSelect, BaseTab
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { roleLabel } from '@/utils/roles'
+import { encSlug } from '@/utils/slug'
 
 const auth = useAuthStore()
 const perm = useProjectPermission()
@@ -75,7 +76,7 @@ async function handleRemove(row: ProjectMember) {
 
 async function changeProjectRole(row: ProjectMember, newRole: string) {
   try {
-    await client.put(`/projects/${projectSlug.value}/members/${row.id}/role`, { projectRole: newRole })
+    await client.put(`/projects/${encSlug(projectSlug.value)}/members/${row.id}/role`, { projectRole: newRole })
     row.projectRole = newRole
     ElMessage.success('已更新')
   }

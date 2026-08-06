@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { deleteConfig, deleteTemplate, getConfigs, getTemplates } from '@/api/layout'
 import { BaseButton, BasePageHeader, BaseTable, BaseTabs } from '@/components/ui'
+import { encSlug } from '@/utils/slug'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,7 +59,7 @@ const templateColumns: BaseTableColumnConfig<LayoutTemplate>[] = [
     width: 160,
     cell: row => (
       <div>
-        <BaseButton link type="primary" onClick={() => router.push(`/projects/${projectSlug.value}/layouts/templates/${row.id}/edit`)}>编辑</BaseButton>
+        <BaseButton link type="primary" onClick={() => router.push(`/projects/${encSlug(projectSlug.value)}/layouts/templates/${row.id}/edit`)}>编辑</BaseButton>
         <BaseButton link type="danger" onClick={() => handleDeleteTemplate(row.id)}>删除</BaseButton>
       </div>
     ),
@@ -76,7 +77,7 @@ const configColumns: BaseTableColumnConfig<LayoutConfig>[] = [
     width: 160,
     cell: row => (
       <div>
-        <BaseButton link type="primary" onClick={() => router.push(`/projects/${projectSlug.value}/layouts/configs/${row.id}/edit`)}>编辑</BaseButton>
+        <BaseButton link type="primary" onClick={() => router.push(`/projects/${encSlug(projectSlug.value)}/layouts/configs/${row.id}/edit`)}>编辑</BaseButton>
         <BaseButton link type="danger" onClick={() => handleDeleteConfig(row.id)}>删除</BaseButton>
       </div>
     ),
@@ -89,13 +90,13 @@ const configColumns: BaseTableColumnConfig<LayoutConfig>[] = [
     <BasePageHeader title="布局管理">
       <BaseTabs v-model="activeTab" :tabs="[{ key: 'templates', label: '模板' }, { key: 'configs', label: '配置' }]" style="margin-top:4px">
         <template #tab-templates>
-          <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/templates/new/edit`)">
+          <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${encSlug(projectSlug)}/layouts/templates/new/edit`)">
             新建模板
           </BaseButton>
           <BaseTable :data="templates" :columns="templateColumns" stripe />
         </template>
         <template #tab-configs>
-          <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${projectSlug}/layouts/configs/new/edit`)">
+          <BaseButton type="primary" style="margin-bottom:16px" @click="$router.push(`/projects/${encSlug(projectSlug)}/layouts/configs/new/edit`)">
             新建配置
           </BaseButton>
           <BaseTable :data="configs" :columns="configColumns" stripe />

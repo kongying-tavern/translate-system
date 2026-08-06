@@ -14,6 +14,7 @@ import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
 import { useTranslationStore } from '@/stores/translation'
+import { encSlug } from '@/utils/slug'
 
 const vElTableInfiniteScroll = elTableInfiniteScroll
 
@@ -110,7 +111,7 @@ function bindSortable() {
       const prevSo = prev?.sortOrder ?? 0
       const nxtSo = nxt?.sortOrder ?? (prevSo + 200)
       const so = prev ? Math.round((prevSo + nxtSo) / 2) : Math.round(nxtSo / 2)
-      client.put(`/projects/${projectSlug.value}/translations/sortOrders`, { orders: [{ keyId: moved.keyId, sortOrder: so }] }).catch(() => {})
+      client.put(`/projects/${encSlug(projectSlug.value)}/translations/sortOrders`, { orders: [{ keyId: moved.keyId, sortOrder: so }] }).catch(() => {})
     },
   })
 }

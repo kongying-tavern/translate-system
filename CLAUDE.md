@@ -186,6 +186,8 @@ layouts/AppLayout — 主界面布局（Header + AppTabs 标签栏 + 内容区�
 
 Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifier)`（先按 UUID 正则判断，合法 UUID 才查 id，否则直接按 code 查，避免 UUID 列抛错）。模板 slug 同理，使用 `services/export/index.ts` 导出的 `resolveTemplate(templateSlug, projectSlug)`。
 
+**Slug 编码**：`code` 允许含 `/`、空格等字符。前端所有把 slug 拼进 API 路径或路由路径的地方必须用 `utils/slug.ts` 的 `encSlug()`（`encodeURIComponent`）编码为单段，如 `/projects/${encSlug(slug)}/translations`。后端 Express 与 vue-router 会自动解码 `%2F` 参数（`route.params.projectSlug` 拿到的是解码后的原始 code）。从路径字符串手动拆 slug 时用 `decSlug()` 解码（如 AppTabs 用 `t.path.split('/')[2]` 比较 `auth.activeProjectSlug`）。tabs store 的 `isProjectPath`/`renameProjectSlug` 内部已按编码后路径比较/替换。
+
 ### API 路由
 
 所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。路由由 tsoa 从 `controllers/` 生成（`pnpm gen` 更新 `docs/routes.ts`）。

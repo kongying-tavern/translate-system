@@ -1,5 +1,6 @@
 import type { ApiResponse } from '@/types/api'
 import type { BaseLanguage, ProjectLanguage } from '@/types/models'
+import { encSlug } from '@/utils/slug'
 import client from './client'
 
 export function getBaseLanguages() {
@@ -11,13 +12,13 @@ export function searchBaseLanguages(q: string) {
 }
 
 export function getProjectLanguages(projectId: string) {
-  return client.get<ApiResponse<ProjectLanguage[]>>(`/projects/${projectId}/languages`)
+  return client.get<ApiResponse<ProjectLanguage[]>>(`/projects/${encSlug(projectId)}/languages`)
 }
 
 export function addProjectLanguage(projectId: string, languageCode: string) {
-  return client.post<ApiResponse<ProjectLanguage>>(`/projects/${projectId}/languages`, { languageCode })
+  return client.post<ApiResponse<ProjectLanguage>>(`/projects/${encSlug(projectId)}/languages`, { languageCode })
 }
 
 export function removeProjectLanguage(projectId: string, languageCode: string) {
-  return client.delete<ApiResponse<null>>(`/projects/${projectId}/languages/${languageCode}`)
+  return client.delete<ApiResponse<null>>(`/projects/${encSlug(projectId)}/languages/${languageCode}`)
 }

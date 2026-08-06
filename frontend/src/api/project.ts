@@ -1,5 +1,6 @@
 import type { ApiResponse, PageData } from '@/types/api'
 import type { Project, ProjectMember } from '@/types/models'
+import { encSlug } from '@/utils/slug'
 import client from './client'
 
 export function getProjects(page = 1, pageSize = 20) {
@@ -7,7 +8,7 @@ export function getProjects(page = 1, pageSize = 20) {
 }
 
 export function getProject(id: string) {
-  return client.get<ApiResponse<Project>>(`/projects/${id}`)
+  return client.get<ApiResponse<Project>>(`/projects/${encSlug(id)}`)
 }
 
 export function createProject(data: { name: string, code: string, description?: string, sourceLanguage?: string }) {
@@ -15,18 +16,18 @@ export function createProject(data: { name: string, code: string, description?: 
 }
 
 export function updateProject(id: string, data: { name: string, code?: string, description?: string, sourceLanguage?: string }) {
-  return client.put<ApiResponse<Project>>(`/projects/${id}`, data)
+  return client.put<ApiResponse<Project>>(`/projects/${encSlug(id)}`, data)
 }
 
 export function deleteProject(id: string) {
-  return client.delete<ApiResponse<null>>(`/projects/${id}`)
+  return client.delete<ApiResponse<null>>(`/projects/${encSlug(id)}`)
 }
 export function getMembers(projectId: string) {
-  return client.get<ApiResponse<ProjectMember[]>>(`/projects/${projectId}/members`)
+  return client.get<ApiResponse<ProjectMember[]>>(`/projects/${encSlug(projectId)}/members`)
 }
 export function addMember(projectId: string, email: string, projectRole = 'member') {
-  return client.post<ApiResponse<ProjectMember>>(`/projects/${projectId}/members`, { email, projectRole })
+  return client.post<ApiResponse<ProjectMember>>(`/projects/${encSlug(projectId)}/members`, { email, projectRole })
 }
 export function removeMember(projectId: string, memberId: string) {
-  return client.delete(`/projects/${projectId}/members/${memberId}`)
+  return client.delete(`/projects/${encSlug(projectId)}/members/${memberId}`)
 }

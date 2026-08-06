@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import { encSlug } from '@/utils/slug'
 
 export interface TabItem {
   path: string
@@ -61,17 +62,20 @@ export const useTabsStore = defineStore('tabs', () => {
   }
 
   function isProjectPath(path: string, slug: string): boolean {
-    return path === `/projects/${slug}` || path.startsWith(`/projects/${slug}/`)
+    const enc = encSlug(slug)
+    return path === `/projects/${enc}` || path.startsWith(`/projects/${enc}/`)
   }
 
   function renameProjectSlug(oldSlug: string, newSlug: string): void {
+    const oldEnc = encSlug(oldSlug)
+    const newEnc = encSlug(newSlug)
     tabs.value = tabs.value.map((t) => {
       if (isProjectPath(t.path, oldSlug))
-        return { ...t, path: t.path.replace(oldSlug, newSlug) }
+        return { ...t, path: t.path.replace(oldEnc, newEnc) }
       return t
     })
     if (isProjectPath(activePath.value, oldSlug))
-      activePath.value = activePath.value.replace(oldSlug, newSlug)
+      activePath.value = activePath.value.replace(oldEnc, newEnc)
   }
 
   function removeProjectTabs(slug: string): void {
