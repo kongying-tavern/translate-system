@@ -192,7 +192,7 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 
 所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。路由由 tsoa 从 `controllers/` 生成（`pnpm gen` 更新 `docs/routes.ts`）。
 
-**API 文档**：`/api-docs` 为开发者 OpenAPI 文档（Swagger UI），静态全量（`index.ts` 用 `swaggerUi.setup(swaggerSpec)`），不做角色过滤。前端「开放接口说明」页（`/api-doc`，ApiDocView）调 `GET /api/v1/docs/openapi`（`routes/docs.ts`，JWT 鉴权）展示 API Key 白名单开放接口，并按登录用户**系统角色**过滤可见接口（规则表 `APIKEY_ROLE_RULES`，`services/docs.ts` 的 `getApiKeyOpenApi`）：读接口 + 导出预览/生成任意成员可用（user 可见）；批量导入业务上需项目 Maintainer+，默认 admin 及以上可见。新增开放接口需同步补充白名单与角色规则。
+**API 文档**：`/api-docs` 为开发者 OpenAPI 文档（Swagger UI），静态全量（`index.ts` 用 `swaggerUi.setup(swaggerSpec)`），不做角色过滤；原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json`（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）调 `GET /api/v1/docs/openapi`（`routes/docs.ts`，JWT 鉴权）展示 API Key 白名单开放接口，并按登录用户**系统角色**过滤可见接口（规则表 `APIKEY_ROLE_RULES`，`services/docs.ts` 的 `getApiKeyOpenApi`）：读接口 + 导出预览/生成任意成员可用（user 可见）；批量导入业务上需项目 Maintainer+，默认 admin 及以上可见。新增开放接口需同步补充白名单与角色规则。
 
 ```
 POST   /auth/register|login|refresh    — 公开，login 支持用户名或邮箱

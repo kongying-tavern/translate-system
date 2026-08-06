@@ -95,7 +95,7 @@ cd backend && pnpm dev     # -> http://localhost:8080
 cd frontend && pnpm install && pnpm dev  # -> http://localhost:3000
 ```
 
-Swagger 文档: `http://localhost:8080/api-docs`（Docker 部署时为 `http://localhost:20080/api-docs`，开发者文档，静态全量）。
+Swagger 文档: `http://localhost:8080/api-docs`（开发者文档，静态全量）；原始 OpenAPI JSON: `http://localhost:8080/api-docs/swagger.json`。前端经 `/openapi/*` 命名空间代理转发：`/openapi/swagger-ui/` → 后端 `/api-docs/`（Swagger UI 页面及相对资源），`/openapi/api-docs.json` → 后端 `/api-docs/swagger.json`（原始 JSON）；无尾斜杠的 `/openapi/swagger-ui` 会 301 跳转到 `/openapi/swagger-ui/`。本地开发走 Vite 代理 `http://localhost:3000/openapi/swagger-ui/`；Docker 部署走 nginx 代理 `http://localhost:20010/openapi/swagger-ui/`（`frontend/nginx.conf`）。
 
 #### 5. 导入翻译文件
 

@@ -17,6 +17,9 @@ app.use(cors())
 app.use(express.json())
 
 // Swagger docs
+app.get('/api-docs/swagger.json', (_req: Request, res: Response) => {
+  res.json(swaggerSpec)
+})
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
 
 // JWT routes (tsoa controllers)

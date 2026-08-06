@@ -10,7 +10,24 @@ export default defineConfig(({ mode }) => {
     define: {
       'import.meta.env.VITE_APP_NAME': JSON.stringify(env.VITE_APP_NAME || '翻译管理平台'),
     },
-    plugins: [vue(), vueJsx()],
+    plugins: [
+      vue(),
+      vueJsx(),
+      {
+        name: 'openapi-swagger-ui-redirect',
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            if ((req.url || '').split('?')[0] === '/openapi/swagger-ui') {
+              res.statusCode = 301
+              res.setHeader('Location', '/openapi/swagger-ui/')
+              res.end()
+              return
+            }
+            next()
+          })
+        },
+      },
+    ],
     css: {
       preprocessorOptions: {
         scss: {
@@ -37,6 +54,16 @@ export default defineConfig(({ mode }) => {
         '/api/v1': {
           target: 'http://localhost:8080',
           changeOrigin: true,
+        },
+        '/openapi/swagger-ui/': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/openapi\/swagger-ui/, '/api-docs'),
+        },
+        '/openapi/api-docs.json': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/openapi\/api-docs\.json/, '/api-docs/swagger.json'),
         },
       },
     },
