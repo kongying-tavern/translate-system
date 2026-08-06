@@ -23,6 +23,8 @@ export interface ImportResult {
   created: number
   /** 跳过数量 */
   skipped: number
+  /** 因项目未配置语言而被跳过的语言代码（去重） */
+  skippedLanguages: string[]
 }
 
 export interface ImportEntriesBody {
@@ -68,38 +70,55 @@ export interface ImportTranslationsBody {
 
 function sniffFormat(raw: string): ImportFormat {
   const t = raw.trim()
-  if (t.startsWith('{'))
+  if (t.startsWith('{') || t.startsWith('['))
     return ImportFormat.JSON
   if (t.startsWith('<'))
     return ImportFormat.XML
   const lines = raw.split(/\r?\n/).filter(l => l.trim())
-  if (
-    lines.some(l => l.trimStart().startsWith('---') || l.trimStart().startsWith('- '))
-    || lines.some(l => /^\s+/.test(l))
-    || lines.some(l => /^[\w.\-[/]+:\s/.test(l))
-  ) {
+  const some = (re: RegExp) => lines.some(l => re.test(l))
+  if (some(/^\s+/) || some(/^---/) || some(/^- /))
     return ImportFormat.YAML
-  }
+  if (some(/^[\w.\-[/]+:\s/))
+    return ImportFormat.YAML
+  if (some(/^[\w.\-]+\s*=\s*/) || some(/^[\w.\-]+:[^ /\t]/))
+    return ImportFormat.Properties
   return ImportFormat.CSV
 }
 
 function parseImportData(raw: string, fmt: string): ImportEntry[] {
+  let entries: ImportEntry[]
   try {
-    if (fmt === ImportFormat.JSON)
-      return JSONParse(raw)
-    if (fmt === ImportFormat.CSV)
-      return csvParse(raw)
-    if (fmt === ImportFormat.Properties)
-      return propertiesParse(raw)
-    if (fmt === ImportFormat.YAML)
-      return yamlParse(raw)
-    if (fmt === ImportFormat.XML)
-      return xmlParse(raw)
-    return []
+    switch (fmt) {
+      case ImportFormat.JSON:
+        entries = JSONParse(raw)
+        break
+      case ImportFormat.CSV:
+        entries = csvParse(raw)
+        break
+      case ImportFormat.Properties:
+        entries = propertiesParse(raw)
+        break
+      case ImportFormat.YAML:
+        entries = yamlParse(raw)
+        break
+      case ImportFormat.XML:
+        entries = xmlParse(raw)
+        break
+      default:
+        entries = []
+    }
   }
-  catch {
-    return []
+  catch (e) {
+    if (e instanceof AppError)
+      throw e
+    throw new AppError(ErrCode.InvalidParams, '数据解析失败，请检查文件格式是否正确')
   }
+  if (!entries.length)
+    throw new AppError(ErrCode.InvalidParams, '未从数据中解析到任何条目，请检查文件格式与内容')
+  const bad = entries.findIndex(e => !e.key || !e.key.trim())
+  if (bad !== -1)
+    throw new AppError(ErrCode.InvalidParams, `第 ${bad + 1} 条缺少翻译键（key/name），已拒绝导入`)
+  return entries
 }
 
 async function importKeys(projectId: string, raw: string, fmt: ImportFormat, overwrite: boolean): Promise<ImportResult> {
@@ -132,17 +151,31 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
     }
     imported++
   }
-  return { imported, created, skipped }
+  return { imported, created, skipped, skippedLanguages: [] }
 }
 
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean): Promise<ImportResult> {
   const entries = parseImportData(raw, fmt)
+  const projectLangs = await prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } })
+  const knownLangs = new Set<string>()
+  for (const l of projectLangs) {
+    knownLangs.add(l.languageCode)
+    if (l.alias)
+      knownLangs.add(l.alias)
+  }
+  const unknownLangs = new Set<string>()
   let imported = 0
   let created = 0
   let skipped = 0
   for (const entry of entries) {
     const { key, translatedText, context, tags, sourceText, lang } = entry
     const langCode = lang || languageCode
+    if (langCode && !knownLangs.has(langCode)) {
+      unknownLangs.add(langCode)
+      skipped++
+      imported++
+      continue
+    }
     let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key } } })
     if (!tk && autoCreate !== false) {
       const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
@@ -180,7 +213,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     }
     imported++
   }
-  return { imported, created, skipped }
+  return { imported, created, skipped, skippedLanguages: [...unknownLangs] }
 }
 
 @Route('projects')

@@ -117,6 +117,18 @@ function showImportError(e: unknown) {
     ElMessage.error('导入失败')
 }
 
+/** 组装导入成功提示：含新增/跳过统计与未配置语言列表 */
+function importSuccessMsg(d1: { imported: number, created: number, skipped: number, skippedLanguages?: string[] }) {
+  const parts = [`导入完成: ${d1.imported} 条`]
+  if (d1.created)
+    parts.push(`${d1.created} 新增`)
+  if (d1.skipped) {
+    const langs = d1.skippedLanguages || []
+    parts.push(`${d1.skipped} 跳过${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+  }
+  return parts.join('，')
+}
+
 async function doTextImport() {
   if (!textInput.value.trim()) {
     ElMessage.warning('请输入内容')
@@ -133,8 +145,7 @@ async function doTextImport() {
       ? { data: textInput.value, overwrite: overwrite.value }
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
-    const d1 = res.data
-    ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
+    ElMessage.success(importSuccessMsg(res.data))
     textInput.value = ''
   }
   catch (e: unknown) { showImportError(e) }
@@ -158,8 +169,7 @@ async function doImport() {
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
-    const d1 = res.data
-    ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
+    ElMessage.success(importSuccessMsg(res.data))
     importFile.value = null
   }
   catch (e: unknown) { showImportError(e) }
@@ -234,7 +244,7 @@ async function doImport() {
     <el-card header="格式说明" style="margin-top:16px">
       <template v-if="mode === 'entries'">
         <p style="margin:0 0 12px;font-size:13px;color:#909399">
-          字段: key(必填) / sourceText(原文) / tags(标签;分隔) / context(备注)
+          字段（名称需严格一致）: key(必填) / sourceText(原文) / tags(标签;分隔) / context(备注)
         </p>
         <BaseTabs v-model="exampleTab" type="card" :tabs="[{ key: 'json', label: 'JSON' }, { key: 'csv', label: 'CSV' }, { key: 'yaml', label: 'YAML' }, { key: 'xml', label: 'XML' }]">
           <template #tab-json>
@@ -254,6 +264,12 @@ async function doImport() {
       <template v-else>
         <p style="margin:0 0 8px;font-size:13px;color:#909399">
           {{ exampleTitle }}
+        </p>
+        <p style="margin:0 0 8px;font-size:13px;color:#909399">
+          项目未配置的语言代码将自动跳过
+        </p>
+        <p v-if="isCsvExample" style="margin:0 0 8px;font-size:13px;color:#909399">
+          CSV 语言列与嵌套格式以数据中的语言为准
         </p>
         <BaseDataViewer v-if="isJsonExample" :data="exampleText" lang="json" max-height="400px" />
         <BaseDataViewer v-else-if="isYamlExample" :data="exampleText" lang="yaml" max-height="400px" />

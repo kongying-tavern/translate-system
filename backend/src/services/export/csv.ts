@@ -9,7 +9,7 @@ export function exportCSV(translations: FlatTranslation[], langs: string[], conf
     rows[t.translationKey].langs[t.languageCode] = t.translatedText
   }
   const headerNames = langs.map(l => getLangKey(translations.find(t => t.languageCode === l) || { languageCode: l }, config))
-  const header = [csvEscape('key'), csvEscape('source'), ...headerNames.map(csvEscape)].join(',')
+  const header = [csvEscape('key'), csvEscape('sourceText'), ...headerNames.map(csvEscape)].join(',')
   const lines = [header]
   for (const [key, row] of Object.entries(rows)) {
     lines.push([csvEscape(key), csvEscape(row.source), ...langs.map(l => csvEscape(row.langs[l] || ''))].join(','))

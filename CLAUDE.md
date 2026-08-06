@@ -247,6 +247,17 @@ GET|POST|PUT|DELETE /me/keys           — API Key CRUD（JWT）
 GET    /languages|/languages/search    — 基础语言
 ```
 
+### 导入解析校验（ImportsController `parseImportData`）
+
+解析失败**不再静默返回空数组**，统一抛 `AppError(InvalidParams)` 中文提示（前端 ImportTemplateView 的 `showImportError` 优先展示服务端 message）：
+
+- `sniffFormat` 自动识别：`{`/`[` → JSON、`<` → XML、缩进/列表/`key: value`（冒号+空格）→ YAML、`key=value` 或 `key:value`（冒号后非空格非 `/`）→ Properties、其余 → CSV
+- 解析后校验：**0 条** → 「未从数据中解析到任何条目」；**空 key** → 「第 N 条缺少翻译键（key/name）」，均拒绝导入
+- JSON/YAML 顶层非键值映射对象（数组/标量）直接拒绝；嵌套结构判定用 `looksLikeLang` 启发式（外层键都像语言代码才按「语言→Key→译文」解析），否则拒绝并定位问题条目，避免字段名充当 key 的脏数据
+- CSV 表头**严格匹配**（大小写与写法完全一致、不支持别名）：仅 `key`、`sourceText`、`tags`、`context` 被识别，其余列一律按语言代码处理；无 key 列、无表头或 header-only 均报错。导出 CSV 表头为 `key,sourceText,<语言...>`，与导入严格表头对应
+- XML：缺 `<resources>` 根节点、`<string>` 缺 `name`、`<language>` 缺 `code` 均报错并定位索引
+- 译文导入（`applyTranslations`）遇**项目未配置的语言代码**（`languageCode` 参数或数据内语言，兼容 `alias`）不拒绝、不自动建语言，而是**跳过该条并累计 `skippedLanguages`** 返回，前端 ImportTemplateView 成功提示中列出；`importKeys` 无语言属性，恒返回 `skippedLanguages: []`
+
 ### 翻译页面关键逻辑
 
 - 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText + context + tags + translations{}`
@@ -285,7 +296,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | `properties` | `.properties` | 单 | Java 键值对格式，特殊字符自动转义 |
 | `flat-xml` | `.xml` | 单 | Android `resources/string` 标签结构 |
 | `nested-xml` | `.xml` | 多 | 按语言嵌套的 XML 标签结构 |
-| `csv` | `.csv` | 多 | 表格，key / source / 各语言各一列 |
+| `csv` | `.csv` | 多 | 表格，key / sourceText / 各语言各一列 |
 
 ### 导出模板 config 字段
 

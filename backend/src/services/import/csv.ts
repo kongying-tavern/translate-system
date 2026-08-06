@@ -1,9 +1,27 @@
 import type { ImportEntry } from './types'
+import { ErrCode } from '../../lib/errors'
+import { AppError } from '../../utils/AppError'
 
 interface ColumnDef {
   idx: number
   role: 'key' | 'sourceText' | 'tags' | 'context' | 'lang'
   langCode?: string
+}
+
+/** CSV 表头严格匹配（大小写与写法完全一致、不支持别名）；未识别的列一律按语言代码处理 */
+function matchRole(h: string): ColumnDef['role'] | undefined {
+  switch (h) {
+    case 'key':
+      return 'key'
+    case 'sourceText':
+      return 'sourceText'
+    case 'tags':
+      return 'tags'
+    case 'context':
+      return 'context'
+    default:
+      return undefined
+  }
 }
 
 function csvSplit(data: string): string[][] {
@@ -54,8 +72,8 @@ function csvSplit(data: string): string[][] {
 export function csvParse(data: string): ImportEntry[] {
   const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
   const records = csvSplit(normalized)
-  if (records.length < 1)
-    return []
+  if (records.length < 2)
+    throw new AppError(ErrCode.InvalidParams, 'CSV 需要表头行与至少一行数据，请检查内容')
 
   const headerFields = records[0]
   let keyCol: ColumnDef | undefined
@@ -65,17 +83,8 @@ export function csvParse(data: string): ImportEntry[] {
   const langCols: ColumnDef[] = []
 
   for (let idx = 0; idx < headerFields.length; idx++) {
-    const h = headerFields[idx].trim().toLowerCase()
-    let role: 'key' | 'sourceText' | 'tags' | 'context' | 'lang' = 'lang'
-    if (h === 'key')
-      role = 'key'
-    else if (h === 'sourcetext' || h === 'source_text')
-      role = 'sourceText'
-    else if (h === 'tags')
-      role = 'tags'
-    else if (h === 'context')
-      role = 'context'
-    const col: ColumnDef = { idx, role }
+    const role = matchRole(headerFields[idx].trim())
+    const col: ColumnDef = { idx, role: role ?? 'lang' }
     if (col.role === 'lang')
       col.langCode = headerFields[idx].trim()
     if (col.role === 'key')
@@ -91,7 +100,7 @@ export function csvParse(data: string): ImportEntry[] {
   }
 
   if (!keyCol)
-    return []
+    throw new AppError(ErrCode.InvalidParams, 'CSV 未找到翻译键列（表头需为 key），请检查第一行表头')
 
   sourceCol = sourceCol ?? keyCol
   const hasLang = langCols.length > 0

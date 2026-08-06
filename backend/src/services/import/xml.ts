@@ -1,5 +1,7 @@
 import type { ImportEntry } from './types'
 import { XMLParser } from 'fast-xml-parser'
+import { ErrCode } from '../../lib/errors'
+import { AppError } from '../../utils/AppError'
 
 interface RawString {
   '@_name'?: string
@@ -27,10 +29,13 @@ function toArray<T>(v: T | T[] | undefined): T[] {
   return Array.isArray(v) ? v : [v]
 }
 
-function parseString(s: RawString): ImportEntry {
+function parseString(s: RawString, index: number): ImportEntry {
+  const name = s['@_name']
+  if (!name || !name.trim())
+    throw new AppError(ErrCode.InvalidParams, `XML 第 ${index + 1} 个 <string> 缺少 name 属性（翻译键），已拒绝导入`)
   return {
-    key: s['@_name'] ?? '',
-    sourceText: s['@_sourceText'] || s['@_name'] || '',
+    key: name,
+    sourceText: s['@_sourceText'] || name,
     translatedText: s['#text']?.trim() ?? '',
     tags: s['@_tags'] ? s['@_tags'].split(';').map(t => t.trim()) : [],
     context: s['@_context'] ?? '',
@@ -45,9 +50,9 @@ function parseNestedXml(root: Exclude<RawDoc['resources'], undefined>): ImportEn
   const entries: ImportEntry[] = []
   for (const lang of toArray(root.language)) {
     const langCode = lang['@_code'] ?? ''
-    for (const s of toArray(lang.string)) {
-      entries.push({ ...parseString(s), lang: langCode })
-    }
+    if (!langCode)
+      throw new AppError(ErrCode.InvalidParams, 'XML <language> 缺少 code 属性（语言代码），已拒绝导入')
+    toArray(lang.string).forEach((s, i) => entries.push({ ...parseString(s, i), lang: langCode }))
   }
   return entries
 }
@@ -57,11 +62,6 @@ export function xmlParse(data: string): ImportEntry[] {
   const doc = parser.parse(data) as RawDoc
   const root = doc?.resources
   if (!root)
-    return []
-
-  const langs = toArray(root.language)
-  if (langs.length)
-    return parseNestedXml(root)
-
-  return parseFlatXml(root)
+    throw new AppError(ErrCode.InvalidParams, '未找到 <resources> 根节点，请检查 XML 结构')
+  return toArray(root.language).length ? parseNestedXml(root) : parseFlatXml(root)
 }
