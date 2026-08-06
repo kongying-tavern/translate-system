@@ -308,8 +308,10 @@ export class ProjectsController extends Controller {
   @Put('{projectSlug}/members/{memberId}/role')
   @Security('auth')
   public async updateMemberRole(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() memberId: string, @Body() body: MemberRoleBody): Promise<ApiOk<null>> {
-    await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Admin)
-    await prisma.projectMember.update({ where: { id: memberId }, data: { projectRole: body.projectRole } })
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Admin)
+    const { count } = await prisma.projectMember.updateMany({ where: { id: memberId, projectId: access.projectId }, data: { projectRole: body.projectRole } })
+    if (count === 0)
+      throw new AppError(ErrCode.NotFound, '成员不存在或已被移除')
     return ok(null)
   }
 
@@ -322,8 +324,10 @@ export class ProjectsController extends Controller {
   @Delete('{projectSlug}/members/{memberId}')
   @Security('auth')
   public async removeMember(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() memberId: string): Promise<ApiOk<null>> {
-    await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Admin)
-    await prisma.projectMember.delete({ where: { id: memberId } })
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Admin)
+    const { count } = await prisma.projectMember.deleteMany({ where: { id: memberId, projectId: access.projectId } })
+    if (count === 0)
+      throw new AppError(ErrCode.NotFound, '成员不存在或已被移除')
     return ok(null)
   }
 }
