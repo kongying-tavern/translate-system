@@ -97,7 +97,7 @@ lib/prisma.ts              — PrismaClient 单例（独立文件，避免 tsoa 
 docs/swagger.ts          — 手写包装（import swagger.json + 加 basePath，并补充 tags 分组/安全方案/描述），必须提交
 docs/routes.ts + swagger.json — tsoa 生成产物（`pnpm gen` 重新生成，勿手改），已 gitignore（`backend/src/docs/*` + `!swagger.ts`），由 `predev`（开发启动）和 Dockerfile `RUN pnpm gen`（镜像构建）自动生成
 middleware/auth.ts         — AuthRequest 类型 + authMiddleware（JWT，docs 路由仍用）
-middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000，英文校验信息格式化为中文，如「缺少必填参数：templateSlug、languageCodes」）
+middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000，英文校验信息格式化为中文，如「缺少必填参数：templateSlug、languageCodes」）；body-parser 错误（`express.json({ limit: '50mb' })`，index.ts）返回统一 JSON：超限 413「请求体过大」、非法 JSON 400
 ```
 
 **tsoa 用法**：控制器用 `@Route` / `@Get|@Post|@Put|@Delete` / `@Path` / `@Query` / `@Body` / `@Security` 注解，改完控制器后必须 `cd backend && pnpm gen` 重新生成 `docs/routes.ts`（挂载用）和 `docs/swagger.json`（OpenAPI）。

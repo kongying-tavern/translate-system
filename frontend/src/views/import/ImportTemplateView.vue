@@ -100,6 +100,23 @@ function onFileChange(file: UploadFile) {
   }
 }
 
+/** 展示导入失败的具体原因：优先服务端 message，其次按 HTTP 状态/超时给出明确提示 */
+function showImportError(e: unknown) {
+  const err = e as { response?: { data?: { message?: string }, status?: number }, code?: string, message?: string }
+  if (err.response?.data?.message) {
+    ElMessage.error(err.response.data.message)
+    return
+  }
+  if (err.response?.status === 413) {
+    ElMessage.error('请求体过大：单次导入内容超出大小限制（50MB），请拆分文件后再试')
+    return
+  }
+  if (err.code === 'ECONNABORTED' || /timeout/i.test(err.message || ''))
+    ElMessage.error('导入请求超时：请到翻译列表确认数据是否已写入，避免重复提交')
+  else
+    ElMessage.error('导入失败')
+}
+
 async function doTextImport() {
   if (!textInput.value.trim()) {
     ElMessage.warning('请输入内容')
@@ -115,12 +132,12 @@ async function doTextImport() {
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: textInput.value, overwrite: overwrite.value }
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body)
+    const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
     const d1 = res.data
     ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
     textInput.value = ''
   }
-  catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '导入失败') }
+  catch (e: unknown) { showImportError(e) }
   finally { importing.value = false }
 }
 
@@ -140,12 +157,12 @@ async function doImport() {
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body)
+    const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
     const d1 = res.data
     ElMessage.success(`导入完成: ${d1.imported} 条${d1.created ? `，${d1.created} 新增` : ''}${d1.skipped ? `，${d1.skipped} 跳过（已有）` : ''}`)
     importFile.value = null
   }
-  catch (e: unknown) { ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '导入失败') }
+  catch (e: unknown) { showImportError(e) }
   finally { importing.value = false }
 }
 </script>

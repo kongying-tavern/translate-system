@@ -26,6 +26,12 @@ function formatValidationError(fields: FieldErrors): string {
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
   console.error(err)
+  // body-parser 错误（在路由之前抛出，不经过 tsoa）：返回统一 JSON 结构，前端可读取具体原因
+  const bodyError = err as { type?: string }
+  if (bodyError.type === 'entity.too.large')
+    return error(res, ErrCode.InvalidParams, '请求体过大：单次请求内容超出大小限制（50MB），请拆分后再试', 413)
+  if (bodyError.type === 'entity.parse.failed')
+    return error(res, ErrCode.InvalidParams, '请求体不是合法 JSON', 400)
   if (err instanceof AppError) {
     // 业务错误沿用原响应（HTTP 200 + code），仅鉴权失败返回 401（前端依赖其触发 token 刷新）
     const status = err.code === ErrCode.Unauthorized ? 401 : 200

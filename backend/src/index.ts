@@ -14,7 +14,7 @@ const app = express()
 const PORT = process.env.PORT || 8080
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }))
 
 // Swagger docs
 app.get('/api-docs/swagger.json', (_req: Request, res: Response) => {
