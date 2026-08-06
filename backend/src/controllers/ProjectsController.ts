@@ -120,6 +120,7 @@ export class ProjectsController extends Controller {
    * @param req 请求对象
    * @param page 页码
    * @param pageSize 每页数量
+   * @summary 项目列表
    */
   @Get()
   @Security('auth')
@@ -134,6 +135,7 @@ export class ProjectsController extends Controller {
    * 创建项目（仅系统超管）
    * @param req 请求对象
    * @param body 请求体
+   * @summary 创建项目
    */
   @Post()
   @Security('auth')
@@ -150,6 +152,7 @@ export class ProjectsController extends Controller {
    * 获取项目详情
    * @param req 请求对象
    * @param projectSlug 项目标识
+   * @summary 获取项目详情
    */
   @Get('{projectSlug}')
   @Security('auth')
@@ -164,6 +167,7 @@ export class ProjectsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 更新项目
    */
   @Put('{projectSlug}')
   @Security('auth')
@@ -177,6 +181,7 @@ export class ProjectsController extends Controller {
    * 删除项目（仅系统超管）
    * @param req 请求对象
    * @param projectSlug 项目标识
+   * @summary 删除项目
    */
   @Delete('{projectSlug}')
   @Security('auth')
@@ -205,6 +210,7 @@ export class ProjectsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 添加项目语言
    */
   @Post('{projectSlug}/languages')
   @Security('auth')
@@ -220,6 +226,7 @@ export class ProjectsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param langCode 语言代码
+   * @summary 移除项目语言
    */
   @Delete('{projectSlug}/languages/{langCode}')
   @Security('auth')
@@ -235,6 +242,7 @@ export class ProjectsController extends Controller {
    * @param projectSlug 项目标识
    * @param langCode 语言代码
    * @param body 请求体
+   * @summary 设置语言别名
    */
   @Put('{projectSlug}/languages/{langCode}/alias')
   @Security('auth')
@@ -249,6 +257,7 @@ export class ProjectsController extends Controller {
    * @param projectSlug 项目标识
    * @param langCode 语言代码
    * @param body 请求体
+   * @summary 设置语言排序
    */
   @Put('{projectSlug}/languages/{langCode}/sortOrder')
   @Security('auth')
@@ -261,6 +270,7 @@ export class ProjectsController extends Controller {
    * 项目成员列表
    * @param req 请求对象
    * @param projectSlug 项目标识
+   * @summary 项目成员列表
    */
   @Get('{projectSlug}/members')
   @Security('auth')
@@ -279,6 +289,7 @@ export class ProjectsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 添加项目成员
    */
   @Post('{projectSlug}/members')
   @Security('auth')
@@ -304,6 +315,7 @@ export class ProjectsController extends Controller {
    * @param projectSlug 项目标识
    * @param memberId 成员关系 ID
    * @param body 请求体
+   * @summary 修改成员项目角色
    */
   @Put('{projectSlug}/members/{memberId}/role')
   @Security('auth')
@@ -320,6 +332,7 @@ export class ProjectsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param memberId 成员关系 ID
+   * @summary 移除项目成员
    */
   @Delete('{projectSlug}/members/{memberId}')
   @Security('auth')

@@ -94,7 +94,7 @@ authentication.ts          — tsoa expressAuthentication：@Security('auth'/'ad
 lib/access.ts              — assertProjectAccess(userId, userRole, slug, minProjectRole?) / assertSystemRole(role, minRole)
 lib/api.ts                 — ok<T>() / okPage<T>() 统一响应包装 { code, message, data }
 lib/prisma.ts              — PrismaClient 单例（独立文件，避免 tsoa 扫描循环依赖）
-docs/swagger.ts          — 手写包装（import swagger.json + 加 basePath），必须提交
+docs/swagger.ts          — 手写包装（import swagger.json + 加 basePath，并补充 tags 分组/安全方案/描述），必须提交
 docs/routes.ts + swagger.json — tsoa 生成产物（`pnpm gen` 重新生成，勿手改），已 gitignore（`backend/src/docs/*` + `!swagger.ts`），由 `predev`（开发启动）和 Dockerfile `RUN pnpm gen`（镜像构建）自动生成
 middleware/auth.ts         — AuthRequest 类型 + authMiddleware（JWT，docs 路由仍用）
 middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000）
@@ -196,6 +196,15 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 
 - `./swagger.json` — **JWT 接口**，静态全量，不做角色过滤
 - `./apikey.json` — **API Key 开放接口**，`services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生：白名单路径加 `/apikey` 前缀、operation 改用 `x-api-key`/`x-api-secret` 安全方案；相对 URL 被前端 `/openapi/swagger-ui/` 前缀代理命中
+
+**OpenAPI 描述增强（`docs/swagger.ts` 包装层，勿直接改 swagger.json）**：`pnpm gen` 只保证 operation summary（来自控制器 JSDoc `@summary`，每个接口必须有）、参数/字段中文描述（来自 Row 接口 JSDoc）。为满足导入 OpenAPI 工具（Apifox/Postman 等）的分组与说明需求，`docs/swagger.ts` 在导出 `swaggerSpec` 时补充 tsoa 不产出的内容：
+
+- 顶层 `tags` 数组：按接口实际使用标签生成，`TAG_DESCRIPTIONS` 提供分组中文说明（Auth/Projects/Translations/Languages/Imports/Exports/Layouts/ApiKeys）
+- `components.securitySchemes`：补 `auth`/`admin` JWT Bearer 方案定义（tsoa 生成为空，工具无法解析鉴权）
+- `info.description`：统一响应结构说明
+- 修正 `Record_string.*` 等 schema 的默认英文描述为中文
+
+`services/docs.ts` 的 `buildOpenApi` 对 apikey.json 也会用 `buildTags(paths)` 计算子集标签，两文档分组一致。新增分组需同步补充 `TAG_DESCRIPTIONS`。
 
 原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json` 与 `GET /api-docs/apikey.json`（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）经前端代理 `GET /openapi/apikey.json`（即后端 `/api-docs/apikey.json`，`/openapi/*` 前缀由 `nginx.conf`/`vite.config.mts` 配置）拉取同一份 API Key OpenAPI 展示：路径直接用定义里的 `/apikey/...`，服务器基础路径取 spec 的 `servers`，不按角色过滤。新增开放接口需同步补充白名单。
 

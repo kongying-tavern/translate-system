@@ -101,6 +101,7 @@ cd frontend && pnpm install && pnpm dev  # -> http://localhost:3000
   - 文档页面: `http://localhost:8080/api-docs`（开发者文档，静态全量，顶部下拉切换「JWT 接口 / API Key 开放接口」）
   - JWT 接口 JSON: `http://localhost:8080/api-docs/swagger.json`
   - API Key 开放接口 JSON: `http://localhost:8080/api-docs/apikey.json`（白名单路径加 `/apikey` 前缀、`x-api-key`/`x-api-secret` 鉴权）
+  - 两份 JSON 均由 `docs/swagger.ts` 包装层增强：顶层 `tags` 分组中文说明、`auth`/`admin` JWT Bearer 安全方案定义、`info.description`、`Record_string.*` 字段中文说明，可直接导入 Apifox/Postman 等工具
 - 前端代理（经 `/openapi/*` 命名空间转发）:
   - `/openapi/swagger-ui/` → 后端 `/api-docs/`（Swagger UI 页面及相对资源；无尾斜杠的 `/openapi/swagger-ui` 会 301 跳转）
   - `/openapi/api.json` → 后端 `/api-docs/swagger.json`（原始 JSON）
@@ -131,7 +132,7 @@ translate-system/
 │       ├── config.ts              # 环境配置
 │       ├── authentication.ts      # tsoa expressAuthentication（JWT / API Key）
 │       ├── controllers/           # tsoa 注解式控制器（@Route/@Get/@Security）
-│       ├── docs/                  # swagger.ts（手写，提交）+ tsoa 生成产物 routes.ts、swagger.json（gitignore，dev/构建时自动生成）
+│       ├── docs/                  # swagger.ts（手写包装，补充 tags 分组/安全方案/描述，提交）+ tsoa 生成产物 routes.ts、swagger.json（gitignore，dev/构建时自动生成）
 │       ├── lib/                   # 工具库（access/api/prisma/apikey-whitelist）
 │       ├── middleware/            # auth（JWT + AuthRequest）、errorHandler、apikey
 │       ├── services/              # 业务逻辑

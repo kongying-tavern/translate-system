@@ -13,14 +13,21 @@ export interface SearchQuery {
 @Route('languages')
 @Tags('Languages')
 export class LanguagesController extends Controller {
-  /** 基础语言列表 */
+  /**
+   * 基础语言列表
+   * @summary 基础语言列表
+   */
   @Get()
   @Security('auth')
   public async listBaseLanguages(): Promise<ApiOk<unknown[]>> {
     return ok(await langService.getBaseLanguages())
   }
 
-  /** 搜索基础语言 */
+  /**
+   * 搜索基础语言
+   * @param q 搜索查询
+   * @summary 搜索基础语言
+   */
   @Get('search')
   @Security('auth')
   public async search(@Queries() q: SearchQuery): Promise<ApiOk<unknown[]>> {

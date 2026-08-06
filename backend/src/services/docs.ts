@@ -1,4 +1,4 @@
-import { swaggerSpec } from '../docs/swagger'
+import { buildTags, swaggerSpec } from '../docs/swagger'
 import { APIKEY_WHITELIST } from '../lib/apikey-whitelist'
 
 type JsonRecord = Record<string, unknown>
@@ -78,7 +78,7 @@ function isWhitelisted(method: string, pathKey: string): boolean {
   )
 }
 
-/** 组装 OpenAPI：保留 openapi/info/servers，按给定 paths 重写 components.schemas */
+/** 组装 OpenAPI：保留 openapi/info/servers，按给定 paths 重写 components.schemas 与顶层 tags */
 function buildOpenApi(paths: JsonRecord, securitySchemes?: JsonRecord, titleSuffix?: string): JsonRecord {
   const refs = new Set<string>()
   for (const item of Object.values(paths)) {
@@ -92,6 +92,7 @@ function buildOpenApi(paths: JsonRecord, securitySchemes?: JsonRecord, titleSuff
     openapi: spec.openapi,
     info,
     servers: spec.servers,
+    tags: buildTags(paths),
     paths,
     components: {
       securitySchemes: securitySchemes ?? spec.components?.securitySchemes,

@@ -138,6 +138,7 @@ export class AuthController extends Controller {
   /**
    * 用户注册（首个用户自动成为超管）
    * @param body 请求体
+   * @summary 用户注册
    */
   @Post('register')
   public async register(@Body() body: RegisterBody): Promise<ApiOk<AuthTokens>> {
@@ -151,6 +152,7 @@ export class AuthController extends Controller {
   /**
    * 用户登录，支持用户名或邮箱
    * @param body 请求体
+   * @summary 用户登录
    */
   @Post('login')
   public async login(@Body() body: LoginBody): Promise<ApiOk<AuthTokens>> {
@@ -163,6 +165,7 @@ export class AuthController extends Controller {
   /**
    * 刷新 token
    * @param body 请求体
+   * @summary 刷新 token
    */
   @Post('refresh')
   public async refresh(@Body() body: RefreshBody): Promise<ApiOk<AuthTokens>> {
@@ -174,6 +177,7 @@ export class AuthController extends Controller {
   /**
    * 获取当前用户信息
    * @param req 请求对象
+   * @summary 获取当前用户信息
    */
   @Get('me')
   @Security('auth')
@@ -185,6 +189,7 @@ export class AuthController extends Controller {
    * 修改自己的密码
    * @param req 请求对象
    * @param body 请求体
+   * @summary 修改自己的密码
    */
   @Put('me/password')
   @Security('auth')
@@ -197,7 +202,10 @@ export class AuthController extends Controller {
     return ok({ updated: true })
   }
 
-  /** 用户列表（admin+） */
+  /**
+   * 用户列表（admin+）
+   * @summary 用户列表
+   */
   @Get('users')
   @Security('admin')
   public async listUsers(): Promise<ApiOk<UserRow[]>> {
@@ -209,6 +217,7 @@ export class AuthController extends Controller {
    * @param req 请求对象
    * @param id 用户 ID
    * @param body 请求体
+   * @summary 修改用户角色
    */
   @Put('users/{id}/role')
   @Security('admin')
@@ -220,6 +229,7 @@ export class AuthController extends Controller {
    * 创建用户（admin+）
    * @param req 请求对象
    * @param body 请求体
+   * @summary 创建用户
    */
   @Post('users')
   @Security('admin')
@@ -235,6 +245,7 @@ export class AuthController extends Controller {
    * 删除用户（admin+）
    * @param req 请求对象
    * @param id 用户 ID
+   * @summary 删除用户
    */
   @Delete('users/{id}')
   @Security('admin')
@@ -248,6 +259,7 @@ export class AuthController extends Controller {
    * @param req 请求对象
    * @param id 用户 ID
    * @param body 请求体
+   * @summary 重置用户密码
    */
   @Put('users/{id}/password')
   @Security('admin')

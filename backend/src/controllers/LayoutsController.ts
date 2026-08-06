@@ -67,6 +67,7 @@ export class LayoutsController extends Controller {
    * 布局模板列表
    * @param req 请求对象
    * @param projectSlug 项目标识
+   * @summary 布局模板列表
    */
   @Get('{projectSlug}/layouts/templates')
   @Security('auth')
@@ -80,6 +81,7 @@ export class LayoutsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 创建布局模板
    */
   @Post('{projectSlug}/layouts/templates')
   @Security('auth')
@@ -93,6 +95,7 @@ export class LayoutsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param templateId 模板 ID
+   * @summary 获取布局模板详情
    */
   @Get('{projectSlug}/layouts/templates/{templateId}')
   @Security('auth')
@@ -107,6 +110,7 @@ export class LayoutsController extends Controller {
    * @param projectSlug 项目标识
    * @param templateId 模板 ID
    * @param body 请求体
+   * @summary 更新布局模板
    */
   @Put('{projectSlug}/layouts/templates/{templateId}')
   @Security('auth')
@@ -120,6 +124,7 @@ export class LayoutsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param templateId 模板 ID
+   * @summary 删除布局模板
    */
   @Delete('{projectSlug}/layouts/templates/{templateId}')
   @Security('auth')
@@ -133,6 +138,7 @@ export class LayoutsController extends Controller {
    * 布局配置列表
    * @param req 请求对象
    * @param projectSlug 项目标识
+   * @summary 布局配置列表
    */
   @Get('{projectSlug}/layouts/configs')
   @Security('auth')
@@ -146,6 +152,7 @@ export class LayoutsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 创建布局配置
    */
   @Post('{projectSlug}/layouts/configs')
   @Security('auth')
@@ -159,6 +166,7 @@ export class LayoutsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param configId 配置 ID
+   * @summary 获取布局配置详情
    */
   @Get('{projectSlug}/layouts/configs/{configId}')
   @Security('auth')
@@ -173,6 +181,7 @@ export class LayoutsController extends Controller {
    * @param projectSlug 项目标识
    * @param configId 配置 ID
    * @param body 请求体
+   * @summary 更新布局配置
    */
   @Put('{projectSlug}/layouts/configs/{configId}')
   @Security('auth')
@@ -186,6 +195,7 @@ export class LayoutsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param configId 配置 ID
+   * @summary 删除布局配置
    */
   @Delete('{projectSlug}/layouts/configs/{configId}')
   @Security('auth')
@@ -200,6 +210,7 @@ export class LayoutsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param configId 配置 ID
+   * @summary 获取最终布局配置
    */
   @Get('{projectSlug}/layouts/configs/{configId}/resolved')
   @Security('auth')

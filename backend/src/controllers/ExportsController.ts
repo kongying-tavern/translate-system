@@ -68,6 +68,7 @@ export class ExportsController extends Controller {
    * 导出模板列表
    * @param req 请求对象
    * @param projectSlug 项目标识
+   * @summary 导出模板列表
    */
   @Get('{projectSlug}/exports/templates')
   @Security('auth')
@@ -81,6 +82,7 @@ export class ExportsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 创建导出模板
    */
   @Post('{projectSlug}/exports/templates')
   @Security('auth')
@@ -109,6 +111,7 @@ export class ExportsController extends Controller {
    * @param projectSlug 项目标识
    * @param templateSlug 模板标识
    * @param body 请求体
+   * @summary 更新导出模板
    */
   @Put('{projectSlug}/exports/templates/{templateSlug}')
   @Security('auth')
@@ -122,6 +125,7 @@ export class ExportsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param templateSlug 模板标识
+   * @summary 删除导出模板
    */
   @Delete('{projectSlug}/exports/templates/{templateSlug}')
   @Security('auth')

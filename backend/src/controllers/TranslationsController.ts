@@ -143,6 +143,7 @@ export class TranslationsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 新增 key
    */
   @Post('{projectSlug}/translations')
   @Security('auth')
@@ -157,6 +158,7 @@ export class TranslationsController extends Controller {
    * @param projectSlug 项目标识
    * @param oldKey 原键名
    * @param body 请求体
+   * @summary 更新 key 与原文
    */
   @Put('{projectSlug}/translations/key/{oldKey}')
   @Security('auth')
@@ -200,6 +202,7 @@ export class TranslationsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param translationId 翻译记录ID
+   * @summary 删除 key
    */
   @Delete('{projectSlug}/translations/{translationId}')
   @Security('auth')
@@ -214,6 +217,7 @@ export class TranslationsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 批量保存排序
    */
   @Put('{projectSlug}/translations/sortOrders')
   @Security('auth')
@@ -229,6 +233,7 @@ export class TranslationsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param body 请求体
+   * @summary 批量导入译文
    */
   @Post('{projectSlug}/translations/batch')
   @Security('auth')
@@ -244,6 +249,7 @@ export class TranslationsController extends Controller {
    * @param projectSlug 项目标识
    * @param key 翻译键名
    * @param body 请求体
+   * @summary 保存 key 级属性
    */
   @Put('{projectSlug}/translations/{key}')
   @Security('auth')
@@ -259,6 +265,7 @@ export class TranslationsController extends Controller {
    * @param key 翻译键名
    * @param langCode 语言代码
    * @param body 请求体
+   * @summary 保存指定语言译文
    */
   @Put('{projectSlug}/translations/{key}/{langCode}')
   @Security('auth')

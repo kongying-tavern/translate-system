@@ -48,7 +48,11 @@ export interface UpdateApiKeyBody {
 @Route('me')
 @Tags('ApiKeys')
 export class ApiKeysController extends Controller {
-  /** 我的 API Key 列表 */
+  /**
+   * 我的 API Key 列表
+   * @param req 请求对象
+   * @summary 我的 API Key 列表
+   */
   @Get('keys')
   @Security('auth')
   public async listKeys(@Request() req: AuthRequest): Promise<ApiOk<ApiKeyRow[]>> {
@@ -60,7 +64,12 @@ export class ApiKeysController extends Controller {
     return ok(keys as unknown as ApiKeyRow[])
   }
 
-  /** 创建 API Key（返回一次性的 secret） */
+  /**
+   * 创建 API Key（返回一次性的 secret）
+   * @param req 请求对象
+   * @param body 请求体
+   * @summary 创建 API Key
+   */
   @Post('keys')
   @Security('auth')
   public async createKey(@Request() req: AuthRequest, @Body() body: CreateApiKeyBody): Promise<ApiOk<ApiKeyCreated>> {
@@ -78,6 +87,7 @@ export class ApiKeysController extends Controller {
    * @param req 请求对象
    * @param id 密钥 ID
    * @param body 请求体
+   * @summary 启用/禁用 API Key
    */
   @Put('keys/{id}')
   @Security('auth')
@@ -90,6 +100,7 @@ export class ApiKeysController extends Controller {
    * 删除 API Key
    * @param req 请求对象
    * @param id 密钥 ID
+   * @summary 删除 API Key
    */
   @Delete('keys/{id}')
   @Security('auth')
