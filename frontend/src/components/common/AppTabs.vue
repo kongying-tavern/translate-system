@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ContextMenuItem } from '@/components/ui/BaseContextMenu/types'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BaseContextMenu, BaseTabButton } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
@@ -11,6 +11,7 @@ const route = useRoute()
 const router = useRouter()
 const tabsStore = useTabsStore()
 const auth = useAuthStore()
+const tabsBarRef = ref<HTMLDivElement | null>(null)
 
 function isStaticPath(path: string): boolean {
   if (!path)
@@ -49,7 +50,12 @@ watch(() => auth.activeProjectName, () => {
   })
 })
 
+onMounted(() => {
+  tabsBarRef.value?.addEventListener('wheel', onBarWheel, { passive: false })
+})
+
 onBeforeUnmount(() => {
+  tabsBarRef.value?.removeEventListener('wheel', onBarWheel)
   window.removeEventListener('resize', onWindowResize)
   tabsStore.reset()
 })
@@ -57,7 +63,6 @@ onBeforeUnmount(() => {
 const menuVisible = ref(false)
 const menuPos = ref({ x: 0, y: 0 })
 const menuPath = ref('')
-const tabsBarRef = ref<HTMLDivElement | null>(null)
 const menuAnchorEl = ref<HTMLElement | null>(null)
 
 const ctxItems = computed<ContextMenuItem[]>(() => {
@@ -81,7 +86,7 @@ function computeMenuPos(): { x: number, y: number } {
   const bar = tabsBarRef.value
   if (bar) {
     const rect = bar.getBoundingClientRect()
-    y = rect.bottom - 2
+    y = rect.bottom
   }
   return { x, y }
 }
@@ -93,6 +98,14 @@ function openMenu(path: string, e: MouseEvent): void {
     return
   menuPos.value = computeMenuPos()
   menuVisible.value = true
+}
+
+function onBarWheel(e: WheelEvent): void {
+  const bar = tabsBarRef.value
+  if (!bar || bar.scrollWidth <= bar.clientWidth)
+    return
+  e.preventDefault()
+  bar.scrollLeft += e.deltaY || e.deltaX
 }
 
 function onWindowResize(): void {
@@ -184,12 +197,20 @@ function closeAllDynamic(): void {
 <style lang="scss" scoped>
 .app-tabs {
   display: flex;
+  flex: none;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   background: #fff;
-  padding: 6px 12px;
+  padding: 2px 12px;
   border-bottom: 1px solid #e4e7ed;
   overflow-x: auto;
+  overflow-y: hidden;
   white-space: nowrap;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 </style>
