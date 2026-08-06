@@ -40,33 +40,43 @@ export async function listGrouped(projectId: string, query: {
     show: /* check if key should be included */ true,
   }))
 
-  // Apply original filter logic
+  // 多个筛选条件同时生效：标签 / 搜索 / 仅未翻译 全部以 AND 组合
   let visible = allItems
   if (query.search || query.tags?.length || query.languageCode || query.untransOnly) {
     visible = allItems.filter((item) => {
       const k = item.key
-      if (query.languageCode && !query.untransOnly && !query.search)
-        return k.values.length > 0
-      if (query.untransOnly && query.languageCode)
-        return !k.values.some(v => v.languageCode === query.languageCode && v.translatedText)
-      if (query.tags?.length)
-        return query.tags.some(t => k.tags?.includes(t))
+
+      // 仅未翻译：指定语言下没有非空译文
+      if (query.untransOnly && query.languageCode) {
+        if (k.values.some(v => v.languageCode === query.languageCode && v.translatedText))
+          return false
+      }
+
+      // 标签：命中任一选中标签
+      if (query.tags?.length && !query.tags.some(t => k.tags?.includes(t)))
+        return false
+
+      // 搜索：匹配 key / 原文 / 译文 / 备注
       if (query.search) {
         const s = query.search
+        let match = false
         if (s.startsWith('/') && s.endsWith('/') && s.length > 2) {
           try {
             const re = new RegExp(s.slice(1, -1), 'i')
-            return re.test(k.key) || re.test(k.sourceText) || k.values.some(v => re.test(v.translatedText)) || re.test(k.context || '')
+            match = re.test(k.key) || re.test(k.sourceText) || k.values.some(v => re.test(v.translatedText)) || re.test(k.context || '')
           }
           catch {}
         }
-        return k.key.toLowerCase().includes(s.toLowerCase()) || k.sourceText.toLowerCase().includes(s.toLowerCase()) || k.values.some(v => v.translatedText.toLowerCase().includes(s.toLowerCase())) || k.context?.toLowerCase().includes(s.toLowerCase())
+        else {
+          const low = s.toLowerCase()
+          match = k.key.toLowerCase().includes(low) || k.sourceText.toLowerCase().includes(low) || k.values.some(v => v.translatedText.toLowerCase().includes(low)) || (k.context?.toLowerCase().includes(low) ?? false)
+        }
+        if (!match)
+          return false
       }
+
       return true
     })
-  }
-  if (query.languageCode && !query.search && !query.untransOnly) {
-    visible = visible.filter(item => item.key.values.length > 0)
   }
 
   const total = visible.length

@@ -235,6 +235,7 @@ GET    /languages|/languages/search    — 基础语言
 - 译文用 `transCache` (key+lang → text) 缓存
 - context 和 tags 是 key 级属性，不按语言缓存
 - 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在
+- 筛选条件（标签 / 搜索 / 仅未翻译）同时启用时以 **AND** 组合，全部满足才显示；多标签之间为 OR（命中任一即通过）
 
 ### API Key 鉴权
 
