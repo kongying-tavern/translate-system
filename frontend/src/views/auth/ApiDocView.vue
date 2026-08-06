@@ -3,7 +3,6 @@ import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { JsonSchema } from '@/utils/jsonSchema'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
-import client from '@/api/client'
 import { BaseInput, BaseJsonSchemaViewer, BasePageHeader, BaseTable } from '@/components/ui'
 import { dereferenceSchema, resolveSchemaRef, typeLabel } from '@/utils/jsonSchema'
 
@@ -28,6 +27,7 @@ interface OpenApiOperation {
 interface OpenApiSpec {
   openapi?: string
   paths: Record<string, Record<string, OpenApiOperation>>
+  servers?: Array<{ url?: string }>
   components?: { schemas?: Record<string, JsonSchema> }
 }
 
@@ -86,6 +86,7 @@ const methodColor: Record<string, string> = {
 
 const loading = ref(false)
 const endpoints = ref<Endpoint[]>([])
+const apiBase = ref('')
 const activeTab = ref('auth')
 const activeEndpoint = ref<Record<string, string>>({})
 
@@ -136,7 +137,8 @@ const headerRows = [
 
 const curlExample = computed(() => {
   const gen = endpoints.value.find(e => e.method === 'post' && e.path.includes('/exports/generate'))
-  const path = gen ? gen.path : '/api/v1/apikey/projects/项目ID/exports/generate'
+  const base = `http://localhost:3000${apiBase.value}`
+  const path = gen ? `${base}${gen.path}` : `${base}/apikey/projects/项目ID/exports/generate`
   return `# 导出翻译
 curl -X POST ${path} \\
   -H "x-api-key: ak_xxx" \\
@@ -145,7 +147,7 @@ curl -X POST ${path} \\
   -d '{"templateSlug":"模板ID","languageCodes":["zh-Hans"]}'
 
 # 获取项目翻译列表
-curl http://localhost:3000/api/v1/apikey/projects/项目ID/translations \\
+curl ${base}/apikey/projects/项目ID/translations \\
   -H "x-api-key: ak_xxx" -H "x-api-secret: xxx"
 
 # 响应格式: { "code": 0, "data": {...} }`
@@ -176,10 +178,10 @@ function toParamRows(params: OpenApiParameter[]): ParamRow[] {
 }
 
 function parseOpenApi(spec: OpenApiSpec) {
+  apiBase.value = (spec.servers?.[0]?.url ?? '').replace(/\/$/, '')
   const schemas = spec.components?.schemas ?? {}
   const list: Endpoint[] = []
   for (const [rawPath, item] of Object.entries(spec.paths)) {
-    const apiKeyPath = `/api/v1${rawPath.replace(/^\/api\/v1/, '')}`
     for (const [method, op] of Object.entries(item)) {
       const summary = op.summary ?? ''
       const desc = op.description ?? op.summary ?? ''
@@ -188,7 +190,7 @@ function parseOpenApi(spec: OpenApiSpec) {
       const dataProp = respSchemaRaw ? resolveSchemaRef(respSchemaRaw, schemas).properties?.data : undefined
       list.push({
         method,
-        path: apiKeyPath,
+        path: rawPath,
         label: endpointLabel(summary, desc, rawPath),
         summary: desc,
         group: groupOf(rawPath),
@@ -204,8 +206,10 @@ function parseOpenApi(spec: OpenApiSpec) {
 onMounted(async () => {
   loading.value = true
   try {
-    const { data: res } = await client.get<{ code: number, data: OpenApiSpec }>('/docs/openapi')
-    parseOpenApi(res.data)
+    const res = await fetch('/openapi/apikey.json')
+    if (!res.ok)
+      throw new Error(`HTTP ${res.status}`)
+    parseOpenApi(await res.json() as OpenApiSpec)
   }
   catch {
     ElMessage.error('加载开放接口说明失败')
@@ -225,7 +229,7 @@ onMounted(async () => {
         <div class="pane-body">
           <el-card shadow="never" class="auth-card">
             <p class="intro">
-              以下为<strong>供外部方调用</strong>的开放接口（均加入白名单）。通过 <code>x-api-key</code> + <code>x-api-secret</code> 请求头鉴权，以下路径已包含 <code>/api/v1/apikey</code> 前缀。
+              以下为<strong>供外部方调用</strong>的开放接口（均加入白名单）。通过 <code>x-api-key</code> + <code>x-api-secret</code> 请求头鉴权，路径以 <code>/apikey</code> 开头，完整 URL 为 <code>服务器地址/api/v1</code> + 以下路径。
             </p>
             <h4 class="section-title">
               请求头

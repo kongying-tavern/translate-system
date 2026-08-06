@@ -8,7 +8,6 @@ import { swaggerSpec } from './docs/swagger'
 import { APIKEY_WHITELIST } from './lib/apikey-whitelist'
 import { apiKeyAuth } from './middleware/apikey'
 import { errorHandler } from './middleware/errorHandler'
-import { docsRoutes } from './routes/docs'
 import { buildApiKeyOpenApiSpec } from './services/docs'
 
 const app = express()
@@ -41,9 +40,6 @@ app.use(
 const jwtRouter = express.Router()
 RegisterRoutes(jwtRouter)
 app.use('/api/v1', jwtRouter)
-
-// API doc summary (JWT required)
-app.use('/api/v1/docs', docsRoutes)
 
 // API Key proxy: same tsoa routes behind apiKeyAuth + whitelist guard
 // 管理接口（/me/keys）不在代理上使用，前端走 JWT 路由 /api/v1/me/keys

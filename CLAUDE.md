@@ -197,14 +197,11 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 - `./swagger.json` — **JWT 接口**，静态全量，不做角色过滤
 - `./apikey.json` — **API Key 开放接口**，`services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生：白名单路径加 `/apikey` 前缀、operation 改用 `x-api-key`/`x-api-secret` 安全方案；相对 URL 被前端 `/openapi/swagger-ui/` 前缀代理命中
 
-原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json` 与 `GET /api-docs/apikey.json`（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）调 `GET /api/v1/docs/openapi`（`routes/docs.ts`，JWT 鉴权）展示 API Key 白名单开放接口（完整 `/api/v1/apikey/...` 路径），并按登录用户**系统角色**过滤可见接口（规则表 `APIKEY_ROLE_RULES`，`services/docs.ts` 的 `getApiKeyOpenApi`）：
-
-- 默认（读接口 + 导出预览/生成）：任意项目成员可用（user 可见）
-- 批量导入（业务上需项目 Maintainer+）：admin 及以上可见
-
-新增开放接口需同步补充白名单与角色规则。
+原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json` 与 `GET /api-docs/apikey.json`（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）经前端代理 `GET /openapi/apikey.json`（即后端 `/api-docs/apikey.json`，`/openapi/*` 前缀由 `nginx.conf`/`vite.config.mts` 配置）拉取同一份 API Key OpenAPI 展示：路径直接用定义里的 `/apikey/...`，服务器基础路径取 spec 的 `servers`，不按角色过滤。新增开放接口需同步补充白名单。
 
 ```
+
+
 POST   /auth/register|login|refresh    — 公开，login 支持用户名或邮箱
 GET    /auth/me                        — 需 auth
 GET    /auth/users                     — 需 auth + admin+

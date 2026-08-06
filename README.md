@@ -134,7 +134,6 @@ translate-system/
 │       ├── docs/                  # swagger.ts（手写，提交）+ tsoa 生成产物 routes.ts、swagger.json（gitignore，dev/构建时自动生成）
 │       ├── lib/                   # 工具库（access/api/prisma/apikey-whitelist）
 │       ├── middleware/            # auth（JWT + AuthRequest）、errorHandler、apikey
-│       ├── routes/docs.ts         # GET /api/v1/docs/openapi（白名单 OpenAPI 抽取）
 │       ├── services/              # 业务逻辑
 │       └── scripts/              # 导入脚本
 ├── frontend/

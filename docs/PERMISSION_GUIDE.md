@@ -156,16 +156,7 @@ handler
 
 ### 4.3 开放接口（API Key）权限
 
-外部自动化通过 `x-api-key` + `x-api-secret` 访问 `/api/v1/apikey/...` 前缀接口。可访问的接口由**白名单**决定：`backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 是一个数组，**每条声明「HTTP 方法 + 路径正则」**，逐条列允许的开放接口。新增开放接口只需在数组中追加一条声明即可生效（`index.ts` 守卫自动读取），无需改动任何逻辑。
-
-开放接口的**文档可见性**按登录用户系统角色过滤（`backend/src/services/docs.ts` `getApiKeyOpenApi`）：
-
-| 系统角色 | 可见开放接口 |
-|---------|-------------|
-| `user` | 默认范围：只读接口 + 导出预览/生成（任意项目成员可用的功能，无额外门槛） |
-| `admin` / `super_admin` | 默认范围 + 需项目 Maintainer+ 的写接口（如批量导入，在 `APIKEY_ROLE_RULES` 中单独标注并提升门槛） |
-
-> 分类按「默认（任意成员可用）」与「需 Maintainer+ 才额外提升系统角色门槛」两种模式描述。新增开放接口若沿用默认分类，**无需改动白名单之外的任何规则/文档**；只有当该接口需要更高系统角色时才需在 `APIKEY_ROLE_RULES` 追加一条路径规则。
+外部自动化通过 `x-api-key` + `x-api-secret` 访问 `/api/v1/apikey/...` 前缀接口。可访问的接口由**白名单**决定：`backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 是一个数组，**每条声明「HTTP 方法 + 路径正则」**，逐条列允许的开放接口。新增开放接口只需在数组中追加一条声明即可生效（`index.ts` 守卫自动读取），无需改动任何逻辑。开放接口文档由 `backend/src/services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生（`/api-docs/apikey.json`），Swagger UI「API Key 开放接口」与前端「开放接口说明」页（`/api-doc`，经 `/openapi/apikey.json` 代理）同源展示，不按系统角色过滤。
 
 **开放接口的数据权限**：开放接口路径均为 `/projects/{id}/...`，调用时 `apiKeyAuth` 用 x-api-key 解析出 API Key 的 `userId`/`userRole`（`backend/src/middleware/apikey.ts`，回写 `req.userId`/`req.userRole`），随后项目接口的 `assertProjectAccess` 以**该所有者身份**判定项目访问权与项目角色门槛。因此：
 - API Key 只能操作**其所有者拥有成员/owner 身份的项目**（super_admin 所有者的 Key 可访问全部项目），非成员项目返回 403；
@@ -227,7 +218,7 @@ handler
 2. 项目级接口在 handler 内 `assertProjectAccess(req.userId!, req.userRole!, slug, minProjectRole?)`，按业务传 `ProjectRole.Maintainer` / `Admin` 或不传（任意成员）；
 3. 涉及系统 super_admin 的操作加 `assertSystemRole(role, SystemRole.SuperAdmin)`；
 4. 改完控制器必须 `cd backend && pnpm gen` 重新生成 `docs/routes.ts` + `swagger.json`；
-5. 若为 API Key 开放接口，同步补充 `APIKEY_WHITELIST` 与 `services/docs.ts` 的 `APIKEY_ROLE_RULES`。
+5. 若为 API Key 开放接口，同步补充 `APIKEY_WHITELIST`。
 
 ### 改动角色/等级
 同时同步：
@@ -246,7 +237,7 @@ handler
 | `backend/src/controllers/AuthController.ts` | `@Security('admin')` 用户管理 |
 | `backend/src/controllers/ProjectsController.ts` | 项目 CRUD（super_admin）+ 成员管理（Project Admin） |
 | `backend/src/services/project.ts` | `listProjects` 附加当前用户 `projectRole`（数据权限） |
-| `backend/src/services/docs.ts` | 开放接口按系统角色过滤（`APIKEY_ROLE_RULES`） |
+| `backend/src/services/docs.ts` | 从 swagger.json 派生 API Key 开放接口文档（`buildApiKeyOpenApiSpec`） |
 | `backend/src/lib/apikey-whitelist.ts` | API Key 开放接口白名单 |
 | `frontend/src/hooks/useProjectPermission.ts` | 菜单/功能权限 computed |
 | `frontend/src/utils/roles.ts` | 角色常量 + `SYS_ROLE_LEVEL` / `PROJECT_ROLE_LEVEL` |

@@ -1,4 +1,3 @@
-import { ROLE_LEVEL, SystemRole } from '../constants/roles'
 import { swaggerSpec } from '../docs/swagger'
 import { APIKEY_WHITELIST } from '../lib/apikey-whitelist'
 
@@ -101,8 +100,8 @@ function buildOpenApi(paths: JsonRecord, securitySchemes?: JsonRecord, titleSuff
   }
 }
 
-/** 抽取白名单接口：路径加 `/apikey` 前缀，operation 改用 apiKey 鉴权；userRole 传入时按系统角色过滤 */
-function buildApiKeyPaths(userRole?: string): JsonRecord {
+/** 抽取白名单接口：路径加 `/apikey` 前缀，operation 改用 apiKey 鉴权 */
+function buildApiKeyPaths(): JsonRecord {
   const allPaths = spec.paths ?? {}
   const paths: JsonRecord = {}
   for (const [pathKey, pathItem] of Object.entries(allPaths)) {
@@ -113,8 +112,6 @@ function buildApiKeyPaths(userRole?: string): JsonRecord {
         continue
       if (!isWhitelisted(method, pathKey))
         continue
-      if (userRole !== undefined && !canAccessOpenApi(userRole, pathKey))
-        continue
       matched[method] = {
         ...(operation as JsonRecord),
         security: [{ ApiKeyAuth: [], ApiKeySecret: [] }],
@@ -124,33 +121,6 @@ function buildApiKeyPaths(userRole?: string): JsonRecord {
       paths[`/apikey${pathKey}`] = matched
   }
   return paths
-}
-
-/**
- * 开放接口按业务功能所需的最小系统角色分层：
- * - 默认（读接口 + 导出预览/生成）任意项目成员可用，最小系统角色 user
- * - 批量导入（业务上需项目 Maintainer+）最小系统角色 admin
- */
-const APIKEY_ROLE_RULES: Array<{ path: RegExp, minRole: string }> = [
-  { path: /^\/projects\/[^/]+\/imports\/(entries|translations)$/, minRole: SystemRole.Admin },
-]
-
-/** 判断用户系统角色是否满足开放接口的最小角色要求 */
-function canAccessOpenApi(userRole: string | undefined, path: string): boolean {
-  const current = userRole ? (ROLE_LEVEL[userRole] ?? 0) : 0
-  for (const rule of APIKEY_ROLE_RULES) {
-    if (rule.path.test(path))
-      return current >= (ROLE_LEVEL[rule.minRole] ?? 0)
-  }
-  return current >= (ROLE_LEVEL[SystemRole.User] ?? 0)
-}
-
-/**
- * 抽取 API Key 白名单对应的接口（`/apikey` 前缀路径 + apiKey 鉴权）与相关 schema，
- * 供前端「开放接口说明」页展示，并按登录用户系统角色过滤可见接口。
- */
-export function getApiKeyOpenApi(userRole?: string): JsonRecord {
-  return buildOpenApi(buildApiKeyPaths(userRole), APIKEY_SECURITY_SCHEMES)
 }
 
 /**
