@@ -12,7 +12,7 @@ import { BaseButton, BaseDialog, BaseIcon, BaseInput, BasePageHeader, BaseSelect
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
-import { encSlug } from '@/utils/slug'
+import { encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string)
@@ -49,7 +49,7 @@ async function onAliasSave(row: ProjectLanguage) {
   if (alias === (row.alias || ''))
     return
   try {
-    await client.put(`/projects/${encSlug(projectSlug.value)}/languages/${row.id}/alias`, { alias })
+    await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/alias`, { alias })
     row.alias = alias || ''
     ElMessage.success('已更新')
   }
@@ -109,7 +109,7 @@ async function moveDown(index: number) {
 }
 
 async function saveOrder(row: ProjectLanguage) {
-  await client.put(`/projects/${encSlug(projectSlug.value)}/languages/${row.id}/sortOrder`, { sortOrder: row.sortOrder }).catch(() => {})
+  await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/sortOrder`, { sortOrder: row.sortOrder }).catch(() => {})
 }
 
 const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [

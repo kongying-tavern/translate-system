@@ -8,7 +8,7 @@ import client from '@/api/client'
 import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
-import { encSlug } from '@/utils/slug'
+import { encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const perm = useProjectPermission()
@@ -70,7 +70,7 @@ const isYamlExample = computed(() => fmt.value === ImportFormat.YAML)
 const isXmlExample = computed(() => fmt.value === ImportFormat.XML)
 
 async function loadLanguages() {
-  const { data: res } = await client.get(`/projects/${encSlug(projectSlug.value)}/languages`)
+  const { data: res } = await client.get(`/projects/${encPathParam(projectSlug.value)}/languages`)
   projectLanguages.value = res.data || []
   if (projectLanguages.value.length)
     importLang.value = projectLanguages.value[0].languageCode
@@ -144,7 +144,7 @@ async function doTextImport() {
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: textInput.value, overwrite: overwrite.value }
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
+    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
     ElMessage.success(importSuccessMsg(res.data))
     textInput.value = ''
   }
@@ -168,7 +168,7 @@ async function doImport() {
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${encSlug(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
+    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
     ElMessage.success(importSuccessMsg(res.data))
     importFile.value = null
   }

@@ -11,7 +11,7 @@ import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
-import { encSlug } from '@/utils/slug'
+import { encPathParam } from '@/utils/path'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
@@ -123,8 +123,8 @@ watch(settingsVisible, (v) => {
 function switchProject(p: Project) {
   switcherVisible.value = false
   const slug = p.code || p.id
-  const suffix = projectSlug.value ? route.path.split(encSlug(projectSlug.value))[1] || '/translations' : ''
-  router.push(`/projects/${encSlug(slug)}${suffix}`)
+  const suffix = projectSlug.value ? route.path.split(encPathParam(projectSlug.value))[1] || '/translations' : ''
+  router.push(`/projects/${encPathParam(slug)}${suffix}`)
 }
 function goCreateProject() {
   switcherVisible.value = false
@@ -164,7 +164,7 @@ async function saveSettings() {
     if (newSlug !== projectSlug.value) {
       tabsStore.renameProjectSlug(projectSlug.value!, newSlug)
       auth.setActiveProject(newSlug)
-      router.replace(route.path.split(encSlug(projectSlug.value!)).join(encSlug(newSlug)))
+      router.replace(route.path.split(encPathParam(projectSlug.value!)).join(encPathParam(newSlug)))
     }
     ElMessage.success('已保存')
   }
@@ -222,7 +222,7 @@ function goApiDoc() {
 }
 async function toggleApiKey(row: ApiKey) {
   try {
-    await client.put(`/me/keys/${row.id}`, { enabled: !row.enabled })
+    await client.put(`/me/keys/${encPathParam(row.id)}`, { enabled: !row.enabled })
     row.enabled = !row.enabled
   }
   catch (e: unknown) {
@@ -235,7 +235,7 @@ async function deleteApiKey(row: ApiKey) {
   }
   catch { return }
   try {
-    await client.delete(`/me/keys/${row.id}`)
+    await client.delete(`/me/keys/${encPathParam(row.id)}`)
     apiKeys.value = apiKeys.value.filter(k => k.id !== row.id)
     ElMessage.success('已删除')
   }

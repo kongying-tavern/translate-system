@@ -2,8 +2,8 @@ import type { RouteLocationGeneric } from 'vue-router'
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { encPathParam } from '@/utils/path'
 import { PROJECT_ROLE_LEVEL, SYS_ROLE_LEVEL, SystemRole } from '@/utils/roles'
-import { encSlug } from '@/utils/slug'
 import { getAccessToken } from '@/utils/token'
 
 /**
@@ -61,7 +61,7 @@ const router = createRouter({
         {
           path: 'projects/:projectSlug',
           children: [
-            { path: '', redirect: (to: RouteLocationGeneric) => `/projects/${encSlug(to.params.projectSlug as string)}/translations` },
+            { path: '', redirect: (to: RouteLocationGeneric) => `/projects/${encPathParam(to.params.projectSlug as string)}/translations` },
             { path: 'translations', name: 'Translations', component: () => import('@/views/translation/TranslationListView.vue'), meta: { title: '翻译管理', perm: 'proj:member' } },
             { path: 'languages', name: 'Languages', component: () => import('@/views/language/LanguageManageView.vue'), meta: { title: '语言管理', perm: 'proj:maintainer' } },
             { path: 'members', name: 'Members', component: () => import('@/views/project/ProjectMembersView.vue'), meta: { title: '项目成员', perm: 'proj:admin' } },

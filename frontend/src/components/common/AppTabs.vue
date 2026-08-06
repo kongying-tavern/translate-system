@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { BaseContextMenu, BaseTabButton } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
 import { useTabsStore } from '@/stores/tabs'
-import { decSlug } from '@/utils/slug'
+import { decPathParam } from '@/utils/path'
 
 const route = useRoute()
 const router = useRouter()
@@ -44,7 +44,7 @@ watch(() => auth.activeProjectName, () => {
   if (!activeSlug)
     return
   tabsStore.tabs = tabsStore.tabs.map((t) => {
-    if (t.path.startsWith('/projects/') && decSlug(t.path.split('/')[2] ?? '') === activeSlug)
+    if (t.path.startsWith('/projects/') && decPathParam(t.path.split('/')[2] ?? '') === activeSlug)
       return { ...t, title: resolveTitleForPath(t.path) }
     return t
   })

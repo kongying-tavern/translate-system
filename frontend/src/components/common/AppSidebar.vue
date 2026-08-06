@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router'
 import { BaseIcon } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
-import { encSlug } from '@/utils/slug'
+import { encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -28,19 +28,19 @@ const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
           <template #title>
             <BaseIcon><Monitor /></BaseIcon><span>项目管理</span>
           </template>
-          <el-menu-item :index="`/projects/${encSlug(projectSlug)}/translations`">
+          <el-menu-item :index="`/projects/${encPathParam(projectSlug)}/translations`">
             <BaseIcon><Document /></BaseIcon><span>翻译管理</span>
           </el-menu-item>
-          <el-menu-item v-if="perm.canSeeMemberManagement.value" :index="`/projects/${encSlug(projectSlug)}/members`">
+          <el-menu-item v-if="perm.canSeeMemberManagement.value" :index="`/projects/${encPathParam(projectSlug)}/members`">
             <BaseIcon><Avatar /></BaseIcon><span>项目成员</span>
           </el-menu-item>
-          <el-menu-item v-if="perm.canSeeLanguageManagement.value" :index="`/projects/${encSlug(projectSlug)}/languages`">
+          <el-menu-item v-if="perm.canSeeLanguageManagement.value" :index="`/projects/${encPathParam(projectSlug)}/languages`">
             <BaseIcon><Collection /></BaseIcon><span>语言管理</span>
           </el-menu-item>
-          <el-menu-item v-if="perm.canSeeImportManagement.value" :index="`/projects/${encSlug(projectSlug)}/imports`">
+          <el-menu-item v-if="perm.canSeeImportManagement.value" :index="`/projects/${encPathParam(projectSlug)}/imports`">
             <BaseIcon><Upload /></BaseIcon><span>导入管理</span>
           </el-menu-item>
-          <el-menu-item v-if="perm.canSeeExportManagement.value" :index="`/projects/${encSlug(projectSlug)}/exports`">
+          <el-menu-item v-if="perm.canSeeExportManagement.value" :index="`/projects/${encPathParam(projectSlug)}/exports`">
             <BaseIcon><Download /></BaseIcon><span>导出模板</span>
           </el-menu-item>
         </el-sub-menu>

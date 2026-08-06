@@ -1,5 +1,6 @@
 import type { ApiResponse } from '@/types/api'
 import type { AuthResponse, User } from '@/types/models'
+import { encPathParam } from '@/utils/path'
 import client from './client'
 
 export function register(username: string, email: string, password: string) {
@@ -18,14 +19,14 @@ export function getUsers() {
   return client.get<ApiResponse<User[]>>('/auth/users')
 }
 export function updateUserRole(id: string, role: string) {
-  return client.put<ApiResponse<User>>(`/auth/users/${id}/role`, { role })
+  return client.put<ApiResponse<User>>(`/auth/users/${encPathParam(id)}/role`, { role })
 }
 export function createUser(data: { username: string, email: string, password: string, role: string }) {
   return client.post<ApiResponse<User>>('/auth/users', data)
 }
 export function deleteUser(id: string) {
-  return client.delete<ApiResponse<null>>(`/auth/users/${id}`)
+  return client.delete<ApiResponse<null>>(`/auth/users/${encPathParam(id)}`)
 }
 export function changePassword(id: string, password: string) {
-  return client.put<ApiResponse<null>>(`/auth/users/${id}/password`, { password })
+  return client.put<ApiResponse<null>>(`/auth/users/${encPathParam(id)}/password`, { password })
 }

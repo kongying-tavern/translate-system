@@ -1,6 +1,6 @@
 import type { ApiResponse, PageData } from '@/types/api'
 import type { Project, ProjectMember } from '@/types/models'
-import { encSlug } from '@/utils/slug'
+import { encPathParam } from '@/utils/path'
 import client from './client'
 
 export function getProjects(page = 1, pageSize = 20) {
@@ -8,7 +8,7 @@ export function getProjects(page = 1, pageSize = 20) {
 }
 
 export function getProject(id: string) {
-  return client.get<ApiResponse<Project>>(`/projects/${encSlug(id)}`)
+  return client.get<ApiResponse<Project>>(`/projects/${encPathParam(id)}`)
 }
 
 export function createProject(data: { name: string, code: string, description?: string, sourceLanguage?: string }) {
@@ -16,18 +16,18 @@ export function createProject(data: { name: string, code: string, description?: 
 }
 
 export function updateProject(id: string, data: { name: string, code?: string, description?: string, sourceLanguage?: string }) {
-  return client.put<ApiResponse<Project>>(`/projects/${encSlug(id)}`, data)
+  return client.put<ApiResponse<Project>>(`/projects/${encPathParam(id)}`, data)
 }
 
 export function deleteProject(id: string) {
-  return client.delete<ApiResponse<null>>(`/projects/${encSlug(id)}`)
+  return client.delete<ApiResponse<null>>(`/projects/${encPathParam(id)}`)
 }
 export function getMembers(projectId: string) {
-  return client.get<ApiResponse<ProjectMember[]>>(`/projects/${encSlug(projectId)}/members`)
+  return client.get<ApiResponse<ProjectMember[]>>(`/projects/${encPathParam(projectId)}/members`)
 }
 export function addMember(projectId: string, email: string, projectRole = 'member') {
-  return client.post<ApiResponse<ProjectMember>>(`/projects/${encSlug(projectId)}/members`, { email, projectRole })
+  return client.post<ApiResponse<ProjectMember>>(`/projects/${encPathParam(projectId)}/members`, { email, projectRole })
 }
 export function removeMember(projectId: string, memberId: string) {
-  return client.delete(`/projects/${encSlug(projectId)}/members/${memberId}`)
+  return client.delete(`/projects/${encPathParam(projectId)}/members/${encPathParam(memberId)}`)
 }

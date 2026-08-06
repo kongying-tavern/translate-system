@@ -11,7 +11,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable, BaseTabularViewer } from '@/components/ui'
 import { ExportFormat, getFormatMeta } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
-import { encSlug } from '@/utils/slug'
+import { encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const router = useRouter()
@@ -134,7 +134,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
     width: 150,
     cell: row => (
       <div>
-        {perm.canManageExportTemplates.value ? <BaseButton link type="primary" onClick={() => router.push(`/projects/${encSlug(projectSlug.value)}/exports/${row.id}/edit`)}>编辑</BaseButton> : null}
+        {perm.canManageExportTemplates.value ? <BaseButton link type="primary" onClick={() => router.push(`/projects/${encPathParam(projectSlug.value)}/exports/${row.id}/edit`)}>编辑</BaseButton> : null}
         {perm.canManageExportTemplates.value ? <BaseButton link type="danger" onClick={() => handleDelete(row.id)}>删除</BaseButton> : null}
       </div>
     ),
@@ -146,7 +146,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
   <div>
     <BasePageHeader title="导出">
       <template #extra>
-        <BaseButton v-if="perm.canManageExportTemplates.value" type="primary" @click="$router.push(`/projects/${encSlug(projectSlug)}/exports/new/edit`)">
+        <BaseButton v-if="perm.canManageExportTemplates.value" type="primary" @click="$router.push(`/projects/${encPathParam(projectSlug)}/exports/new/edit`)">
           新建模板
         </BaseButton>
       </template>

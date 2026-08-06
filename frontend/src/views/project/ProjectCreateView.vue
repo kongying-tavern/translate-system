@@ -5,7 +5,7 @@ import { reactive, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
 import { useProjectStore } from '@/stores/project'
-import { encSlug } from '@/utils/slug'
+import { encPathParam } from '@/utils/path'
 
 const router = useRouter()
 const store = useProjectStore()
@@ -27,7 +27,7 @@ async function handleCreate() {
   try {
     const p = await store.create(form.name, form.code, form.description, form.sourceLanguage)
     ElMessage.success('项目创建成功')
-    router.push(`/projects/${encSlug(p.code || p.id)}`)
+    router.push(`/projects/${encPathParam(p.code || p.id)}`)
   }
   catch {
     ElMessage.error('创建失败')
