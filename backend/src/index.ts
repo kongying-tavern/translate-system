@@ -9,6 +9,7 @@ import { APIKEY_WHITELIST } from './lib/apikey-whitelist'
 import { apiKeyAuth } from './middleware/apikey'
 import { errorHandler } from './middleware/errorHandler'
 import { docsRoutes } from './routes/docs'
+import { buildApiKeyOpenApiSpec } from './services/docs'
 
 const app = express()
 const PORT = process.env.PORT || 8080
@@ -20,7 +21,21 @@ app.use(express.json())
 app.get('/api-docs/swagger.json', (_req: Request, res: Response) => {
   res.json(swaggerSpec)
 })
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec))
+app.get('/api-docs/apikey.json', (_req: Request, res: Response) => {
+  res.json(buildApiKeyOpenApiSpec())
+})
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(null, {
+    swaggerOptions: {
+      urls: [
+        { url: './swagger.json', name: 'JWT 接口' },
+        { url: './apikey.json', name: 'API Key 开放接口' },
+      ],
+    },
+  }),
+)
 
 // JWT routes (tsoa controllers)
 const jwtRouter = express.Router()

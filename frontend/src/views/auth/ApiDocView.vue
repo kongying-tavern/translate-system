@@ -179,7 +179,7 @@ function parseOpenApi(spec: OpenApiSpec) {
   const schemas = spec.components?.schemas ?? {}
   const list: Endpoint[] = []
   for (const [rawPath, item] of Object.entries(spec.paths)) {
-    const apiKeyPath = rawPath.replace(/^\/api\/v1\//, '/api/v1/apikey/')
+    const apiKeyPath = `/api/v1${rawPath.replace(/^\/api\/v1/, '')}`
     for (const [method, op] of Object.entries(item)) {
       const summary = op.summary ?? ''
       const desc = op.description ?? op.summary ?? ''
@@ -225,7 +225,7 @@ onMounted(async () => {
         <div class="pane-body">
           <el-card shadow="never" class="auth-card">
             <p class="intro">
-              以下为<strong>供外部方调用</strong>的开放接口（均加入白名单）。通过 <code>x-api-key</code> + <code>x-api-secret</code> 请求头鉴权，在 API 路径前加 <code>/api/v1/apikey</code> 前缀代理访问。
+              以下为<strong>供外部方调用</strong>的开放接口（均加入白名单）。通过 <code>x-api-key</code> + <code>x-api-secret</code> 请求头鉴权，以下路径已包含 <code>/api/v1/apikey</code> 前缀。
             </p>
             <h4 class="section-title">
               请求头

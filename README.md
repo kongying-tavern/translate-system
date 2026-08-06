@@ -95,7 +95,18 @@ cd backend && pnpm dev     # -> http://localhost:8080
 cd frontend && pnpm install && pnpm dev  # -> http://localhost:3000
 ```
 
-Swagger 文档: `http://localhost:8080/api-docs`（开发者文档，静态全量）；原始 OpenAPI JSON: `http://localhost:8080/api-docs/swagger.json`。前端经 `/openapi/*` 命名空间代理转发：`/openapi/swagger-ui/` → 后端 `/api-docs/`（Swagger UI 页面及相对资源），`/openapi/api-docs.json` → 后端 `/api-docs/swagger.json`（原始 JSON）；无尾斜杠的 `/openapi/swagger-ui` 会 301 跳转到 `/openapi/swagger-ui/`。本地开发走 Vite 代理 `http://localhost:3000/openapi/swagger-ui/`；Docker 部署走 nginx 代理 `http://localhost:20010/openapi/swagger-ui/`（`frontend/nginx.conf`）。
+**Swagger 文档**
+
+- 后端（直接访问）:
+  - 文档页面: `http://localhost:8080/api-docs`（开发者文档，静态全量，顶部下拉切换「JWT 接口 / API Key 开放接口」）
+  - JWT 接口 JSON: `http://localhost:8080/api-docs/swagger.json`
+  - API Key 开放接口 JSON: `http://localhost:8080/api-docs/apikey.json`（白名单路径加 `/apikey` 前缀、`x-api-key`/`x-api-secret` 鉴权）
+- 前端代理（经 `/openapi/*` 命名空间转发）:
+  - `/openapi/swagger-ui/` → 后端 `/api-docs/`（Swagger UI 页面及相对资源；无尾斜杠的 `/openapi/swagger-ui` 会 301 跳转）
+  - `/openapi/api.json` → 后端 `/api-docs/swagger.json`（原始 JSON）
+  - `/openapi/apikey.json` → 后端 `/api-docs/apikey.json`（API Key 开放接口 JSON）
+  - 本地开发: `http://localhost:3000/openapi/swagger-ui/`（Vite 代理）
+  - Docker 部署: `http://localhost:20010/openapi/swagger-ui/`（nginx，`frontend/nginx.conf`）
 
 #### 5. 导入翻译文件
 

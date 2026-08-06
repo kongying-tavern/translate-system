@@ -56,23 +56,74 @@ function resolveSchemas(refs: Set<string>): JsonRecord {
   return schemas
 }
 
+/** API Key 鉴权安全方案（外部自动化通过请求头访问） */
+const APIKEY_SECURITY_SCHEMES = {
+  ApiKeyAuth: {
+    type: 'apiKey',
+    in: 'header',
+    name: 'x-api-key',
+    description: 'API Key，格式 ak_xxxx，在右上角菜单 → API 密钥 中生成',
+  },
+  ApiKeySecret: {
+    type: 'apiKey',
+    in: 'header',
+    name: 'x-api-secret',
+    description: 'API Secret，生成密钥时一次性返回，需妥善保管',
+  },
+} as const
+
+/** 判断方法 + 路径是否命中 API Key 白名单 */
+function isWhitelisted(method: string, pathKey: string): boolean {
+  return APIKEY_WHITELIST.some(
+    w => w.method === method.toUpperCase() && w.path.test(pathKey),
+  )
+}
+
 /** 组装 OpenAPI：保留 openapi/info/servers，按给定 paths 重写 components.schemas */
-function buildOpenApi(paths: JsonRecord): JsonRecord {
+function buildOpenApi(paths: JsonRecord, securitySchemes?: JsonRecord, titleSuffix?: string): JsonRecord {
   const refs = new Set<string>()
   for (const item of Object.values(paths)) {
     for (const op of Object.values(item as JsonRecord))
       collectSchemaRefs(op, refs)
   }
+  const info = (spec.info && typeof spec.info === 'object')
+    ? { ...(spec.info as JsonRecord), title: `${((spec.info as JsonRecord).title ?? '')}${titleSuffix ?? ''}` }
+    : spec.info
   return {
     openapi: spec.openapi,
-    info: spec.info,
+    info,
     servers: spec.servers,
     paths,
     components: {
-      securitySchemes: spec.components?.securitySchemes,
+      securitySchemes: securitySchemes ?? spec.components?.securitySchemes,
       schemas: resolveSchemas(refs),
     },
   }
+}
+
+/** 抽取白名单接口：路径加 `/apikey` 前缀，operation 改用 apiKey 鉴权；userRole 传入时按系统角色过滤 */
+function buildApiKeyPaths(userRole?: string): JsonRecord {
+  const allPaths = spec.paths ?? {}
+  const paths: JsonRecord = {}
+  for (const [pathKey, pathItem] of Object.entries(allPaths)) {
+    const item = (pathItem ?? {}) as JsonRecord
+    const matched: JsonRecord = {}
+    for (const [method, operation] of Object.entries(item)) {
+      if (!operation || typeof operation !== 'object')
+        continue
+      if (!isWhitelisted(method, pathKey))
+        continue
+      if (userRole !== undefined && !canAccessOpenApi(userRole, pathKey))
+        continue
+      matched[method] = {
+        ...(operation as JsonRecord),
+        security: [{ ApiKeyAuth: [], ApiKeySecret: [] }],
+      }
+    }
+    if (Object.keys(matched).length)
+      paths[`/apikey${pathKey}`] = matched
+  }
+  return paths
 }
 
 /**
@@ -95,26 +146,16 @@ function canAccessOpenApi(userRole: string | undefined, path: string): boolean {
 }
 
 /**
- * 抽取 API Key 白名单对应的接口与相关 schema，
+ * 抽取 API Key 白名单对应的接口（`/apikey` 前缀路径 + apiKey 鉴权）与相关 schema，
  * 供前端「开放接口说明」页展示，并按登录用户系统角色过滤可见接口。
  */
 export function getApiKeyOpenApi(userRole?: string): JsonRecord {
-  const allPaths = spec.paths ?? {}
-  const paths: JsonRecord = {}
-  for (const [pathKey, pathItem] of Object.entries(allPaths)) {
-    const item = (pathItem ?? {}) as JsonRecord
-    const matched: JsonRecord = {}
-    for (const [method, operation] of Object.entries(item)) {
-      if (!operation || typeof operation !== 'object')
-        continue
-      const isWhitelisted = APIKEY_WHITELIST.some(
-        w => w.method === method.toUpperCase() && w.path.test(pathKey),
-      )
-      if (isWhitelisted && canAccessOpenApi(userRole, pathKey))
-        matched[method] = operation
-    }
-    if (Object.keys(matched).length)
-      paths[pathKey] = matched
-  }
-  return buildOpenApi(paths)
+  return buildOpenApi(buildApiKeyPaths(userRole), APIKEY_SECURITY_SCHEMES)
+}
+
+/**
+ * 完整 API Key OpenAPI（不按角色过滤），供 Swagger UI `/api-docs/apikey.json` 使用。
+ */
+export function buildApiKeyOpenApiSpec(): JsonRecord {
+  return buildOpenApi(buildApiKeyPaths(), APIKEY_SECURITY_SCHEMES, ' · API Key 开放接口')
 }

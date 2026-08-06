@@ -192,7 +192,17 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 
 所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。路由由 tsoa 从 `controllers/` 生成（`pnpm gen` 更新 `docs/routes.ts`）。
 
-**API 文档**：`/api-docs` 为开发者 OpenAPI 文档（Swagger UI），静态全量（`index.ts` 用 `swaggerUi.setup(swaggerSpec)`），不做角色过滤；原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json`（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）调 `GET /api/v1/docs/openapi`（`routes/docs.ts`，JWT 鉴权）展示 API Key 白名单开放接口，并按登录用户**系统角色**过滤可见接口（规则表 `APIKEY_ROLE_RULES`，`services/docs.ts` 的 `getApiKeyOpenApi`）：读接口 + 导出预览/生成任意成员可用（user 可见）；批量导入业务上需项目 Maintainer+，默认 admin 及以上可见。新增开放接口需同步补充白名单与角色规则。
+**API 文档**：`/api-docs` 为开发者 OpenAPI 文档（Swagger UI），`index.ts` 用 `swaggerUi.setup(null, { swaggerOptions: { urls: [...] } })` 挂两个文档，顶部下拉切换：
+
+- `./swagger.json` — **JWT 接口**，静态全量，不做角色过滤
+- `./apikey.json` — **API Key 开放接口**，`services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生：白名单路径加 `/apikey` 前缀、operation 改用 `x-api-key`/`x-api-secret` 安全方案；相对 URL 被前端 `/openapi/swagger-ui/` 前缀代理命中
+
+原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json` 与 `GET /api-docs/apikey.json`（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）调 `GET /api/v1/docs/openapi`（`routes/docs.ts`，JWT 鉴权）展示 API Key 白名单开放接口（完整 `/api/v1/apikey/...` 路径），并按登录用户**系统角色**过滤可见接口（规则表 `APIKEY_ROLE_RULES`，`services/docs.ts` 的 `getApiKeyOpenApi`）：
+
+- 默认（读接口 + 导出预览/生成）：任意项目成员可用（user 可见）
+- 批量导入（业务上需项目 Maintainer+）：admin 及以上可见
+
+新增开放接口需同步补充白名单与角色规则。
 
 ```
 POST   /auth/register|login|refresh    — 公开，login 支持用户名或邮箱
@@ -241,9 +251,7 @@ GET    /languages|/languages/search    — 基础语言
 
 ### API Key 鉴权
 
-外部自动化可通过 API Key + Secret 访问导出端点：
-
-所有接口 `/api/v1/*` 可通过 API Key 鉴权访问，将路径前缀改为 `/api/v1/apikey/`：
+外部自动化可通过 API Key + Secret 访问白名单内的接口。所有接口 `/api/v1/*` 均可，将路径前缀改为 `/api/v1/apikey/`：
 
 ```bash
 # 导出翻译
@@ -254,7 +262,9 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
   -d '{"templateSlug":"...","languageCodes":["zh-Hans"]}'
 ```
 
-白名单配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组（**每条声明「方法 + 路径正则」**，新增开放接口在此追加一条即生效，无需改守卫；`index.ts` 守卫与 `services/docs.ts` 抽取共用）。管理接口走 JWT 路由 `GET|POST|PUT|DELETE /api/v1/me/keys`（`ApiKeysController` 为 `@Route('me')`，前端**不要**用 `/apikey/` 前缀调用）；代理上 tsoa 自动镜像的 `/apikey/me/keys` 被 `apiKeyAuth`（缺头 401）与白名单（403）双重拦截，外部 API Key 客户端无法管理
+- **白名单**：配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组，每条声明「方法 + 路径正则」；新增开放接口在此追加一条即生效，无需改守卫（`index.ts` 守卫与 `services/docs.ts` 抽取共用）
+- **OpenAPI 文档**：白名单接口在 Swagger UI 顶部下拉「API Key 开放接口」（`GET /api-docs/apikey.json`，`buildApiKeyOpenApiSpec` 派生），前端「开放接口说明」页（`/api-doc`）同源展示
+- **管理接口**：`GET|POST|PUT|DELETE /api/v1/me/keys`（`ApiKeysController` 为 `@Route('me')`，前端**不要**用 `/apikey/` 前缀调用）；代理上 tsoa 自动镜像的 `/apikey/me/keys` 被 `apiKeyAuth`（缺头 401）与白名单（403）双重拦截，外部 API Key 客户端无法管理
 
 ### 导出格式
 

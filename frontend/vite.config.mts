@@ -60,10 +60,15 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: path => path.replace(/^\/openapi\/swagger-ui/, '/api-docs'),
         },
-        '/openapi/api-docs.json': {
+        '/openapi/api.json': {
           target: 'http://localhost:8080',
           changeOrigin: true,
-          rewrite: path => path.replace(/^\/openapi\/api-docs\.json/, '/api-docs/swagger.json'),
+          rewrite: path => path.replace(/^\/openapi\/api\.json/, '/api-docs/swagger.json'),
+        },
+        '/openapi/apikey.json': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          rewrite: path => path.replace(/^\/openapi\/apikey\.json/, '/api-docs/apikey.json'),
         },
       },
     },
