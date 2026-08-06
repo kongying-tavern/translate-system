@@ -31,24 +31,48 @@ export interface ExportTemplateRow {
 }
 
 export interface ExportTemplateInput {
-  /** 模板名称 */
+  /**
+   * 模板名称
+   * @example "中文 JSON 模板"
+   */
   name?: string
-  /** 模板标识 */
+  /**
+   * 模板标识（code，导出时通过 templateSlug 引用）
+   * @example "my-template"
+   */
   code: string
-  /** 模板描述 */
+  /**
+   * 模板描述
+   * @example "导出为扁平的 JSON 键值映射"
+   */
   description?: string
-  /** 导出格式类型 */
+  /**
+   * 导出格式类型（flat-json/nested-json/flat-yaml/nested-yaml/properties/flat-xml/nested-xml/csv）
+   * @example "flat-json"
+   */
   formatType: string
-  /** 模板配置对象 */
+  /**
+   * 模板配置对象（skipIdentical/skipEmpty/useCodeKey 等开关）
+   * @example {"skipIdentical": true, "skipEmpty": true, "useCodeKey": false}
+   */
   config?: Record<string, unknown>
 }
 
 export interface ExportReqBody {
-  /** 模板标识 */
+  /**
+   * 导出模板标识（导出模板的 code 或 ID）
+   * @example "my-template"
+   */
   templateSlug: string
-  /** 导出语言列表 */
+  /**
+   * 导出语言代码列表（项目语言或基础语言）
+   * @example ["zh-Hans", "en"]
+   */
   languageCodes: string[]
-  /** 过滤标签 */
+  /**
+   * 过滤标签（可选，命中任一标签的 key 才会导出）
+   * @example ["tag1", "tag2"]
+   */
   filterTags?: string[]
 }
 

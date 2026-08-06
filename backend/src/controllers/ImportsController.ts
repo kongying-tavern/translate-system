@@ -26,22 +26,43 @@ export interface ImportResult {
 }
 
 export interface ImportEntriesBody {
-  /** 导入数据 */
+  /**
+   * 导入数据（JSON 对象或 json/yaml/xml/properties/csv 原始文本，格式自动识别）
+   * @example {"login.title": {"sourceText": "登录", "context": "首页", "tags": ["auth"]}}
+   */
   data: string | Record<string, unknown>
-  /** 覆盖已有Key */
+  /**
+   * 覆盖已有 Key（true 时更新已存在 Key 的原文/上下文/标签）
+   * @example true
+   */
   overwrite?: boolean
 }
 
 export interface ImportTranslationsBody {
-  /** 目标语言代码 */
+  /**
+   * 目标语言代码（data 条目未带语言时使用）
+   * @example "zh-Hans"
+   */
   languageCode?: string
-  /** 数据格式类型 */
+  /**
+   * 数据格式类型（json/yaml/xml/properties/csv，与 data 内容一致）
+   * @example "json"
+   */
   formatType: string
-  /** 导入数据 */
+  /**
+   * 导入数据（JSON 对象或对应格式的原始文本）
+   * @example {"login.title": {"translatedText": "登录", "context": "首页"}}
+   */
   data: string | Record<string, unknown>
-  /** 覆盖已有译文 */
+  /**
+   * 覆盖已有译文（false 时已有译文不更新）
+   * @example false
+   */
   overwrite?: boolean
-  /** 自动创建Key */
+  /**
+   * 自动创建缺失的 Key
+   * @example true
+   */
   autoCreate?: boolean
 }
 

@@ -50,17 +50,35 @@ export interface TranslationCount {
 }
 
 export interface CreateTranslationBody {
-  /** 翻译键名 */
+  /**
+   * 翻译键名（项目内唯一）
+   * @example "login.title"
+   */
   translationKey: string
-  /** 语言代码 */
+  /**
+   * 语言代码
+   * @example "zh-Hans"
+   */
   languageCode: string
-  /** 原文文本 */
+  /**
+   * 原文文本
+   * @example "登录"
+   */
   sourceText: string
-  /** 已翻译文本（可空） */
+  /**
+   * 已翻译文本（可空）
+   * @example "Login"
+   */
   translatedText?: string
-  /** 备注上下文（可空） */
+  /**
+   * 备注上下文（可空）
+   * @example "登录页面标题"
+   */
   context?: string
-  /** 标签列表（可空） */
+  /**
+   * 标签列表（可空）
+   * @example ["auth", "login"]
+   */
   tags?: string[]
 }
 

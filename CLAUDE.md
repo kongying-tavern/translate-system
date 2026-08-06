@@ -97,7 +97,7 @@ lib/prisma.ts              — PrismaClient 单例（独立文件，避免 tsoa 
 docs/swagger.ts          — 手写包装（import swagger.json + 加 basePath，并补充 tags 分组/安全方案/描述），必须提交
 docs/routes.ts + swagger.json — tsoa 生成产物（`pnpm gen` 重新生成，勿手改），已 gitignore（`backend/src/docs/*` + `!swagger.ts`），由 `predev`（开发启动）和 Dockerfile `RUN pnpm gen`（镜像构建）自动生成
 middleware/auth.ts         — AuthRequest 类型 + authMiddleware（JWT，docs 路由仍用）
-middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000）
+middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000，英文校验信息格式化为中文，如「缺少必填参数：templateSlug、languageCodes」）
 ```
 
 **tsoa 用法**：控制器用 `@Route` / `@Get|@Post|@Put|@Delete` / `@Path` / `@Query` / `@Body` / `@Security` 注解，改完控制器后必须 `cd backend && pnpm gen` 重新生成 `docs/routes.ts`（挂载用）和 `docs/swagger.json`（OpenAPI）。
@@ -107,7 +107,7 @@ middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴�
 - tsoa 不支持可选路径参数（`{langCode?}`），需拆成两条路由：`PUT .../{key}`（key 级属性）与 `PUT .../{key}/{langCode}`（语言级）。
 - 路由注册顺序 = 方法声明顺序，literal 路由（`key/:oldKey`、`sortOrders`、`batch`）必须声明在参数路由（`{key}`、`{key}/{langCode}`）之前，否则被吃掉。
 - 响应类型用 `Date`（tsoa 序列化为 ISO），`description` 等可空字段用 `string | null`；Prisma 返回行与自定义 Row 接口不一致时用 `as unknown as` 转换。
-- OpenAPI 字段描述来源：接口/模型属性上方的 `/** 中文说明 */` JSDoc 会映射到 schema 的 `description`；tsoa 无法穿透 Prisma 生成的 client 类型，直接暴露的 Prisma 模型（如 `ProjectLanguage`）应改为控制器内自定义 Row 接口（如 `ProjectLanguageRow`）并加 JSDoc，服务层返回的 Prisma 行结构兼容可直接断言赋值。
+- OpenAPI 字段描述来源：接口/模型属性上方的 `/** 中文说明 */` JSDoc 会映射到 schema 的 `description`；tsoa 无法穿透 Prisma 生成的 client 类型，直接暴露的 Prisma 模型（如 `ProjectLanguage`）应改为控制器内自定义 Row 接口（如 `ProjectLanguageRow`）并加 JSDoc，服务层返回的 Prisma 行结构兼容可直接断言赋值。字段示例用属性 JSDoc 里的 `@example` 标签（**必须是合法 JSON**，字符串要加引号，如 `@example "my-template"`、`@example ["zh-Hans", "en"]`），导入工具时会作为默认值预填。
 - Path/Query 参数描述来自方法 JSDoc 的 `@param 参数名 中文描述`（`@Body` 用 `@param body` 会成为 requestBody 描述）；`@Request() req` 用 `@param req`。ESLint jsdoc 规则要求 `@param` 覆盖方法全部参数（req → path/query → body）且多行块 `/**` 独占一行，`@summary` 保持最后一个标签，否则 `pnpm lint` 报 warning。
 - 路由拆分后前端调用 `saveTranslation(projectId, key, '', { context })` 会产生尾部斜杠 `/key/`，Express 非严格模式会匹配 `/{key}` 路由。
 

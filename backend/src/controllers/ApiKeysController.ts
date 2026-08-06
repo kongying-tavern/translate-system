@@ -36,7 +36,10 @@ export interface ApiKeyCreated {
 }
 
 export interface CreateApiKeyBody {
-  /** 密钥名称 */
+  /**
+   * 密钥名称
+   * @example "CI 自动导出"
+   */
   name: string
 }
 

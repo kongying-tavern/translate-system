@@ -43,20 +43,38 @@ export interface UserRow {
 }
 
 export interface RegisterBody {
-  /** 用户名 */
+  /**
+   * 用户名
+   * @example "demo"
+   */
   username: string
-  /** 邮箱 */
+  /**
+   * 邮箱
+   * @example "demo@example.com"
+   */
   email: string
-  /** 密码 */
+  /**
+   * 密码（至少 6 位）
+   * @example "123456"
+   */
   password: string
 }
 
 export interface LoginBody {
-  /** 用户名 */
+  /**
+   * 用户名（与 email 二选一）
+   * @example "demo"
+   */
   account?: string
-  /** 邮箱 */
+  /**
+   * 邮箱（与 account 二选一）
+   * @example "demo@example.com"
+   */
   email?: string
-  /** 密码 */
+  /**
+   * 密码
+   * @example "123456"
+   */
   password: string
 }
 
@@ -73,13 +91,25 @@ export interface ChangePasswordBody {
 }
 
 export interface CreateUserBody {
-  /** 用户名 */
+  /**
+   * 用户名
+   * @example "demo"
+   */
   username: string
-  /** 邮箱 */
+  /**
+   * 邮箱
+   * @example "demo@example.com"
+   */
   email: string
-  /** 密码 */
+  /**
+   * 密码（至少 6 位）
+   * @example "123456"
+   */
   password: string
-  /** 系统角色 */
+  /**
+   * 系统角色（user/admin，admin 不能创建/提升到 super_admin）
+   * @example "user"
+   */
   role?: string
 }
 

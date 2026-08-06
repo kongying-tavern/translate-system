@@ -32,13 +32,25 @@ export interface ProjectRow {
 }
 
 export interface CreateProjectBody {
-  /** 项目名称 */
+  /**
+   * 项目名称
+   * @example "我的项目"
+   */
   name: string
-  /** 项目标识 */
+  /**
+   * 项目标识（code，唯一且用于 URL，如 my-project）
+   * @example "my-project"
+   */
   code: string
-  /** 项目描述 */
+  /**
+   * 项目描述
+   * @example "示例项目"
+   */
   description?: string
-  /** 源语言 */
+  /**
+   * 源语言（基础语言代码）
+   * @example "zh-Hans"
+   */
   sourceLanguage?: string
 }
 
@@ -86,9 +98,15 @@ export interface MemberRow {
 }
 
 export interface AddMemberBody {
-  /** 用户邮箱 */
+  /**
+   * 用户邮箱（被添加用户需已注册）
+   * @example "user@example.com"
+   */
   email: string
-  /** 项目角色 */
+  /**
+   * 项目角色（admin/maintainer/member）
+   * @example "maintainer"
+   */
   projectRole: string
 }
 
