@@ -254,7 +254,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
   -d '{"templateSlug":"...","languageCodes":["zh-Hans"]}'
 ```
 
-白名单配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组（**每条声明「方法 + 路径正则」**，新增开放接口在此追加一条即生效，无需改守卫；`index.ts` 守卫与 `services/docs.ts` 抽取共用）。管理接口：`/api/v1/apikey/me/keys` CRUD（需 JWT 登录）
+白名单配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组（**每条声明「方法 + 路径正则」**，新增开放接口在此追加一条即生效，无需改守卫；`index.ts` 守卫与 `services/docs.ts` 抽取共用）。管理接口走 JWT 路由 `GET|POST|PUT|DELETE /api/v1/me/keys`（`ApiKeysController` 为 `@Route('me')`，前端**不要**用 `/apikey/` 前缀调用）；代理上 tsoa 自动镜像的 `/apikey/me/keys` 被 `apiKeyAuth`（缺头 401）与白名单（403）双重拦截，外部 API Key 客户端无法管理
 
 ### 导出格式
 

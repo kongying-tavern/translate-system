@@ -28,6 +28,7 @@ app.use('/api/v1', jwtRouter)
 app.use('/api/v1/docs', docsRoutes)
 
 // API Key proxy: same tsoa routes behind apiKeyAuth + whitelist guard
+// 管理接口（/me/keys）不在代理上使用，前端走 JWT 路由 /api/v1/me/keys
 const apikeyProxy = express.Router()
 apikeyProxy.use(apiKeyAuth())
 apikeyProxy.use((req: Request, res: Response, next: NextFunction) => {

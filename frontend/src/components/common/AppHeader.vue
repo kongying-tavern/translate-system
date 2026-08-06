@@ -38,7 +38,7 @@ const newSecret = ref('')
 
 async function loadApiKeys() {
   try {
-    const { data: res } = await client.get('/apikey/me/keys')
+    const { data: res } = await client.get('/me/keys')
     apiKeys.value = res.data
   }
   catch {}
@@ -207,13 +207,13 @@ async function createApiKey() {
     return
   }
   try {
-    const { data: res } = await client.post('/apikey/me/keys', { name: newKeyName.value.trim() })
+    const { data: res } = await client.post('/me/keys', { name: newKeyName.value.trim() })
     apiKeys.value.unshift(res.data)
     newSecret.value = res.data.secret
     newKeyName.value = ''
   }
-  catch {
-    ElMessage.error('创建失败')
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '创建失败')
   }
 }
 function goApiDoc() {
@@ -222,11 +222,11 @@ function goApiDoc() {
 }
 async function toggleApiKey(row: ApiKey) {
   try {
-    await client.put(`/apikey/me/keys/${row.id}`, { enabled: !row.enabled })
+    await client.put(`/me/keys/${row.id}`, { enabled: !row.enabled })
     row.enabled = !row.enabled
   }
-  catch {
-    ElMessage.error('操作失败')
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '操作失败')
   }
 }
 async function deleteApiKey(row: ApiKey) {
@@ -235,12 +235,12 @@ async function deleteApiKey(row: ApiKey) {
   }
   catch { return }
   try {
-    await client.delete(`/apikey/me/keys/${row.id}`)
+    await client.delete(`/me/keys/${row.id}`)
     apiKeys.value = apiKeys.value.filter(k => k.id !== row.id)
     ElMessage.success('已删除')
   }
-  catch {
-    ElMessage.error('删除失败')
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '删除失败')
   }
 }
 </script>
