@@ -263,6 +263,7 @@ GET    /languages|/languages/search    — 基础语言
 - 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText + context + tags + translations{}`
 - 译文用 `transCache` (key+lang → text) 缓存
 - context 和 tags 是 key 级属性，不按语言缓存
+- Key/原文/备注三列内联编辑均**失焦保存**（本地缓存 Map + `onBlur`），备注列曾误用 `onUpdate:modelValue` 每敲键发请求；三者共用 `composing` ref + `onCompositionstart/end` 做 IME 组合守卫，blur 时正在输入法组合则跳过保存（`handleBlurSave`），避免把未确认拼音串存库
 - 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在
 - 筛选条件（标签 / 搜索 / 仅未翻译）同时启用时以 **AND** 组合，全部满足才显示；多标签之间为 OR（命中任一即通过）
 
@@ -344,7 +345,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseForm | 透传 | el-form，卡片式容器；内部 el-form 实例方法（validate/validateField/resetFields/clearValidate）经 defineExpose 暴露，父组件 `ref` 可直接调用 |
 | BaseFormItem | 透传 | el-form-item |
 | BaseIcon | 透传 | el-icon，hover 动画 |
-| BaseInput | 透传 | el-input，支持 autosize |
+| BaseInput | 透传 | el-input，支持 autosize；透传 compositionstart/compositionend（IME 组合守卫用） |
 | BasePageHeader | 透传 | 页面标题栏 |
 | BaseRadioGroup | **配置式** | el-radio-group，options 驱动，泛型值，支持 button 模式 |
 | BaseJsonSchemaViewer | 透传 | 基于 `cf-json-schema-viz`（React）经 `veaury` `applyPureReactInVue` 桥接的 JSON Schema 树形查看器；`schema` 必传，支持 `defaultExpandedDepth`/`expanded`（默认全展开）/`disableCrumbs`/`renderRootTreeLines`/`emptyText`；容器高度经 ResizeObserver 测量后透传 `max-height`；样式变量映射到 Element Plus CSS 变量实现换肤。依赖 react/react-dom/veaury/cf-json-schema-viz，已在 `vite.config.mts` `optimizeDeps.include` 预构建。注意：`@stoplight/json-schema-tree` 只相对传入的根 schema 解析 `$ref`，传入孤立 schema 时嵌套引用无法展开，调用方需先用 `dereferenceSchema` 深解引用 |

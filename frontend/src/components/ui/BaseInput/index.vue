@@ -24,6 +24,8 @@ const emit = defineEmits<{
   blur: [event: FocusEvent]
   clear: []
   input: [value: string]
+  compositionstart: [event: CompositionEvent]
+  compositionend: [event: CompositionEvent]
 }>()
 
 const modelValue = defineModel<string>('modelValue', { default: '' })
@@ -40,6 +42,12 @@ function handleFocus(event: FocusEvent) {
 function handleBlur(event: FocusEvent) {
   emit('blur', event)
 }
+function handleCompositionStart(event: CompositionEvent) {
+  emit('compositionstart', event)
+}
+function handleCompositionEnd(event: CompositionEvent) {
+  emit('compositionend', event)
+}
 function handleClear() {
   emit('clear')
 }
@@ -54,6 +62,7 @@ function handleClear() {
     :show-word-limit="showWordLimit"
     @input="handleInput" @change="handleChange"
     @focus="handleFocus" @blur="handleBlur" @clear="handleClear"
+    @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
   >
     <template v-if="$slots.prefix" #prefix>
       <slot name="prefix" />

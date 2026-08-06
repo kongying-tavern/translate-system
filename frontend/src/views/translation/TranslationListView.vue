@@ -43,6 +43,8 @@ const form = reactive({ translationKey: '', sourceText: '', tags: [] as string[]
 const transCache = reactive<Record<string, string>>({})
 const editKey = ref<Map<string, string>>(new Map())
 const editSource = ref<Map<string, string>>(new Map())
+const editContext = ref<Map<string, string>>(new Map())
+const composing = ref(false)
 const tagDelimiter = /[,;]/
 
 const appliedSearch = ref('')
@@ -263,15 +265,19 @@ async function onSave(row: GroupedRow, langCode: string) {
   }
 }
 
-async function onCtxSave(row: GroupedRow, text: string) {
-  const prev = row.context
-  if (text === prev)
+async function onCtxSave(row: GroupedRow) {
+  const ec = editContext.value
+  const text = ec.get(row.translationKey) ?? row.context
+  if (text === row.context) {
+    ec.delete(row.translationKey)
     return
+  }
   try {
     await saveTranslation(projectSlug.value, row.translationKey, '', { context: text })
     row.context = text
+    ec.delete(row.translationKey)
     // eslint-disable-next-line no-console
-    console.log('[备注]', { key: row.translationKey, prev, new: text })
+    console.log('[备注]', { key: row.translationKey, prev: row.context, new: text })
     ElMessage.success('备注已保存')
   }
   catch {
@@ -383,6 +389,19 @@ async function handleDelete(row: GroupedRow) {
   }
 }
 
+function onCompositionStart() {
+  composing.value = true
+}
+function onCompositionEnd() {
+  composing.value = false
+}
+function handleBlurSave(action: () => void) {
+  const wasComposing = composing.value
+  composing.value = false
+  if (!wasComposing)
+    action()
+}
+
 const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
   const cols: BaseTableColumnConfig<GroupedRow>[] = []
 
@@ -406,7 +425,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     minWidth: 160,
     cell: (row) => {
       if (perm.canEditKeyColumn.value) {
-        return <BaseInput modelValue={editKey.value.get(row.translationKey) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.translationKey, v)} onBlur={() => onKeySave(row)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+        return <BaseInput modelValue={editKey.value.get(row.translationKey) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.translationKey, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onKeySave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
       }
       return <span class="pre-wrap">{row.translationKey}</span>
     },
@@ -417,7 +436,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     minWidth: 160,
     cell: (row) => {
       if (perm.canEditSourceColumn.value) {
-        return <BaseInput modelValue={editSource.value.get(row.translationKey) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.translationKey, v)} onBlur={() => onSourceSave(row)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+        return <BaseInput modelValue={editSource.value.get(row.translationKey) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.translationKey, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onSourceSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
       }
       return <span class="pre-wrap">{row.sourceText}</span>
     },
@@ -461,7 +480,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     minWidth: 160,
     cell: (row) => {
       if (perm.canEditContextColumn.value) {
-        return <BaseInput modelValue={row.context} onUpdate:modelValue={(v: string) => onCtxSave(row, v)} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
+        return <BaseInput modelValue={editContext.value.get(row.translationKey) ?? row.context} onUpdate:modelValue={(v: string) => editContext.value.set(row.translationKey, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onCtxSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
       }
       return <span style={{ fontSize: '13px' }} class="pre-wrap">{row.context || '-'}</span>
     },
