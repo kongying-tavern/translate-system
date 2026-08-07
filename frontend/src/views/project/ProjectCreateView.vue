@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { ComponentExposed } from 'vue-component-type-helpers'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
@@ -14,6 +15,7 @@ const route = useRoute()
 const store = useProjectStore()
 const auth = useAuthStore()
 const tabsStore = useTabsStore()
+const perm = useProjectPermission()
 const loading = ref(false)
 const loaded = ref(false)
 const slug = computed(() => route.params.projectSlug as string | undefined)
@@ -42,6 +44,28 @@ onMounted(async () => {
   loaded.value = true
 })
 
+async function handleDelete() {
+  if (!slug.value)
+    return
+  try {
+    await ElMessageBox.confirm(`确定要删除项目「${form.name}」吗？该操作不可恢复。`, '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
+  }
+  catch {
+    return
+  }
+  try {
+    await store.remove(slug.value)
+    if (auth.activeProjectSlug === slug.value)
+      auth.setActiveProject('')
+    tabsStore.removeProjectTabs(slug.value)
+    ElMessage.success('项目已删除')
+    router.replace('/')
+  }
+  catch {
+    ElMessage.error('删除失败')
+  }
+}
+
 async function handleSubmit() {
   if (!formRef.value)
     return
@@ -56,13 +80,15 @@ async function handleSubmit() {
     if (isEdit.value) {
       const updated = await store.update(slug.value!, { name: form.name, code: form.code, description: form.description, sourceLanguage: form.sourceLanguage })
       const newSlug = updated.code || updated.id
+      let closePath = `/projects/${encPathParam(slug.value!)}/edit`
       if (newSlug !== slug.value) {
         tabsStore.renameProjectSlug(slug.value!, newSlug)
         if (auth.activeProjectSlug === slug.value)
           auth.setActiveProject(newSlug)
+        closePath = `/projects/${encPathParam(newSlug)}/edit`
       }
       ElMessage.success('项目已保存')
-      router.replace(`/projects/${encPathParam(newSlug)}/translations`)
+      router.replace(tabsStore.removeTab(closePath) ?? '/')
     }
     else {
       const p = await store.create(form.name, form.code, form.description, form.sourceLanguage)
@@ -96,12 +122,33 @@ async function handleSubmit() {
         <BaseInput v-model="form.sourceLanguage" placeholder="如 en、zh-Hans" />
       </BaseFormItem>
       <BaseFormItem>
-        <BaseButton type="primary" :loading="loading" @click="handleSubmit">
-          {{ isEdit ? '保存' : '创建' }}
-        </BaseButton><BaseButton @click="$router.push('/')">
-          取消
-        </BaseButton>
+        <div class="form-actions">
+          <div class="form-actions__main">
+            <BaseButton type="primary" :loading="loading" @click="handleSubmit">
+              {{ isEdit ? '保存' : '创建' }}
+            </BaseButton><BaseButton @click="$router.push('/')">
+              取消
+            </BaseButton>
+          </div>
+          <BaseButton v-if="isEdit && perm.canDeleteProject.value" type="danger" @click="handleDelete">
+            删除项目
+          </BaseButton>
+        </div>
       </BaseFormItem>
     </BaseForm>
   </div>
 </template>
+
+<style lang="scss" scoped>
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+
+  &__main {
+    display: flex;
+    gap: 8px;
+  }
+}
+</style>

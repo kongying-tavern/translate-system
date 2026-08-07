@@ -24,6 +24,7 @@ export function useProjectPermission() {
 
   // Function permissions
   const canEditProject = isSuperAdmin
+  const canDeleteProject = isSuperAdmin
   const canCreateProject = isSuperAdmin
   const canManageKeys = canManageContent
   const canEditKeyColumn = canManageContent
@@ -49,6 +50,7 @@ export function useProjectPermission() {
     canSeeImportManagement,
     canSeeExportManagement,
     canEditProject,
+    canDeleteProject,
     canCreateProject,
     canManageKeys,
     canEditKeyColumn,

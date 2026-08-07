@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { ApiKey, Project } from '@/types/models'
-import { ArrowDown, Setting } from '@element-plus/icons-vue'
+import { ArrowDown, Edit } from '@element-plus/icons-vue'
 import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -10,13 +10,11 @@ import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, Ba
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { useTabsStore } from '@/stores/tabs'
 import { encPathParam } from '@/utils/path'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
 const projectStore = useProjectStore()
-const tabsStore = useTabsStore()
 const perm = useProjectPermission()
 const router = useRouter()
 const route = useRoute()
@@ -26,9 +24,6 @@ const pwdVisible = ref(false)
 const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const switcherVisible = ref(false)
 const searchProject = ref('')
-const settingsVisible = ref(false)
-const settingsSaving = ref(false)
-const settingsForm = reactive({ name: '', code: '', description: '' })
 
 // ── API Keys ──
 const apikeyVisible = ref(false)
@@ -112,68 +107,20 @@ watch(switcherVisible, async (v) => {
   }
 })
 
-watch(settingsVisible, (v) => {
-  if (v && projectSlug.value) {
-    const p = projectStore.getProject(projectSlug.value)
-    if (p)
-      Object.assign(settingsForm, { name: p.name, code: p.code || '', description: p.description || '' })
-  }
-})
-
 function switchProject(p: Project) {
   switcherVisible.value = false
   const slug = p.code || p.id
-  const suffix = projectSlug.value ? route.path.split(encPathParam(projectSlug.value))[1] || '/translations' : ''
-  router.push(`/projects/${encPathParam(slug)}${suffix}`)
+  router.push(`/projects/${encPathParam(slug)}/translations`)
 }
 function goCreateProject() {
   switcherVisible.value = false
   router.push('/projects/new')
 }
 
-async function handleDeleteProject() {
-  try {
-    await ElMessageBox.confirm(`确定要删除项目「${auth.activeProjectName || projectSlug.value}」吗？该操作不可恢复。`, '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
-  }
-  catch {
+function goEditProject() {
+  if (!projectSlug.value)
     return
-  }
-  try {
-    await projectStore.remove(projectSlug.value!)
-    settingsVisible.value = false
-    auth.setActiveProject('')
-    tabsStore.removeProjectTabs(projectSlug.value!)
-    router.push('/')
-    ElMessage.success('项目已删除')
-  }
-  catch {
-    ElMessage.error('删除失败')
-  }
-}
-
-async function saveSettings() {
-  if (!settingsForm.name.trim()) {
-    ElMessage.warning('名称不能为空')
-    return
-  }
-  settingsSaving.value = true
-  try {
-    const updated = await projectStore.update(projectSlug.value!, { name: settingsForm.name, code: settingsForm.code, description: settingsForm.description })
-    settingsVisible.value = false
-    const newSlug = updated.code || updated.id
-    if (newSlug !== projectSlug.value) {
-      tabsStore.renameProjectSlug(projectSlug.value!, newSlug)
-      auth.setActiveProject(newSlug)
-      router.replace(route.path.split(encPathParam(projectSlug.value!)).join(encPathParam(newSlug)))
-    }
-    ElMessage.success('已保存')
-  }
-  catch {
-    ElMessage.error('保存失败')
-  }
-  finally {
-    settingsSaving.value = false
-  }
+  router.push(`/projects/${encPathParam(projectSlug.value)}/edit`)
 }
 
 const apikeyColumns: BaseTableColumnConfig<ApiKey>[] = [
@@ -253,8 +200,10 @@ async function deleteApiKey(row: ApiKey) {
           <ArrowDown />
         </BaseIcon>
       </div>
-      <BaseButton v-if="perm.canEditProject.value" link style="margin-left:8px;padding:0" @click="settingsVisible = true">
-        <BaseIcon><Setting /></BaseIcon>
+      <BaseButton v-if="perm.canEditProject.value" link style="margin-left:8px;padding:2px" title="编辑" @click="goEditProject">
+        <BaseIcon size="18">
+          <Edit />
+        </BaseIcon>
       </BaseButton>
     </template>
   </div>
@@ -288,29 +237,6 @@ async function deleteApiKey(row: ApiKey) {
     <template #footer>
       <BaseButton v-if="perm.canCreateProject.value" type="primary" style="width:100%" @click="goCreateProject">
         新建项目
-      </BaseButton>
-    </template>
-  </BaseDialog>
-
-  <BaseDialog v-model="settingsVisible" title="项目设置" width="500px">
-    <BaseForm :model="settingsForm" label-width="80px" class="dialog-form">
-      <BaseFormItem label="名称">
-        <BaseInput v-model="settingsForm.name" />
-      </BaseFormItem>
-      <BaseFormItem label="标识">
-        <BaseInput v-model="settingsForm.code" placeholder="英文标识，如 my-project" />
-      </BaseFormItem>
-      <BaseFormItem label="描述">
-        <BaseInput v-model="settingsForm.description" type="textarea" :rows="3" />
-      </BaseFormItem>
-    </BaseForm>
-    <template #footer>
-      <BaseButton type="danger" style="float:left" @click="handleDeleteProject">
-        删除项目
-      </BaseButton><BaseButton @click="settingsVisible = false">
-        取消
-      </BaseButton><BaseButton type="primary" :loading="settingsSaving" @click="saveSettings">
-        保存
       </BaseButton>
     </template>
   </BaseDialog>
@@ -372,5 +298,5 @@ async function deleteApiKey(row: ApiKey) {
 .project-item:hover { background: #f5f7fa; }
 .project-name { font-weight: 500; }
 .project-code { font-size: 12px; color: #409eff; font-family: monospace; }
-.project-lang { font-size: 12px; color: #909399; margin-left: auto; }
+.project-lang { font-size: 12px; color: #909399; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; }
 </style>
