@@ -124,11 +124,12 @@ function parseImportData(raw: string, fmt: string): ImportEntry[] {
 
 async function importKeys(projectId: string, raw: string, fmt: ImportFormat, overwrite: boolean): Promise<ImportResult> {
   const entries = parseImportData(raw, fmt)
+  const sourceLang = (await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }))?.sourceLanguage || ''
   let imported = 0
   let created = 0
   let skipped = 0
   for (const entry of entries) {
-    const { key, context, tags, sourceText } = entry
+    const { key, context, tags } = entry
     let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key } } })
     const keyExisted = !!tk
     if (keyExisted && !overwrite) {
@@ -137,7 +138,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
     else {
       if (!tk) {
         const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
-        tk = await prisma.translationKey.create({ data: { projectId, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+        tk = await prisma.translationKey.create({ data: { projectId, key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
       }
       if (context !== undefined || tags?.length) {
         const updates: Prisma.TranslationKeyUpdateInput = {}
@@ -147,6 +148,21 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
           updates.tags = tags
         if (Object.keys(updates).length)
           await prisma.translationKey.update({ where: { id: tk.id }, data: updates })
+      }
+      // 原文 = sourceText 或源语言列，等价于源语言的翻译更新
+      if (sourceLang) {
+        let sourceVal: string | undefined
+        if (entry.sourceText && entry.sourceText !== key)
+          sourceVal = entry.sourceText
+        if (sourceVal === undefined && entry.lang === sourceLang && entry.translatedText)
+          sourceVal = entry.translatedText
+        if (sourceVal !== undefined) {
+          await prisma.translationValue.upsert({
+            where: { keyId_languageCode: { keyId: tk.id, languageCode: sourceLang } },
+            update: { translatedText: sourceVal },
+            create: { keyId: tk.id, languageCode: sourceLang, translatedText: sourceVal },
+          })
+        }
       }
       created++
     }
@@ -169,7 +185,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   let created = 0
   let skipped = 0
   for (const entry of entries) {
-    const { key, translatedText, context, tags, sourceText, lang } = entry
+    const { key, translatedText, context, tags, lang } = entry
     const langCode = lang || languageCode
     if (langCode && !knownLangs.has(langCode)) {
       unknownLangs.add(langCode)
@@ -180,7 +196,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key } } })
     if (!tk && autoCreate !== false) {
       const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
-      tk = await prisma.translationKey.create({ data: { projectId, key, sourceText: sourceText || key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+      tk = await prisma.translationKey.create({ data: { projectId, key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
     }
     if (tk) {
       if (context !== undefined || tags?.length) {

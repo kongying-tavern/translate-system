@@ -55,7 +55,7 @@ const entriesExample = {
 const exampleText = computed(() => {
   switch (fmt.value) {
     case ImportFormat.JSON: return '{\n  "zh-Hans": { "login.title": "登录" },\n  "en-US": { "login.title": "Login" }\n}'
-    case ImportFormat.CSV: return 'key,sourceText,zh-Hans,en-US\nlogin.title,登录,登录,Login'
+    case ImportFormat.CSV: return 'key,zh-Hans,en-US\nlogin.title,登录,Login'
     case ImportFormat.Properties: return 'login.title=Login\nerror.network=Network Error'
     case ImportFormat.YAML: return 'zh-Hans:\n  login.title: 登录\nen-US:\n  login.title: Login'
     case ImportFormat.XML: return '<resources>\n  <language code="zh-Hans">\n    <string name="login.title">登录</string>\n  </language>\n  <language code="en-US">\n    <string name="login.title">Login</string>\n  </language>\n</resources>'

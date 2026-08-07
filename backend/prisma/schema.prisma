@@ -76,7 +76,6 @@ model TranslationKey {
   id           String   @id @default(uuid()) @db.Uuid
   projectId    String   @map("project_id") @db.Uuid
   key          String   @db.VarChar(500)
-  sourceText   String   @map("source_text") @db.Text
   context      String?  @db.Text
   tags         String[] @default([])
   sortOrder    Int      @default(0) @map("sort_order")

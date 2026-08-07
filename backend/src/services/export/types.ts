@@ -5,7 +5,6 @@ export type ExportKey = Prisma.TranslationKeyGetPayload<{ include: { values: tru
 export interface FlatTranslation {
   translationKey: string
   languageCode: string
-  sourceText: string
   translatedText: string
   alias?: string
 }

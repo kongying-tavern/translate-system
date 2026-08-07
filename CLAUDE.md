@@ -76,13 +76,13 @@ translation_keys              translation_values
 │ id (UUID PK)     │───────│ id (UUID PK)     │
 │ project_id (FK)  │       │ key_id (FK)      │
 │ key              │       │ language_code    │
-│ source_text      │       │ translated_text  │
-│ context          │       │ is_reviewed      │
-│ tags (TEXT[])    │       │ created_at       │
+│ context          │       │ translated_text  │
+│ tags (TEXT[])    │       │ is_reviewed      │
 │ created_at       │       └──────────────────┘
 └──────────────────┘
 
 context 和 tags 为 Key 级别属性，跨语言共享
+原文 = 源语言语言值（源语言 value 的 translatedText），无独立存储
 project_languages (alias 别名字段) — 导出和 UI 优先显示别名
 ```
 
@@ -236,7 +236,7 @@ PUT    /projects/:id/translations/key/:oldKey — 更新 Key/原文（Maintainer
 PUT    /projects/:id/translations/sortOrders — 批量排序（Maintainer+）
 POST   /projects/:id/translations/batch      — 批量导入（Maintainer+）
 PUT    /projects/:id/translations/{key}      — 保存 key 级属性 context/tags（Maintainer+）
-PUT    /projects/:id/translations/{key}/{langCode} — 保存译文（任意项目成员）
+PUT    /projects/:id/translations/{key}/{langCode} — 保存译文（任意项目成员；body 携带 tags/context 时动态升级为 Maintainer+，防 member 改 key 级属性）
 DELETE /projects/:id/translations/{translationId} — 删除 Key（Maintainer+）
 GET    /projects/:id/translations/count|tags/list — 需项目访问
 POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+）
@@ -264,13 +264,14 @@ GET    /languages|/languages/search    — 基础语言
 - `sniffFormat` 自动识别：`{`/`[` → JSON、`<` → XML、缩进/列表/`key: value`（冒号+空格）→ YAML、`key=value` 或 `key:value`（冒号后非空格非 `/`）→ Properties、其余 → CSV
 - 解析后校验：**0 条** → 「未从数据中解析到任何条目」；**空 key** → 「第 N 条缺少翻译键（key/name）」，均拒绝导入
 - JSON/YAML 顶层非键值映射对象（数组/标量）直接拒绝；嵌套结构判定用 `looksLikeLang` 启发式（外层键都像语言代码才按「语言→Key→译文」解析），否则拒绝并定位问题条目，避免字段名充当 key 的脏数据
-- CSV 表头**严格匹配**（大小写与写法完全一致、不支持别名）：仅 `key`、`sourceText`、`tags`、`context` 被识别，其余列一律按语言代码处理；无 key 列、无表头或 header-only 均报错。导出 CSV 表头为 `key,sourceText,<语言...>`，与导入严格表头对应
+- CSV 表头**严格匹配**（大小写与写法完全一致、不支持别名）：仅 `key`、`sourceText`、`tags`、`context` 被识别，其余列一律按语言代码处理；无 key 列、无表头或 header-only 均报错。导出 CSV 表头为 `key,<语言...>`（不含 sourceText），与导入严格表头对应
+- **原文（sourceText）去冗余**：`translation_keys` 已删除 `source_text` 列，原文统一由源语言语言值（源语言 value 的 `translatedText`）承载。条目导入（`importKeys`）**支持 `sourceText` 或源语言列**，二者等价于源语言的翻译更新（`sourceText` 字段或 `lang === 源语言` 的语言列值 → upsert 源语言 value）；译文导入（`applyTranslations`）**不支持 `sourceText` 的导入**（忽略该字段），但源语言列作为普通语言列正常导入。`createTranslation` / `updateKeyAndSource` / `batchUpsert` 的 `sourceText` 同样写入源语言 value；旧环境升级由 `20260808020000_remove_source_text` 迁移内置回填完成，无需单独脚本
 - XML：缺 `<resources>` 根节点、`<string>` 缺 `name`、`<language>` 缺 `code` 均报错并定位索引
 - 译文导入（`applyTranslations`）遇**项目未配置的语言代码**（`languageCode` 参数或数据内语言，兼容 `alias`）不拒绝、不自动建语言，而是**跳过该条并累计 `skippedLanguages`** 返回，前端 ImportTemplateView 成功提示中列出；`importKeys` 无语言属性，恒返回 `skippedLanguages: []`
 
 ### 翻译页面关键逻辑
 
-- 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText + context + tags + translations{}`
+- 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText（= 源语言 value）+ context + tags + translations{}`；原文列内联编辑保存即更新源语言 value
 - 译文用 `transCache` (key+lang → text) 缓存
 - context 和 tags 是 key 级属性，不按语言缓存
 - Key/原文/备注三列内联编辑均**失焦保存**（本地缓存 Map + `onBlur`），备注列曾误用 `onUpdate:modelValue` 每敲键发请求；三者共用 `composing` ref + `onCompositionstart/end` 做 IME 组合守卫，blur 时正在输入法组合则跳过保存（`handleBlurSave`），避免把未确认拼音串存库
@@ -308,7 +309,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | `properties` | `.properties` | 单 | Java 键值对格式，特殊字符自动转义 |
 | `flat-xml` | `.xml` | 单 | Android `resources/string` 标签结构 |
 | `nested-xml` | `.xml` | 多 | 按语言嵌套的 XML 标签结构 |
-| `csv` | `.csv` | 多 | 表格，key / sourceText / 各语言各一列 |
+| `csv` | `.csv` | 多 | 表格，key / 各语言各一列 |
 
 ### 导出模板 config 字段
 

@@ -35,7 +35,7 @@ async function main() {
     })
     if (!translationKey) {
       translationKey = await prisma.translationKey.create({
-        data: { projectId, key, sourceText: key },
+        data: { projectId, key },
       })
     }
     await prisma.translationValue.upsert({

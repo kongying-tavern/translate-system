@@ -3,6 +3,12 @@ import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 import { resolveProject } from './project'
 
+/** 获取项目源语言代码（原文统一由源语言语言值承载） */
+async function getSourceLanguage(projectId: string): Promise<string> {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } })
+  return project?.sourceLanguage || ''
+}
+
 export interface BatchUpsertItem {
   /** 翻译 Key */
   translationKey: string
@@ -26,12 +32,17 @@ export async function listGrouped(projectId: string, query: {
   page: number
   pageSize: number
 }) {
+  const sourceLang = await getSourceLanguage(projectId)
   // Always fetch all keys to keep rowIndex stable
   const keys = await prisma.translationKey.findMany({
     where: { projectId },
     include: { values: true },
     orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
   })
+  // 原文 = 源语言语言值
+  const sourceByKey = new Map<string, string>()
+  for (const k of keys)
+    sourceByKey.set(k.id, k.values.find(v => v.languageCode === sourceLang)?.translatedText || '')
 
   let idx = 0
   const allItems = keys.map(k => ({
@@ -45,6 +56,7 @@ export async function listGrouped(projectId: string, query: {
   if (query.search || query.tags?.length || query.languageCode || query.untransOnly) {
     visible = allItems.filter((item) => {
       const k = item.key
+      const sourceText = sourceByKey.get(k.id) || ''
 
       // 仅未翻译：指定语言下没有非空译文
       if (query.untransOnly && query.languageCode) {
@@ -63,13 +75,13 @@ export async function listGrouped(projectId: string, query: {
         if (s.startsWith('/') && s.endsWith('/') && s.length > 2) {
           try {
             const re = new RegExp(s.slice(1, -1), 'i')
-            match = re.test(k.key) || re.test(k.sourceText) || k.values.some(v => re.test(v.translatedText)) || re.test(k.context || '')
+            match = re.test(k.key) || re.test(sourceText) || k.values.some(v => re.test(v.translatedText)) || re.test(k.context || '')
           }
           catch {}
         }
         else {
           const low = s.toLowerCase()
-          match = k.key.toLowerCase().includes(low) || k.sourceText.toLowerCase().includes(low) || k.values.some(v => v.translatedText.toLowerCase().includes(low)) || (k.context?.toLowerCase().includes(low) ?? false)
+          match = k.key.toLowerCase().includes(low) || sourceText.toLowerCase().includes(low) || k.values.some(v => v.translatedText.toLowerCase().includes(low)) || (k.context?.toLowerCase().includes(low) ?? false)
         }
         if (!match)
           return false
@@ -84,7 +96,7 @@ export async function listGrouped(projectId: string, query: {
     rowIndex: item.rowIndex,
     sortOrder: item.key.sortOrder,
     translationKey: item.key.key,
-    sourceText: item.key.sourceText,
+    sourceText: sourceByKey.get(item.key.id) || '',
     context: item.key.context || '',
     tags: item.key.tags,
     keyId: item.key.id,
@@ -107,10 +119,18 @@ export async function createTranslation(projectId: string, data: {
   context?: string
   tags?: string[]
 }) {
+  const sourceLang = await getSourceLanguage(projectId)
   let key = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: data.translationKey } } })
   if (!key) {
     key = await prisma.translationKey.create({
-      data: { projectId, key: data.translationKey, sourceText: data.sourceText, context: data.context || '', tags: data.tags || [] },
+      data: { projectId, key: data.translationKey, context: data.context || '', tags: data.tags || [] },
+    })
+  }
+  if (data.sourceText && sourceLang) {
+    await prisma.translationValue.upsert({
+      where: { keyId_languageCode: { keyId: key.id, languageCode: sourceLang } },
+      update: { translatedText: data.sourceText },
+      create: { keyId: key.id, languageCode: sourceLang, translatedText: data.sourceText },
     })
   }
   const val = await prisma.translationValue.upsert({
@@ -131,7 +151,7 @@ export async function saveForLang(projectId: string, translationKey: string, lan
     if (!createIfMissing)
       throw new AppError(1003, 'Key not found')
     key = await prisma.translationKey.create({
-      data: { projectId, key: translationKey, sourceText: translationKey, context: data.context || '', tags: data.tags || [] },
+      data: { projectId, key: translationKey, context: data.context || '', tags: data.tags || [] },
     })
   }
   else if (data.tags !== undefined || data.context !== undefined) {
@@ -164,11 +184,19 @@ export async function updateKeyAndSource(projectId: string, oldKey: string, newK
       throw new AppError(1004, 'Key 已存在，不能重复')
   }
 
-  const updateData: Prisma.TranslationKeyUpdateInput = { key: newKey }
-  if (sourceText !== undefined)
-    updateData.sourceText = sourceText
+  await prisma.translationKey.update({ where: { id: existing.id }, data: { key: newKey } })
 
-  await prisma.translationKey.update({ where: { id: existing.id }, data: updateData })
+  // 原文写入源语言语言值
+  if (sourceText !== undefined) {
+    const sourceLang = await getSourceLanguage(projectId)
+    if (sourceLang) {
+      await prisma.translationValue.upsert({
+        where: { keyId_languageCode: { keyId: existing.id, languageCode: sourceLang } },
+        update: { translatedText: sourceText },
+        create: { keyId: existing.id, languageCode: sourceLang, translatedText: sourceText },
+      })
+    }
+  }
   return { oldKey, newKey, sourceText, count: 1 }
 }
 
@@ -177,11 +205,19 @@ export async function deleteTranslation(id: string) {
 }
 
 export async function batchUpsert(projectId: string, items: BatchUpsertItem[]) {
+  const sourceLang = await getSourceLanguage(projectId)
   for (const item of items) {
     let key = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: item.translationKey } } })
     if (!key) {
       key = await prisma.translationKey.create({
-        data: { projectId, key: item.translationKey, sourceText: item.sourceText || '', context: item.context || '', tags: item.tags || [] },
+        data: { projectId, key: item.translationKey, context: item.context || '', tags: item.tags || [] },
+      })
+    }
+    if (item.sourceText && sourceLang) {
+      await prisma.translationValue.upsert({
+        where: { keyId_languageCode: { keyId: key.id, languageCode: sourceLang } },
+        update: { translatedText: item.sourceText },
+        create: { keyId: key.id, languageCode: sourceLang, translatedText: item.sourceText },
       })
     }
     await prisma.translationValue.upsert({

@@ -63,7 +63,7 @@ function flattenKeys(keys: ExportKey[], languageCodes: string[], aliases?: Recor
   for (const k of keys) {
     for (const lang of languageCodes) {
       const v = k.values.find(v => v.languageCode === lang)
-      result.push({ translationKey: k.key, languageCode: lang, sourceText: k.sourceText, translatedText: v?.translatedText || '', alias: aliases?.[lang] })
+      result.push({ translationKey: k.key, languageCode: lang, translatedText: v?.translatedText || '', alias: aliases?.[lang] })
     }
   }
   return result
