@@ -178,7 +178,12 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
 
     <BaseDialog v-model="showAddDialog" title="添加语言" width="500px">
       <BaseSelect v-model="selectedLang" filterable placeholder="搜索语言..." style="width:100%">
-        <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" class="base-option" :label="`${l.englishName} (${l.nativeName || ''}) - ${l.languageCode}`" :value="l.languageCode" />
+        <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" class="base-option" :label="`${l.englishName} (${l.nativeName || ''}) - ${l.languageCode}`" :value="l.languageCode">
+          <span class="lang-option">
+            <span class="lang-option__name">{{ l.englishName }} ({{ l.nativeName || '' }})</span>
+            <span class="lang-option__code">{{ l.languageCode }}</span>
+          </span>
+        </el-option>
       </BaseSelect>
       <template #footer>
         <BaseButton @click="showAddDialog = false">
@@ -190,3 +195,9 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
     </BaseDialog>
   </div>
 </template>
+
+<style lang="scss" scoped>
+.lang-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.lang-option__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lang-option__code { flex: none; color: #909399; font-size: 12px; }
+</style>
