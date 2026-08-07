@@ -3,14 +3,16 @@ import type { Project } from '@/types/models'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { BaseButton } from '@/components/ui'
+import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { encPathParam } from '@/utils/path'
-import { projectRoleLabel, SystemRole } from '@/utils/roles'
+import { projectRoleLabel } from '@/utils/roles'
 
 const router = useRouter()
 const auth = useAuthStore()
 const store = useProjectStore()
+const perm = useProjectPermission()
 const loading = ref(true)
 
 onMounted(async () => {
@@ -34,7 +36,7 @@ function goProject(p: Project): void {
       <p class="home-empty__text">
         暂无可用项目
       </p>
-      <BaseButton v-if="auth.role === SystemRole.SuperAdmin" type="primary" @click="$router.push('/projects/new')">
+      <BaseButton v-if="perm.canCreateProject.value" type="primary" @click="$router.push('/projects/new')">
         创建第一个项目
       </BaseButton>
       <p v-else class="home-empty__hint">
@@ -60,6 +62,13 @@ function goProject(p: Project): void {
         <div class="project-card__bottom">
           <span>源语言：{{ p.sourceLanguage }}</span>
         </div>
+      </div>
+      <div
+        v-if="perm.canCreateProject.value"
+        class="project-card project-card--add" @click="$router.push('/projects/new')"
+      >
+        <span class="project-card--add__icon">+</span>
+        <span class="project-card--add__text">新建项目</span>
       </div>
     </div>
   </div>
@@ -172,6 +181,30 @@ function goProject(p: Project): void {
     justify-content: space-between;
     font-size: 12px;
     color: #909399;
+  }
+
+  &--add {
+    align-items: center;
+    justify-content: center;
+    border-style: dashed;
+    color: #909399;
+    min-height: 120px;
+
+    &:hover {
+      border-color: #409eff;
+      color: #409eff;
+      box-shadow: none;
+    }
+
+    &__icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    &__text {
+      margin-top: 8px;
+      font-size: 14px;
+    }
   }
 }
 </style>
