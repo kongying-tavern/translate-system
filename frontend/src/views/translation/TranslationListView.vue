@@ -49,6 +49,7 @@ const tagDelimiter = /[,;]/
 
 const appliedSearch = ref('')
 const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
+const dragOrderable = ref(true)
 
 function buildCache() {
   for (const row of rows.value) {
@@ -87,12 +88,11 @@ function init() {
 let sortable: { destroy: () => void } | null = null
 function bindSortable() {
   const el = document.querySelector('.el-table__body-wrapper tbody') as HTMLElement
-  const hasFilter = appliedSearch.value || filterTags.value.length || untransOnly.value
   if (sortable) {
     sortable.destroy()
     sortable = null
   }
-  if (!el || !perm.canReorderRows.value || hasFilter)
+  if (!el || !perm.canReorderRows.value || !dragOrderable.value)
     return
   sortable = Sortable.create(el, {
     handle: '.drag-handle',
@@ -129,6 +129,7 @@ function syncRowLangs() {
 
 let resetting = false
 async function load() {
+  dragOrderable.value = !hasFilter.value
   page.value = 1
   resetting = true
   loadingStore.start()
@@ -405,7 +406,7 @@ function handleBlurSave(action: () => void) {
 const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
   const cols: BaseTableColumnConfig<GroupedRow>[] = []
 
-  if (!hasFilter.value && perm.canReorderRows.value) {
+  if (dragOrderable.value && perm.canReorderRows.value) {
     cols.push({
       width: 44,
       fixed: 'left',
