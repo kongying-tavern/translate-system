@@ -192,10 +192,17 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 
 所有接口 `/api/v1/*`，统一响应 `{ code: 0, message, data }`。路由由 tsoa 从 `controllers/` 生成（`pnpm gen` 更新 `docs/routes.ts`）。
 
+**`/openapi/*` 为开发者工具命名空间**：仅作 Swagger UI 与 OpenAPI JSON 文档的代理入口（`nginx.conf`/`vite.config.mts` 配置），不保证所有服务或所有 URL 在所有环境都可用。业务层一律不得依赖 `/openapi/*` 下的任何路径——后台页面经 JWT 接口拉取文档（如 `GET /api/v1/openapi-doc`），API Key 调用方直接请求后端 `/api/v1/apikey/*`。
+
 **API 文档**：`/api-docs` 为开发者 OpenAPI 文档（Swagger UI），`index.ts` 用 `swaggerUi.setup(null, { swaggerOptions: { urls: [...] } })` 挂两个文档，顶部下拉切换：
 
 - `./swagger.json` — **JWT 接口**，静态全量，不做角色过滤
 - `./apikey.json` — **API Key 开放接口**，`services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生：白名单路径加 `/apikey` 前缀、operation 改用 `x-api-key`/`x-api-secret` 安全方案；相对 URL 被前端 `/openapi/swagger-ui/` 前缀代理命中
+
+**暴露策略（`index.ts`，勿硬编码引用不存在的 JSON 路径）**：`/api-docs/apikey.json` **永远暴露**（外部 API Key 调用方与 Swagger UI「API Key 开放接口」标签依赖）。其余由两个开关显式控制，设 `true` 才暴露（默认不暴露），参数在根 `.env` 中配置，经 `docker-compose.yml` 透传为后端环境变量：
+
+- `OPENAPI_SWAGGER` — 控制 Swagger UI 页面（`/api-docs`）挂载；swagger-ui 的 `urls` 数组只在 `OPENAPI_API_JSON` 开启时才引用 `./swagger.json`，避免正式环境加载 404 的 JWT 文档，`./apikey.json` 恒引用
+- `OPENAPI_API_JSON` — 控制 `GET /api-docs/swagger.json`（JWT 全量原始文档）
 
 **OpenAPI 描述增强（`docs/swagger.ts` 包装层，勿直接改 swagger.json）**：`pnpm gen` 只保证 operation summary（来自控制器 JSDoc `@summary`，每个接口必须有）、参数/字段中文描述（来自 Row 接口 JSDoc）。为满足导入 OpenAPI 工具（Apifox/Postman 等）的分组与说明需求，`docs/swagger.ts` 在导出 `swaggerSpec` 时补充 tsoa 不产出的内容：
 
@@ -206,7 +213,7 @@ Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifi
 
 `services/docs.ts` 的 `buildOpenApi` 对 apikey.json 也会用 `buildTags(paths)` 计算子集标签，两文档分组一致。新增分组需同步补充 `TAG_DESCRIPTIONS`。
 
-原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json` 与 `GET /api-docs/apikey.json`（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）经前端代理 `GET /openapi/apikey.json`（即后端 `/api-docs/apikey.json`，`/openapi/*` 前缀由 `nginx.conf`/`vite.config.mts` 配置）拉取同一份 API Key OpenAPI 展示：路径直接用定义里的 `/apikey/...`，服务器基础路径取 spec 的 `servers`，不按角色过滤。新增开放接口需同步补充白名单。
+原始 OpenAPI JSON 暴露在 `GET /api-docs/swagger.json`（按需）与 `GET /api-docs/apikey.json`（恒暴露）（`index.ts` 中显式路由，须注册在 `swaggerUi.serve` 之前，否则被其 SPA 回退吞掉）。前端「开放接口说明」页（`/api-doc`，ApiDocView）经 JWT 接口 `GET /api/v1/openapi-doc`（`OpenApiController`，`@Security('auth')`，复用 `buildApiKeyOpenApiSpec` 派生逻辑）拉取 API Key OpenAPI 展示（`api/openapi.ts` 的 `getOpenApiSpec`）：路径直接用定义里的 `/apikey/...`，服务器基础路径取 spec 的 `servers`，不按角色过滤。新增开放接口需同步补充白名单。
 
 ```
 
@@ -244,6 +251,7 @@ GET    /projects/:id/exports/templates — 需项目访问
 POST|PUT|DELETE /projects/:id/exports/templates — 导出模板增删改（Maintainer+）
 POST   /projects/:id/exports/preview|generate — 需项目访问
 GET|POST|PUT|DELETE /me/keys           — API Key CRUD（JWT）
+GET    /openapi-doc                    — 开放接口文档（JWT，前端「开放接口说明」页使用）
 GET    /languages|/languages/search    — 基础语言
 ```
 
@@ -282,7 +290,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 ```
 
 - **白名单**：配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组，每条声明「方法 + 路径正则」；新增开放接口在此追加一条即生效，无需改守卫（`index.ts` 守卫与 `services/docs.ts` 抽取共用）
-- **OpenAPI 文档**：白名单接口在 Swagger UI 顶部下拉「API Key 开放接口」（`GET /api-docs/apikey.json`，`buildApiKeyOpenApiSpec` 派生），前端「开放接口说明」页（`/api-doc`）同源展示
+- **OpenAPI 文档**：白名单接口在 Swagger UI 顶部下拉「API Key 开放接口」（`GET /api-docs/apikey.json`，`buildApiKeyOpenApiSpec` 派生）；前端「开放接口说明」页（`/api-doc`）经 JWT 接口 `GET /api/v1/openapi-doc` 同逻辑派生展示（登录可见，不依赖 `/openapi/*` 代理）
 - **管理接口**：`GET|POST|PUT|DELETE /api/v1/me/keys`（`ApiKeysController` 为 `@Route('me')`，前端**不要**用 `/apikey/` 前缀调用）；代理上 tsoa 自动镜像的 `/apikey/me/keys` 被 `apiKeyAuth`（缺头 401）与白名单（403）双重拦截，外部 API Key 客户端无法管理
 
 ### 导出格式

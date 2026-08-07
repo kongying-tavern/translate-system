@@ -28,6 +28,9 @@ services:
     ports:
       - "${BACKEND_PORT:-20080}:8080"
     environment:
+      # OpenAPI 文档开关（根 .env 配置，默认 false）
+      OPENAPI_SWAGGER: ${OPENAPI_SWAGGER:-false}
+      OPENAPI_API_JSON: ${OPENAPI_API_JSON:-false}
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}

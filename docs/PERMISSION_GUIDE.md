@@ -156,7 +156,7 @@ handler
 
 ### 4.3 开放接口（API Key）权限
 
-外部自动化通过 `x-api-key` + `x-api-secret` 访问 `/api/v1/apikey/...` 前缀接口。可访问的接口由**白名单**决定：`backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 是一个数组，**每条声明「HTTP 方法 + 路径正则」**，逐条列允许的开放接口。新增开放接口只需在数组中追加一条声明即可生效（`index.ts` 守卫自动读取），无需改动任何逻辑。开放接口文档由 `backend/src/services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生（`/api-docs/apikey.json`），Swagger UI「API Key 开放接口」与前端「开放接口说明」页（`/api-doc`，经 `/openapi/apikey.json` 代理）同源展示，不按系统角色过滤。
+外部自动化通过 `x-api-key` + `x-api-secret` 访问 `/api/v1/apikey/...` 前缀接口。可访问的接口由**白名单**决定：`backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 是一个数组，**每条声明「HTTP 方法 + 路径正则」**，逐条列允许的开放接口。新增开放接口只需在数组中追加一条声明即可生效（`index.ts` 守卫自动读取），无需改动任何逻辑。开放接口文档由 `backend/src/services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生（`/api-docs/apikey.json`），Swagger UI「API Key 开放接口」与前端「开放接口说明」页（`/api-doc`，经 JWT 接口 `GET /api/v1/openapi-doc`）同逻辑派生展示，不按系统角色过滤。
 
 **开放接口的数据权限**：开放接口路径均为 `/projects/{id}/...`，调用时 `apiKeyAuth` 用 x-api-key 解析出 API Key 的 `userId`/`userRole`（`backend/src/middleware/apikey.ts`，回写 `req.userId`/`req.userRole`），随后项目接口的 `assertProjectAccess` 以**该所有者身份**判定项目访问权与项目角色门槛。因此：
 - API Key 只能操作**其所有者拥有成员/owner 身份的项目**（super_admin 所有者的 Key 可访问全部项目），非成员项目返回 403；

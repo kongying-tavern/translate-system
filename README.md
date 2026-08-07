@@ -97,17 +97,24 @@ cd frontend && pnpm install && pnpm dev  # -> http://localhost:3000
 
 **Swagger 文档**
 
+> `/openapi/*` 为开发者工具命名空间，仅作 Swagger UI 与文档 JSON 的代理入口，不保证所有服务或 URL 在所有环境可用；业务层（后台页面、API Key 调用方）不得依赖其内容。
+
+> 暴露策略：`/api-docs/apikey.json`（API Key 开放接口）**永远暴露**；其余由两个开关显式控制，设 `true` 才暴露（默认不暴露）。参数在 `.env` 中配置：生产在根 `.env`（经 `docker-compose.yml` 透传，默认 `false`），本地开发在 `backend/.env`（默认 `true`）：
+> - `OPENAPI_SWAGGER` — 控制 Swagger UI 页面
+> - `OPENAPI_API_JSON` — 控制 JWT 全量文档 `swagger.json`
+
 - 后端（直接访问）:
-  - 文档页面: `http://localhost:8080/api-docs`（开发者文档，静态全量，顶部下拉切换「JWT 接口 / API Key 开放接口」）
-  - JWT 接口 JSON: `http://localhost:8080/api-docs/swagger.json`
-  - API Key 开放接口 JSON: `http://localhost:8080/api-docs/apikey.json`（白名单路径加 `/apikey` 前缀、`x-api-key`/`x-api-secret` 鉴权）
-  - 两份 JSON 均由 `docs/swagger.ts` 包装层增强：顶层 `tags` 分组中文说明、`auth`/`admin` JWT Bearer 安全方案定义、`info.description`、`Record_string.*` 字段中文说明，可直接导入 Apifox/Postman 等工具
+  - 文档页面: `http://localhost:8080/api-docs`（开发者文档，静态全量，顶部下拉切换「JWT 接口 / API Key 开放接口」；需开启 `OPENAPI_SWAGGER`）
+  - JWT 接口 JSON: `http://localhost:8080/api-docs/swagger.json`（按需暴露，`OPENAPI_API_JSON`）
+  - API Key 开放接口 JSON: `http://localhost:8080/api-docs/apikey.json`（永远暴露；白名单路径加 `/apikey` 前缀、`x-api-key`/`x-api-secret` 鉴权）
+  - 两份基础 JSON 均由 `docs/swagger.ts` 包装层增强：顶层 `tags` 分组中文说明、`auth`/`admin` JWT Bearer 安全方案定义、`info.description`、`Record_string.*` 字段中文说明，可直接导入 Apifox/Postman 等工具
 - 前端代理（经 `/openapi/*` 命名空间转发）:
-  - `/openapi/swagger-ui/` → 后端 `/api-docs/`（Swagger UI 页面及相对资源；无尾斜杠的 `/openapi/swagger-ui` 会 301 跳转）
-  - `/openapi/api.json` → 后端 `/api-docs/swagger.json`（原始 JSON）
-  - `/openapi/apikey.json` → 后端 `/api-docs/apikey.json`（API Key 开放接口 JSON）
+  - `/openapi/swagger-ui/` → 后端 `/api-docs/`（Swagger UI 页面及相对资源；无尾斜杠的 `/openapi/swagger-ui` 会 301 跳转；后端未开启 `OPENAPI_SWAGGER` 时页面 404，属预期）
+  - `/openapi/api.json` → 后端 `/api-docs/swagger.json`（原始 JSON，按需暴露）
+  - `/openapi/apikey.json` → 后端 `/api-docs/apikey.json`（API Key 开放接口 JSON，永远可用）
   - 本地开发: `http://localhost:3000/openapi/swagger-ui/`（Vite 代理）
   - Docker 部署: `http://localhost:20010/openapi/swagger-ui/`（nginx，`frontend/nginx.conf`）
+- 前端「开放接口说明」页（`/api-doc`）经 JWT 接口 `GET /api/v1/openapi-doc`（登录可见，复用 `buildApiKeyOpenApiSpec` 派生逻辑）拉取展示
 
 #### 5. 导入翻译文件
 

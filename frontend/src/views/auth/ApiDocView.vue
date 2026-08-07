@@ -3,6 +3,7 @@ import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { JsonSchema } from '@/utils/jsonSchema'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
+import { getOpenApiSpec } from '@/api/openapi'
 import { BaseInput, BaseJsonSchemaViewer, BasePageHeader, BaseTable } from '@/components/ui'
 import { dereferenceSchema, resolveSchemaRef, typeLabel } from '@/utils/jsonSchema'
 
@@ -206,10 +207,7 @@ function parseOpenApi(spec: OpenApiSpec) {
 onMounted(async () => {
   loading.value = true
   try {
-    const res = await fetch('/openapi/apikey.json')
-    if (!res.ok)
-      throw new Error(`HTTP ${res.status}`)
-    parseOpenApi(await res.json() as OpenApiSpec)
+    parseOpenApi(await getOpenApiSpec() as unknown as OpenApiSpec)
   }
   catch {
     ElMessage.error('加载开放接口说明失败')

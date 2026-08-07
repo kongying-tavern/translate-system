@@ -16,25 +16,36 @@ const PORT = process.env.PORT || 8080
 app.use(cors())
 app.use(express.json({ limit: '50mb' }))
 
-// Swagger docs
-app.get('/api-docs/swagger.json', (_req: Request, res: Response) => {
-  res.json(swaggerSpec)
-})
+// OpenAPI 文档暴露策略：
+// - /api-docs/apikey.json 永远暴露（外部 API Key 调用方、前端「开放接口说明」页 /api-doc 与 Swagger UI「API Key 开放接口」标签依赖）
+// - 其余由两个开关显式控制，设 true 才暴露（默认不暴露）：
+//   - OPENAPI_SWAGGER 控制 Swagger UI 页面
+//   - OPENAPI_API_JSON 控制 swagger.json（JWT 全量原始文档）
+const exposeSwaggerUI = process.env.OPENAPI_SWAGGER === 'true'
+const exposeApiJson = process.env.OPENAPI_API_JSON === 'true'
+
 app.get('/api-docs/apikey.json', (_req: Request, res: Response) => {
   res.json(buildApiKeyOpenApiSpec())
 })
-app.use(
-  '/api-docs',
-  swaggerUi.serve,
-  swaggerUi.setup(null, {
-    swaggerOptions: {
-      urls: [
-        { url: './swagger.json', name: 'JWT 接口' },
-        { url: './apikey.json', name: 'API Key 开放接口' },
-      ],
-    },
-  }),
-)
+if (exposeApiJson) {
+  app.get('/api-docs/swagger.json', (_req: Request, res: Response) => {
+    res.json(swaggerSpec)
+  })
+}
+if (exposeSwaggerUI) {
+  app.use(
+    '/api-docs',
+    swaggerUi.serve,
+    swaggerUi.setup(null, {
+      swaggerOptions: {
+        urls: [
+          ...(exposeApiJson ? [{ url: './swagger.json', name: 'JWT 接口' }] : []),
+          { url: './apikey.json', name: 'API Key 开放接口' },
+        ],
+      },
+    }),
+  )
+}
 
 // JWT routes (tsoa controllers)
 const jwtRouter = express.Router()
