@@ -338,6 +338,7 @@ async function onSourceSave(row: GroupedRow) {
 async function onTagsChange(row: GroupedRow) {
   try {
     await saveTranslation(projectSlug.value, row.translationKey, '', { tags: row.tags })
+    ElMessage.success('标签已保存')
     loadTags()
   }
   catch {
