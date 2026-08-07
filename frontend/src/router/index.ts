@@ -58,6 +58,7 @@ const router = createRouter({
         { path: 'users', name: 'Users', component: () => import('@/views/auth/UserManageView.vue'), meta: { title: '用户管理', perm: 'sys:admin' } },
         { path: 'api-doc', name: 'ApiDoc', component: () => import('@/views/auth/ApiDocView.vue'), meta: { title: '开放接口说明' } },
         { path: 'projects/new', name: 'ProjectCreate', component: () => import('@/views/project/ProjectCreateView.vue'), meta: { title: '新建项目', perm: 'sys:super_admin' } },
+        { path: 'projects/:projectSlug/edit', name: 'ProjectEdit', component: () => import('@/views/project/ProjectCreateView.vue'), meta: { title: '编辑项目', perm: 'sys:super_admin' } },
         {
           path: 'projects/:projectSlug',
           children: [

@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import type { Project } from '@/types/models'
+import { Delete, Edit } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { BaseButton } from '@/components/ui'
+import { BaseButton, BaseIcon } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
+import { useTabsStore } from '@/stores/tabs'
 import { encPathParam } from '@/utils/path'
 import { projectRoleLabel } from '@/utils/roles'
 
 const router = useRouter()
 const auth = useAuthStore()
 const store = useProjectStore()
+const tabsStore = useTabsStore()
 const perm = useProjectPermission()
 const loading = ref(true)
 
@@ -24,6 +28,30 @@ onMounted(async () => {
 
 function goProject(p: Project): void {
   router.push(`/projects/${encPathParam(p.code || p.id)}`)
+}
+
+function editProject(p: Project): void {
+  router.push(`/projects/${encPathParam(p.code || p.id)}/edit`)
+}
+
+async function deleteProject(p: Project): Promise<void> {
+  try {
+    await ElMessageBox.confirm(`确定删除项目「${p.name}」吗？该操作不可恢复。`, '删除项目', { type: 'warning' })
+  }
+  catch {
+    return
+  }
+  try {
+    const slug = p.code || p.id
+    await store.remove(slug)
+    if (auth.activeProjectSlug === slug)
+      auth.setActiveProject('')
+    tabsStore.removeProjectTabs(slug)
+    ElMessage.success('项目已删除')
+  }
+  catch {
+    ElMessage.error('删除失败')
+  }
 }
 </script>
 
@@ -60,7 +88,21 @@ function goProject(p: Project): void {
           {{ p.description }}
         </p>
         <div class="project-card__bottom">
-          <span>源语言：{{ p.sourceLanguage }}</span>
+          <span class="project-card__lang">
+            源语言：<code class="project-card__lang-code">{{ p.sourceLanguage }}</code>
+          </span>
+          <div v-if="perm.canEditProject.value" class="project-card__actions" @click.stop>
+            <BaseButton link size="small" class="project-card__action" title="编辑" @click.stop="editProject(p)">
+              <BaseIcon size="16">
+                <Edit />
+              </BaseIcon>
+            </BaseButton>
+            <BaseButton link type="danger" size="small" class="project-card__action" title="删除" @click.stop="deleteProject(p)">
+              <BaseIcon size="16">
+                <Delete />
+              </BaseIcon>
+            </BaseButton>
+          </div>
         </div>
       </div>
       <div
@@ -109,8 +151,9 @@ function goProject(p: Project): void {
   background: #fff;
   border: 1px solid #e4e7ed;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px 16px;
   cursor: pointer;
+  min-height: 163px;
   transition: box-shadow 0.2s, border-color 0.2s;
 
   &:hover {
@@ -161,7 +204,6 @@ function goProject(p: Project): void {
   }
 
   &__desc {
-    flex: 1;
     margin-top: 12px;
     font-size: 13px;
     line-height: 1.6;
@@ -174,13 +216,42 @@ function goProject(p: Project): void {
   }
 
   &__bottom {
-    margin-top: 12px;
-    padding-top: 10px;
+    margin-top: auto;
+    padding-top: 6px;
     border-top: 1px solid #f0f2f5;
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 12px;
     color: #909399;
+  }
+
+  &__lang {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__lang-code {
+    font-family: 'JetBrains Mono', Consolas, Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #476582;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+    padding: 0 6px;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  &__action {
+    padding: 0 2px;
+    height: auto;
   }
 
   &--add {
@@ -188,7 +259,6 @@ function goProject(p: Project): void {
     justify-content: center;
     border-style: dashed;
     color: #909399;
-    min-height: 120px;
 
     &:hover {
       border-color: #409eff;
