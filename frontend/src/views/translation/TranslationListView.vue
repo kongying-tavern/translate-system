@@ -2,14 +2,14 @@
 import type { GroupedRow } from '@/api/translation'
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import elTableInfiniteScroll from 'el-table-infinite-scroll'
-import { ElInputTag, ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import Sortable from 'sortablejs'
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, getTranslations, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable, BaseTagInput } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -45,7 +45,6 @@ const editKey = ref<Map<string, string>>(new Map())
 const editSource = ref<Map<string, string>>(new Map())
 const editContext = ref<Map<string, string>>(new Map())
 const composing = ref(false)
-const tagDelimiter = /[,;]/
 
 const appliedSearch = ref('')
 const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
@@ -461,14 +460,12 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     cell: (row) => {
       if (perm.canEditTagsColumn.value) {
         return (
-          <ElInputTag
+          <BaseTagInput
             size="small"
-            placeholder="+标签"
-            clearable
+            options={allTags.value}
             modelValue={row.tags}
             onUpdate:modelValue={(v?: string[]) => { row.tags = v ?? row.tags }}
             onChange={() => onTagsChange(row)}
-            delimiter={tagDelimiter}
           />
         )
       }
@@ -535,7 +532,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         </BaseFormItem><BaseFormItem label="原文">
           <BaseInput v-model="form.sourceText" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入原文" />
         </BaseFormItem><BaseFormItem label="标签">
-          <ElInputTag v-model="form.tags" style="width:100%" placeholder="输入标签，回车添加" clearable :delimiter="tagDelimiter" />
+          <BaseTagInput v-model="form.tags" :options="allTags" style="width:100%" />
         </BaseFormItem>
       </BaseForm>
       <template #footer>

@@ -6,6 +6,8 @@ const props = withDefaults(defineProps<{
   filterable?: boolean
   multiple?: boolean
   collapseTags?: boolean
+  allowCreate?: boolean
+  defaultFirstOption?: boolean
   size?: 'large' | 'default' | 'small'
 
   options?: TItem[]
@@ -19,6 +21,8 @@ const props = withDefaults(defineProps<{
   filterable: false,
   multiple: false,
   collapseTags: false,
+  allowCreate: false,
+  defaultFirstOption: false,
   size: 'default',
 })
 
@@ -69,7 +73,8 @@ function handleVisibleChange(visible: boolean) {
     v-model="modelValue"
     class="base-select" :placeholder="placeholder" :disabled="disabled"
     :clearable="clearable" :filterable="filterable" :multiple="multiple"
-    :collapse-tags="collapseTags" :size="size"
+    :collapse-tags="collapseTags" :size="size" :allow-create="allowCreate"
+    :default-first-option="defaultFirstOption"
     @change="handleChange" @focus="handleFocus" @blur="handleBlur"
     @clear="handleClear" @visible-change="handleVisibleChange"
   >
