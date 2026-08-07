@@ -1,16 +1,17 @@
+import { BASE_LANGUAGES } from '../data/languages'
+import { ErrCode } from '../lib/errors'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 
-export async function getBaseLanguages() {
-  return prisma.baseLanguage.findMany({ orderBy: { englishName: 'asc' } })
+export function getBaseLanguages() {
+  return BASE_LANGUAGES
 }
 
-export async function searchBaseLanguages(q: string) {
-  return prisma.baseLanguage.findMany({
-    where: { OR: [{ languageCode: { contains: q, mode: 'insensitive' } }, { englishName: { contains: q, mode: 'insensitive' } }, { nativeName: { contains: q, mode: 'insensitive' } }] },
-    take: 50,
-    orderBy: { englishName: 'asc' },
-  })
+export function searchBaseLanguages(q: string) {
+  const needle = q.toLowerCase()
+  return BASE_LANGUAGES
+    .filter(l => l.languageCode.toLowerCase().includes(needle) || l.englishName.toLowerCase().includes(needle) || l.nativeName.toLowerCase().includes(needle))
+    .slice(0, 50)
 }
 
 export async function listProjectLanguages(projectId: string) {
@@ -18,6 +19,8 @@ export async function listProjectLanguages(projectId: string) {
 }
 
 export async function addProjectLanguage(projectId: string, languageCode: string) {
+  if (!BASE_LANGUAGES.some(l => l.languageCode === languageCode))
+    throw new AppError(ErrCode.InvalidParams, `unsupported language code: ${languageCode}`)
   const exists = await prisma.projectLanguage.findUnique({ where: { projectId_languageCode: { projectId, languageCode } } })
   if (exists)
     throw new AppError(1004, 'language already added to project')

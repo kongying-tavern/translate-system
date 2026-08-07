@@ -25,10 +25,6 @@ export interface BaseLanguage {
   languageCode: string
   englishName: string
   nativeName: string
-  iso639_1: string
-  iso639_2: string
-  iso639_3: string
-  region: string
 }
 
 export interface ProjectLanguage {

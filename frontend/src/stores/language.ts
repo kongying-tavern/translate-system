@@ -2,11 +2,19 @@ import type { BaseLanguage, ProjectLanguage } from '@/types/models'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as langApi from '@/api/language'
-import languagesData from '@/data/languages.json'
 
 export const useLanguageStore = defineStore('language', () => {
-  const baseLanguages = ref<BaseLanguage[]>(languagesData as BaseLanguage[])
+  const baseLanguages = ref<BaseLanguage[]>([])
   const projectLanguages = ref<ProjectLanguage[]>([])
+  let baseLoaded = false
+
+  async function fetchBaseLanguages(force = false) {
+    if (baseLoaded && !force)
+      return
+    const { data: res } = await langApi.getBaseLanguages()
+    baseLanguages.value = res.data
+    baseLoaded = true
+  }
 
   async function fetchProjectLanguages(projectId: string) {
     const { data: res } = await langApi.getProjectLanguages(projectId)
@@ -28,5 +36,5 @@ export const useLanguageStore = defineStore('language', () => {
     return lang ? `${lang.englishName} (${lang.nativeName || ''})` : code
   }
 
-  return { baseLanguages, projectLanguages, fetchProjectLanguages, addLanguage, removeLanguage, getBaseName }
+  return { baseLanguages, projectLanguages, fetchBaseLanguages, fetchProjectLanguages, addLanguage, removeLanguage, getBaseName }
 })

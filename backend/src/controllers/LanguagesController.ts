@@ -10,6 +10,15 @@ export interface SearchQuery {
   q: string
 }
 
+export interface BaseLanguageRow {
+  /** 语言代码（BCP-47，如 zh-Hans） */
+  languageCode: string
+  /** 英文名称 */
+  englishName: string
+  /** 本地语言名称 */
+  nativeName: string
+}
+
 @Route('languages')
 @Tags('Languages')
 export class LanguagesController extends Controller {
@@ -19,8 +28,8 @@ export class LanguagesController extends Controller {
    */
   @Get()
   @Security('auth')
-  public async listBaseLanguages(): Promise<ApiOk<unknown[]>> {
-    return ok(await langService.getBaseLanguages())
+  public async listBaseLanguages(): Promise<ApiOk<BaseLanguageRow[]>> {
+    return ok(langService.getBaseLanguages())
   }
 
   /**
@@ -30,9 +39,9 @@ export class LanguagesController extends Controller {
    */
   @Get('search')
   @Security('auth')
-  public async search(@Queries() q: SearchQuery): Promise<ApiOk<unknown[]>> {
+  public async search(@Queries() q: SearchQuery): Promise<ApiOk<BaseLanguageRow[]>> {
     if (!q.q)
       throw new AppError(ErrCode.InvalidParams, 'query q is required')
-    return ok(await langService.searchBaseLanguages(q.q))
+    return ok(langService.searchBaseLanguages(q.q))
   }
 }

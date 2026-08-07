@@ -41,7 +41,7 @@ const perm = useProjectPermission()
 const loadingStore = useLoadingStore()
 function loadLangs() {
   loadingStore.start()
-  langStore.fetchProjectLanguages(projectSlug.value).finally(() => loadingStore.stop())
+  Promise.all([langStore.fetchProjectLanguages(projectSlug.value), langStore.fetchBaseLanguages()]).finally(() => loadingStore.stop())
 }
 
 async function onAliasSave(row: ProjectLanguage) {

@@ -497,7 +497,11 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 
 <template>
   <div class="trans-page">
-    <BasePageHeader title="翻译管理" />
+    <BasePageHeader title="翻译管理">
+      <template #extra>
+        <span class="total-count">共 {{ total }} 条</span>
+      </template>
+    </BasePageHeader>
     <BaseForm :inline="true" :model="filters" class="filter-bar">
       <BaseFormItem label="全局语言">
         <BaseSelect v-model="globalLang" placeholder="选择语言" style="width:160px" @change="onGlobalLangChange">
@@ -550,6 +554,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 <style lang="scss" scoped>
 .trans-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .trans-page .el-table { flex: 1; }
+.total-count { color: #909399; font-size: 14px; font-weight: normal; }
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
 .pagination-wrap { display: flex; justify-content: center; margin-top: 16px; }

@@ -60,17 +60,6 @@ model ProjectMember {
   @@map("project_members")
 }
 
-model BaseLanguage {
-  languageCode String  @id @map("language_code") @db.VarChar(35)
-  englishName  String  @map("english_name") @db.VarChar(255)
-  nativeName   String? @map("native_name") @db.VarChar(255)
-  iso6391      String? @map("iso_639_1") @db.VarChar(2)
-  iso6392      String? @map("iso_639_2") @db.VarChar(3)
-  iso6393      String? @map("iso_639_3") @db.VarChar(3)
-  region       String? @db.VarChar(100)
-  @@map("base_languages")
-}
-
 model ProjectLanguage {
   id           String   @id @default(uuid()) @db.Uuid
   projectId    String   @map("project_id") @db.Uuid

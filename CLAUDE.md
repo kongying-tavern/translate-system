@@ -405,7 +405,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 ### 语言管理
 
-- 基础语言列表在 `frontend/src/data/languages.json`，静态加载，不依赖后端 API
+- 基础语言列表由**后端写死常量**提供（`backend/src/data/languages.ts` 的 `BASE_LANGUAGES`），经 `GET /languages`、`GET /languages/search` 接口（需 auth）下发，前端 `stores/language.ts` 的 `fetchBaseLanguages()` 加载（带 loaded 守卫）；后端 `addProjectLanguage` 严格校验 languageCode 必须存在于该列表，不存在的 code 拒绝添加
 - 项目语言支持 `alias` 别名和 `sortOrder` 排序，导出时别名优先
 - 语言管理页支持拖拽排序（上下箭头），排序值通过 `PUT /languages/:code/sortOrder` 保存
 
