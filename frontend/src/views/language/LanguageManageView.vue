@@ -12,10 +12,10 @@ import { BaseButton, BaseDialog, BaseIcon, BaseInput, BasePageHeader, BaseSelect
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
-const projectSlug = computed(() => route.params.projectSlug as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const langStore = useLanguageStore()
 const { projectLanguages, baseLanguages } = storeToRefs(langStore)
 const showAddDialog = ref(false)

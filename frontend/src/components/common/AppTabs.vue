@@ -22,7 +22,7 @@ function isStaticPath(path: string): boolean {
 function resolveTitleForPath(path: string): string {
   const resolved = router.resolve(path)
   const metaTitle = (resolved.meta.title as string | undefined) || path
-  const projectSlug = resolved.params.projectSlug as string | undefined
+  const projectSlug = decPathParam(resolved.params.projectSlug as string | undefined)
   if (projectSlug)
     return `${metaTitle} · ${auth.activeProjectName || projectSlug}`
   return metaTitle

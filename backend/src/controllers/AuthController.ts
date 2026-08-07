@@ -1,9 +1,10 @@
 import type { ApiOk } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
-import { Body, Controller, Delete, Get, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Delete, Get, Middlewares, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { SystemRole } from '../constants/roles'
 import { ok } from '../lib/api'
 import { ErrCode } from '../lib/errors'
+import { decodePathParams } from '../middleware/decodePathParams'
 import * as authService from '../services/auth'
 import { AppError } from '../utils/AppError'
 
@@ -164,6 +165,7 @@ export interface UserBrief {
 
 @Route('auth')
 @Tags('Auth')
+@Middlewares(decodePathParams)
 export class AuthController extends Controller {
   /**
    * 用户注册（首个用户自动成为超管）

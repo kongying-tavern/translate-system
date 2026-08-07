@@ -10,7 +10,7 @@ import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, Ba
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()
@@ -18,7 +18,7 @@ const projectStore = useProjectStore()
 const perm = useProjectPermission()
 const router = useRouter()
 const route = useRoute()
-const projectSlug = computed(() => route.params.projectSlug as string | undefined)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string | undefined))
 const isProjectRoute = computed(() => route.path.startsWith('/projects/'))
 const isEditRoute = computed(() => route.name === 'ProjectEdit')
 const pwdVisible = ref(false)

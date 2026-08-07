@@ -4,11 +4,12 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createTemplate, getTemplate, updateTemplate } from '@/api/layout'
 import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
+import { decPathParam } from '@/utils/path'
 
 const route = useRoute()
 const router = useRouter()
-const projectSlug = computed(() => route.params.projectSlug as string)
-const templateId = computed(() => route.params.templateId as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
+const templateId = computed(() => decPathParam(route.params.templateId as string) as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
 

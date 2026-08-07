@@ -1,10 +1,11 @@
 import type { Prisma } from '@prisma/client'
 import type { ApiOk } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
-import { Body, Controller, Delete, Get, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Delete, Get, Middlewares, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { ProjectRole } from '../constants/roles'
 import { assertProjectAccess } from '../lib/access'
 import { ok } from '../lib/api'
+import { decodePathParams } from '../middleware/decodePathParams'
 import * as exportService from '../services/export'
 import * as langService from '../services/language'
 import * as transService from '../services/translation'
@@ -87,6 +88,7 @@ export interface ExportResult {
 
 @Route('projects')
 @Tags('Exports')
+@Middlewares(decodePathParams)
 export class ExportsController extends Controller {
   /**
    * 导出模板列表

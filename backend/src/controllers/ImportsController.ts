@@ -2,13 +2,14 @@ import type { Prisma } from '@prisma/client'
 import type { ApiOk } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
 import type { ImportEntry } from '../services/import/types'
-import { Body, Controller, Path, Post, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Middlewares, Path, Post, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { ProjectRole } from '../constants/roles'
 import { assertProjectAccess } from '../lib/access'
 import { ok } from '../lib/api'
 import { ErrCode } from '../lib/errors'
 import { ImportFormat } from '../lib/formats'
 import { prisma } from '../lib/prisma'
+import { decodePathParams } from '../middleware/decodePathParams'
 import { csvParse } from '../services/import/csv'
 import { JSONParse } from '../services/import/json'
 import { propertiesParse } from '../services/import/properties'
@@ -218,6 +219,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
 
 @Route('projects')
 @Tags('Imports')
+@Middlewares(decodePathParams)
 export class ImportsController extends Controller {
   /**
    * 批量导入 key（json/yaml/xml/properties/csv，自动识别格式）

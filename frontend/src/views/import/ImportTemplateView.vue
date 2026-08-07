@@ -8,11 +8,11 @@ import client from '@/api/client'
 import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const perm = useProjectPermission()
-const projectSlug = computed(() => route.params.projectSlug as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
 const fmt = ref<string>(ImportFormat.JSON)

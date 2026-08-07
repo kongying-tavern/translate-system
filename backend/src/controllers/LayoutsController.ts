@@ -1,9 +1,10 @@
 import type { Prisma } from '@prisma/client'
 import type { ApiOk } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
-import { Body, Controller, Delete, Get, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Delete, Get, Middlewares, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { assertProjectAccess } from '../lib/access'
 import { ok } from '../lib/api'
+import { decodePathParams } from '../middleware/decodePathParams'
 import * as layoutService from '../services/layout'
 
 export interface LayoutTemplateRow {
@@ -62,6 +63,7 @@ export interface LayoutConfigInput {
 
 @Route('projects')
 @Tags('Layouts')
+@Middlewares(decodePathParams)
 export class LayoutsController extends Controller {
   /**
    * 布局模板列表

@@ -11,13 +11,13 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { BaseButton, BaseForm, BaseFormItem, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 import { roleLabel } from '@/utils/roles'
 
 const auth = useAuthStore()
 const perm = useProjectPermission()
 const route = useRoute()
-const projectSlug = computed(() => route.params.projectSlug as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const members = ref<ProjectMember[]>([])
 const selectedUserId = ref('')
 const newMemberRole = ref('member')

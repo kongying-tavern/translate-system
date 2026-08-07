@@ -6,10 +6,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { getProjectLanguages } from '@/api/language'
 import { getProject, updateProject } from '@/api/project'
 import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
+import { decPathParam } from '@/utils/path'
 
 const route = useRoute()
 const router = useRouter()
-const projectSlug = computed(() => route.params.projectSlug as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const projectLanguages = ref<ProjectLanguage[]>([])
 const saving = ref(false)
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en' })

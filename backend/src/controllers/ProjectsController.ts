@@ -1,11 +1,12 @@
 import type { ApiOk, ApiPage } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
-import { Body, Controller, Delete, Get, Path, Post, Put, Query, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Delete, Get, Middlewares, Path, Post, Put, Query, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { ProjectRole, SystemRole } from '../constants/roles'
 import { assertProjectAccess, assertSystemRole } from '../lib/access'
 import { ok, okPage } from '../lib/api'
 import { ErrCode } from '../lib/errors'
 import { prisma } from '../lib/prisma'
+import { decodePathParams } from '../middleware/decodePathParams'
 import * as langService from '../services/language'
 import * as projectService from '../services/project'
 import { AppError } from '../utils/AppError'
@@ -132,6 +133,7 @@ export interface ProjectLanguageRow {
 
 @Route('projects')
 @Tags('Projects')
+@Middlewares(decodePathParams)
 export class ProjectsController extends Controller {
   /**
    * 项目列表（分页，仅返回自己有成员/owner 身份的项目）

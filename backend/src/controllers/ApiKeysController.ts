@@ -1,10 +1,11 @@
 import type { ApiOk } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
 import crypto from 'node:crypto'
-import { Body, Controller, Delete, Get, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Delete, Get, Middlewares, Path, Post, Put, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { ok } from '../lib/api'
 import { ErrCode } from '../lib/errors'
 import { prisma } from '../lib/prisma'
+import { decodePathParams } from '../middleware/decodePathParams'
 import { AppError } from '../utils/AppError'
 
 export interface ApiKeyRow {
@@ -50,6 +51,7 @@ export interface UpdateApiKeyBody {
 
 @Route('me')
 @Tags('ApiKeys')
+@Middlewares(decodePathParams)
 export class ApiKeysController extends Controller {
   /**
    * 我的 API Key 列表

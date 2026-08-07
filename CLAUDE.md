@@ -97,6 +97,7 @@ lib/prisma.ts              — PrismaClient 单例（独立文件，避免 tsoa 
 docs/swagger.ts          — 手写包装（import swagger.json + 加 basePath，并补充 tags 分组/安全方案/描述），必须提交
 docs/routes.ts + swagger.json — tsoa 生成产物（`pnpm gen` 重新生成，勿手改），已 gitignore（`backend/src/docs/*` + `!swagger.ts`），由 `predev`（开发启动）和 Dockerfile `RUN pnpm gen`（镜像构建）自动生成
 middleware/auth.ts         — AuthRequest 类型 + authMiddleware（JWT，docs 路由仍用）
+middleware/decodePathParams.ts — 统一解码 URL 路径参数（`b64_` 前缀才解码），经类级 `@Middlewares(decodePathParams)` 挂在所有含 `@Path` 参数的 controller 上（ApiKeys/Auth/Exports/Imports/Layouts/Projects/Translations），在 handler 前改写 `req.params`
 middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000，英文校验信息格式化为中文，如「缺少必填参数：templateSlug、languageCodes」）；body-parser 错误（`express.json({ limit: '50mb' })`，index.ts）返回统一 JSON：超限 413「请求体过大」、非法 JSON 400
 ```
 
@@ -186,7 +187,7 @@ layouts/AppLayout — 主界面布局（Header + AppTabs 标签栏 + 内容区�
 
 Slug 解析统一使用 `services/project.ts` 导出的 `resolveProject(identifier)`（先按 UUID 正则判断，合法 UUID 才查 id，否则直接按 code 查，避免 UUID 列抛错）。模板 slug 同理，使用 `services/export/index.ts` 导出的 `resolveTemplate(templateSlug, projectSlug)`。
 
-**URL 路径参数编码**：路径参数（项目 slug、Key、语言代码、各 id）可能包含 `/`、空格等字符。前端所有路径参数拼进 API 路径或路由路径时必须用 `utils/path.ts` 的 `encPathParam()` 编码为单段，如 `/projects/${encPathParam(slug)}/translations`、`/translations/${encPathParam(key)}/${encPathParam(langCode)}`；接口内所有 pathParam 位置统一用 `encPathParam`，禁止裸用 `encodeURIComponent`。后端 Express 与 vue-router 会自动解码 `%2F` 参数（`route.params.projectSlug` 拿到的是解码后的原始 code）。从路径字符串手动拆参数时用 `decPathParam()` 解码（如 AppTabs 用 `t.path.split('/')[2]` 比较 `auth.activeProjectSlug`）。tabs store 的 `isProjectPath`/`renameProjectSlug` 内部已按编码后路径比较/替换。
+**URL 路径参数编码**：路径参数（项目 slug、Key、语言代码、各 id）可能包含 `/`、空格、非 ASCII 等字符。前端所有路径参数拼进 API 路径或路由路径时必须用 `utils/path.ts` 的 `encPathParam()` 编码为单段：只含 URL unreserved 字符（`[A-Za-z0-9_.~-]`）的值原样返回，含特殊字符的值用 URL-safe Base64（去 padding、`+`→`-`、`/`→`_`）并加 `b64_` 前缀。**不能用百分号编码**：nginx 的 `merge_slashes` 与 URL 解码会把 `%2F` 改写成字面 `/` 并合并斜杠，导致含 `/` 的 key 经链路失真（UAT 实测），Base64 产物完全免疫。接口内所有 pathParam 位置统一用 `encPathParam`，禁止裸用 `encodeURIComponent`。后端所有 controller 经类级 `@Middlewares(decodePathParams)`（`middleware/decodePathParams.ts`）在 handler 前统一解码 `req.params`（`b64_` 前缀才解码，无前缀原样返回，兼容普通 slug/id 与旧客户端）。vue-router 只做百分号解码、不解 `b64_`，所有读取 `route.params` 处必须用 `decPathParam()` 还原（如各 view 的 `computed(() => decPathParam(route.params.projectSlug as string) as string)`、AppTabs 的 `decPathParam(resolved.params.projectSlug)`、路由守卫 `decPathParam(to.params.projectSlug)`）；tabs store 的 `isProjectPath`/`renameProjectSlug` 内部已按编码后路径比较/替换。
 
 ### API 路由
 
@@ -320,8 +321,9 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 2. **Prisma 文件锁** — `rm -rf node_modules/.prisma && pnpm prisma generate`
 3. **`psql` 中文乱码** — 用 `pnpm tsx -e "import{PrismaClient}..."` 查数据
 4. **路由冲突** — `/:key/:langCode` 会吃掉 `/key/:oldKey`，tsoa 按方法声明顺序注册路由，必须把 literal 路由（`key/:oldKey`、`sortOrders`、`batch`）声明在参数路由前面
-5. **`cannot edit` 报错** — GateGuard hook，用 `ECC_GATEGUARD=off` 前缀或加到 `settings.json`
-6. **前端 TS 报错（`Property 'xxx' does not exist on type`）** — 改 schema 后未同步 `frontend/src/types/models.d.ts`，检查并添加对应字段
+5. **含 `/` 的 Key 保存报 `Key not found`** — UAT 前置 nginx 的 `merge_slashes` 会把 `%2F` 解码成字面 `/` 并合并斜杠导致 key 失真。已用 URL-safe Base64（`encPathParam` 带 `b64_` 前缀）解决；排查时若发现某 path 参数被 nginx 改写，确认前后端都走 `encPathParam`/`decPathParam`，禁止百分号编码
+6. **`cannot edit` 报错** — GateGuard hook，用 `ECC_GATEGUARD=off` 前缀或加到 `settings.json`
+7. **前端 TS 报错（`Property 'xxx' does not exist on type`）** — 改 schema 后未同步 `frontend/src/types/models.d.ts`，检查并添加对应字段
 
 ### Base UI 组件体系
 

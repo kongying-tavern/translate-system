@@ -1,12 +1,13 @@
 import type { ApiOk, ApiPage } from '../lib/api'
 import type { AuthRequest } from '../middleware/auth'
 import type { BatchUpsertItem } from '../services/translation'
-import { Body, Controller, Delete, Get, Path, Post, Put, Query, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Delete, Get, Middlewares, Path, Post, Put, Query, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { ProjectRole } from '../constants/roles'
 import { assertProjectAccess } from '../lib/access'
 import { ok, okPage } from '../lib/api'
 import { ErrCode } from '../lib/errors'
 import { prisma } from '../lib/prisma'
+import { decodePathParams } from '../middleware/decodePathParams'
 import * as transService from '../services/translation'
 import { AppError } from '../utils/AppError'
 
@@ -117,6 +118,7 @@ export interface BatchBody {
 
 @Route('projects')
 @Tags('Translations')
+@Middlewares(decodePathParams)
 export class TranslationsController extends Controller {
   /**
    * 分组翻译列表（每 key 一行，内嵌各语言译文）

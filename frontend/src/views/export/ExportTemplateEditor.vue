@@ -8,12 +8,13 @@ import { createExportTemplate, getExportTemplate, updateExportTemplate } from '@
 import { BaseButton, BaseCheckbox, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
 import { EXPORT_FORMAT_MAP, ExportFormat } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
+import { decPathParam } from '@/utils/path'
 
 const route = useRoute()
 const router = useRouter()
 const perm = useProjectPermission()
-const projectSlug = computed(() => route.params.projectSlug as string)
-const templateId = computed(() => route.params.templateId as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
+const templateId = computed(() => decPathParam(route.params.templateId as string) as string)
 const isEdit = computed(() => templateId.value && templateId.value !== 'new')
 const saving = ref(false)
 const formRef = useTemplateRef<ComponentExposed<typeof BaseForm>>('formRef')

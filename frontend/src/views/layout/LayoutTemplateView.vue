@@ -6,11 +6,11 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { deleteConfig, deleteTemplate, getConfigs, getTemplates } from '@/api/layout'
 import { BaseButton, BasePageHeader, BaseTable, BaseTabs } from '@/components/ui'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const router = useRouter()
-const projectSlug = computed(() => route.params.projectSlug as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const activeTab = ref('templates')
 const templates = ref<LayoutTemplate[]>([])
 const configs = ref<LayoutConfig[]>([])

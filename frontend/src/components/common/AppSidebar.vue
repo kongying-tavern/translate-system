@@ -5,12 +5,12 @@ import { useRoute } from 'vue-router'
 import { BaseIcon } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const auth = useAuthStore()
 const perm = useProjectPermission()
-const projectSlug = computed(() => (route.params.projectSlug as string) || auth.activeProjectSlug || undefined)
+const projectSlug = computed(() => (decPathParam(route.params.projectSlug as string)) || auth.activeProjectSlug || undefined)
 const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
 </script>
 

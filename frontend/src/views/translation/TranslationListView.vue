@@ -14,14 +14,14 @@ import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
 import { useTranslationStore } from '@/stores/translation'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 
 const vElTableInfiniteScroll = elTableInfiniteScroll
 
 const perm = useProjectPermission()
 const loadingStore = useLoadingStore()
 const route = useRoute()
-const projectSlug = computed(() => route.params.projectSlug as string)
+const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const transStore = useTranslationStore()
 const langStore = useLanguageStore()
 const { rows, total, loading } = storeToRefs(transStore)

@@ -8,7 +8,7 @@ import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
-import { encPathParam } from '@/utils/path'
+import { decPathParam, encPathParam } from '@/utils/path'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,7 +18,7 @@ const tabsStore = useTabsStore()
 const perm = useProjectPermission()
 const loading = ref(false)
 const loaded = ref(false)
-const slug = computed(() => route.params.projectSlug as string | undefined)
+const slug = computed(() => decPathParam(route.params.projectSlug as string | undefined))
 const isEdit = computed(() => !!slug.value)
 const title = computed(() => (isEdit.value ? '编辑项目' : '新建项目'))
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en' })
