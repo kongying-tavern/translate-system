@@ -1,6 +1,7 @@
 import { ProjectRole, SystemRole } from '../constants/roles'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
+import { ensureProjectLanguage } from './language'
 
 export async function listProjects(userId: string, userRole: string, page: number, pageSize: number) {
   const memberProjectIds = await prisma.projectMember.findMany({ where: { userId }, select: { projectId: true } })
@@ -50,14 +51,21 @@ export async function createProject(userId: string, data: { name: string, descri
   const existing = await prisma.project.findUnique({ where: { code: data.code } })
   if (existing)
     throw new AppError(1004, 'code already exists')
-  return prisma.project.create({
-    data: {
-      userId,
-      code: data.code,
-      name: data.name,
-      description: data.description || '',
-      sourceLanguage: data.sourceLanguage || 'en',
-    },
+  const sourceLanguage = data.sourceLanguage || 'en'
+  return prisma.$transaction(async (tx) => {
+    const project = await tx.project.create({
+      data: {
+        userId,
+        code: data.code,
+        name: data.name,
+        description: data.description || '',
+        sourceLanguage,
+      },
+    })
+    await tx.projectLanguage.create({
+      data: { projectId: project.id, languageCode: sourceLanguage, sortOrder: 0 },
+    })
+    return project
   })
 }
 
@@ -71,6 +79,8 @@ export async function updateProject(projectSlug: string, data: { name?: string, 
       // eslint-disable-next-line no-throw-literal
       throw { code: 1004, message: 'code already exists' }
   }
+  if (data.sourceLanguage && data.sourceLanguage !== p.sourceLanguage)
+    await ensureProjectLanguage(p.id, data.sourceLanguage)
   return prisma.project.update({
     where: { id: p.id },
     data: {
@@ -79,6 +89,14 @@ export async function updateProject(projectSlug: string, data: { name?: string, 
       sourceLanguage: data.sourceLanguage || p.sourceLanguage,
       code: data.code,
     },
+  })
+}
+
+export async function setProjectSourceLanguage(projectId: string, languageCode: string) {
+  await ensureProjectLanguage(projectId, languageCode)
+  return prisma.project.update({
+    where: { id: projectId },
+    data: { sourceLanguage: languageCode },
   })
 }
 

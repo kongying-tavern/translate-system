@@ -242,7 +242,8 @@ GET    /projects/:id/translations/count|tags/list — 需项目访问
 POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+）
 GET|POST|PUT|DELETE /projects/:id/layouts/templates|configs — 布局模板/配置 CRUD（需项目访问）
 GET    /projects/:id/languages         — 需项目访问
-POST|DELETE /projects/:id/languages    — 增删语言（Maintainer+）
+POST|DELETE /projects/:id/languages    — 增删语言（Maintainer+，源语言不可删除）
+PUT    /projects/:id/sourceLanguage    — 设置源语言（Maintainer+，不在项目语言时自动添加并置顶）
 PUT    /projects/:id/languages/:code/alias|sortOrder — 别名/排序（Maintainer+）
 GET    /projects/:id/members           — 需项目访问
 POST   /projects/:id/members           — 添加成员（Project-Admin）
@@ -408,6 +409,13 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 - 基础语言列表由**后端写死常量**提供（`backend/src/data/languages.ts` 的 `BASE_LANGUAGES`），经 `GET /languages`、`GET /languages/search` 接口（需 auth）下发，前端 `stores/language.ts` 的 `fetchBaseLanguages()` 加载（带 loaded 守卫）；后端 `addProjectLanguage` 严格校验 languageCode 必须存在于该列表，不存在的 code 拒绝添加
 - 项目语言支持 `alias` 别名和 `sortOrder` 排序，导出时别名优先
 - 语言管理页支持拖拽排序（上下箭头），排序值通过 `PUT /languages/:code/sortOrder` 保存
+
+**项目源语言**：源语言必须是项目语言之一，不可删除（`removeProjectLanguage` 对源语言 code 抛错）。三个设置入口共享「自动补语言」语义（`ensureProjectLanguage`：不在项目语言中则自动添加并置顶）：
+- 创建项目：`createProject` 事务内同时创建源语言的项目语言记录（sortOrder 0 置顶）
+- 编辑项目：`updateProject` 源语言变更且不在项目语言时先自动添加
+- 语言管理页「设为源语言」：`PUT /projects/:projectSlug/sourceLanguage`（Maintainer+），保存后前端 `loadLangs()` 刷新语言列表并更新 project store
+
+前端约定：语言管理页语言代码列显示源语言 tag、删除按钮禁用；翻译管理页 `editableLangs`（`projectLanguages` 排除源语言）驱动全局语言下拉与行内语言列，源语言不出现在翻译目标语言中。项目创建/编辑页源语言下拉基于 `BASE_LANGUAGES` 全量可选（样式同「新增语言」下拉：左名字右代码），创建/编辑提示源语言会自动添加为项目语言。
 
 ### 项目成员
 

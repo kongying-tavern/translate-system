@@ -13,6 +13,7 @@ import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseInput
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
+import { useProjectStore } from '@/stores/project'
 import { useTranslationStore } from '@/stores/translation'
 import { decPathParam, encPathParam } from '@/utils/path'
 
@@ -24,8 +25,11 @@ const route = useRoute()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const transStore = useTranslationStore()
 const langStore = useLanguageStore()
+const projectStore = useProjectStore()
 const { rows, total, loading } = storeToRefs(transStore)
 const { projectLanguages } = storeToRefs(langStore)
+const sourceLanguage = computed(() => projectStore.getProject(projectSlug.value)?.sourceLanguage || '')
+const editableLangs = computed(() => (projectLanguages.value || []).filter(l => l.languageCode !== sourceLanguage.value))
 
 const page = ref(1)
 const pageSize = ref(20)
@@ -80,6 +84,7 @@ function doSearch() {
 }
 function init() {
   langStore.fetchProjectLanguages(projectSlug.value)
+  projectStore.fetchProjects()
   loadTags()
   load()
 }
@@ -116,14 +121,14 @@ function bindSortable() {
     },
   })
 }
-watch(projectLanguages, (langs) => {
-  if (langs.length && !globalLang.value) {
+watch(editableLangs, (langs) => {
+  if (langs.length && (!globalLang.value || !langs.some(l => l.languageCode === globalLang.value))) {
     globalLang.value = langs[0].languageCode
     load()
   }
 })
 function syncRowLangs() {
-  rowLangs.value = rows.value.map(() => globalLang.value || projectLanguages.value[0]?.languageCode || '')
+  rowLangs.value = rows.value.map(() => globalLang.value || editableLangs.value[0]?.languageCode || '')
 }
 
 let resetting = false
@@ -134,7 +139,7 @@ async function load() {
   loadingStore.start()
   loadingMore.value = true
   try {
-    const lang = globalLang.value || projectLanguages.value[0]?.languageCode
+    const lang = globalLang.value || editableLangs.value[0]?.languageCode
     const isRowSearch = appliedSearch.value.startsWith('#')
     const rowQuery = isRowSearch ? appliedSearch.value.slice(1) : ''
     const isRange = rowQuery.includes('-')
@@ -214,7 +219,7 @@ async function loadMore() {
   page.value++
   loadingMore.value = true
   try {
-    const lang = globalLang.value || projectLanguages.value[0]?.languageCode
+    const lang = globalLang.value || editableLangs.value[0]?.languageCode
     const isRowSearch = appliedSearch.value.startsWith('#')
     const { data: res } = await getTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: isRowSearch ? undefined : appliedSearch.value })
     rows.value.push(...res.data.list)
@@ -356,6 +361,10 @@ async function handleCreate() {
     ElMessage.warning('Key 和原文为必填')
     return
   }
+  if (!globalLang.value) {
+    ElMessage.warning('请先在语言管理中添加目标语言')
+    return
+  }
   saving.value = true
   try {
     await transStore.create(projectSlug.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, sourceText: form.sourceText.trim(), translatedText: '', tags: form.tags })
@@ -446,7 +455,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
   cols.push({
     title: '语言',
     width: 130,
-    cell: (_row, _val, index) => <BaseSelect modelValue={rowLangs.value[index]} style={{ width: '100px' }} onChange={(v: unknown) => onRowLangChange(index, v as string)}>{(projectLanguages.value || []).map(l => <el-option label={l.alias || l.languageCode} value={l.languageCode} />)}</BaseSelect>,
+    cell: (_row, _val, index) => <BaseSelect modelValue={rowLangs.value[index]} style={{ width: '100px' }} onChange={(v: unknown) => onRowLangChange(index, v as string)}>{(editableLangs.value || []).map(l => <el-option label={l.alias || l.languageCode} value={l.languageCode} />)}</BaseSelect>,
   })
 
   cols.push({
@@ -503,9 +512,14 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
       </template>
     </BasePageHeader>
     <BaseForm :inline="true" :model="filters" class="filter-bar">
+      <BaseFormItem label="源语言">
+        <el-tag v-if="sourceLanguage" size="small" type="primary" effect="plain">
+          {{ sourceLanguage }}
+        </el-tag>
+      </BaseFormItem>
       <BaseFormItem label="全局语言">
         <BaseSelect v-model="globalLang" placeholder="选择语言" style="width:160px" @change="onGlobalLangChange">
-          <el-option v-for="l in projectLanguages" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
+          <el-option v-for="l in editableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
         </BaseSelect>
       </BaseFormItem>
       <BaseFormItem label="标签筛选">

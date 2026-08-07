@@ -3,9 +3,10 @@ import type { ComponentExposed } from 'vue-component-type-helpers'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader } from '@/components/ui'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
+import { useLanguageStore } from '@/stores/language'
 import { useProjectStore } from '@/stores/project'
 import { useTabsStore } from '@/stores/tabs'
 import { decPathParam, encPathParam } from '@/utils/path'
@@ -14,6 +15,7 @@ const router = useRouter()
 const route = useRoute()
 const store = useProjectStore()
 const auth = useAuthStore()
+const langStore = useLanguageStore()
 const tabsStore = useTabsStore()
 const perm = useProjectPermission()
 const loading = ref(false)
@@ -21,11 +23,17 @@ const loaded = ref(false)
 const slug = computed(() => decPathParam(route.params.projectSlug as string | undefined))
 const isEdit = computed(() => !!slug.value)
 const title = computed(() => (isEdit.value ? '编辑项目' : '新建项目'))
-const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en' })
+const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en-US' })
 const formRef = useTemplateRef<ComponentExposed<typeof BaseForm>>('formRef')
-const rules = { name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }], code: [{ required: true, message: '请输入项目标识', trigger: 'blur' }] }
+const rules = {
+  name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+  code: [{ required: true, message: '请输入项目标识', trigger: 'blur' }],
+  sourceLanguage: [{ required: true, message: '请选择源语言', trigger: 'change' }],
+}
+const sortedBaseLanguages = computed(() => [...langStore.baseLanguages].sort((a, b) => a.englishName.localeCompare(b.englishName)))
 
 onMounted(async () => {
+  await langStore.fetchBaseLanguages()
   if (!isEdit.value) {
     loaded.value = true
     return
@@ -118,8 +126,18 @@ async function handleSubmit() {
       <BaseFormItem label="项目描述">
         <BaseInput v-model="form.description" type="textarea" placeholder="项目描述(可选)" />
       </BaseFormItem>
-      <BaseFormItem label="源语言">
-        <BaseInput v-model="form.sourceLanguage" placeholder="如 en、zh-Hans" />
+      <BaseFormItem label="源语言" prop="sourceLanguage">
+        <BaseSelect v-model="form.sourceLanguage" filterable placeholder="搜索语言..." style="width:100%">
+          <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" class="base-option" :label="`${l.englishName} (${l.nativeName || ''}) - ${l.languageCode}`" :value="l.languageCode">
+            <span class="lang-option">
+              <span class="lang-option__name">{{ l.englishName }} ({{ l.nativeName || '' }})</span>
+              <span class="lang-option__code">{{ l.languageCode }}</span>
+            </span>
+          </el-option>
+        </BaseSelect>
+        <div class="source-hint">
+          源语言会自动添加为项目语言（排序最前），其他目标语言请在语言管理中维护
+        </div>
       </BaseFormItem>
       <BaseFormItem>
         <div class="form-actions">
@@ -151,4 +169,9 @@ async function handleSubmit() {
     gap: 8px;
   }
 }
+
+.source-hint { color: #909399; font-size: 13px; line-height: 1.6; margin-top: 4px; }
+.lang-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
+.lang-option__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lang-option__code { flex: none; color: #909399; font-size: 12px; }
 </style>

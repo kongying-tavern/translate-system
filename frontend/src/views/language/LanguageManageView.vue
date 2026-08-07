@@ -11,13 +11,15 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import { BaseButton, BaseDialog, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
-import { useLoadingStore } from '@/stores/loading'
+import { useProjectStore } from '@/stores/project'
 import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const langStore = useLanguageStore()
+const projectStore = useProjectStore()
 const { projectLanguages, baseLanguages } = storeToRefs(langStore)
+const sourceLanguage = computed(() => projectStore.getProject(projectSlug.value)?.sourceLanguage || '')
 const showAddDialog = ref(false)
 const selectedLang = ref('')
 const aliasCache = reactive<Record<string, string>>({})
@@ -38,10 +40,23 @@ watch(projectSlug, () => {
 })
 const sortedBaseLanguages = computed(() => [...baseLanguages.value].sort((a, b) => a.englishName.localeCompare(b.englishName)))
 const perm = useProjectPermission()
-const loadingStore = useLoadingStore()
+const tableLoading = ref(false)
 function loadLangs() {
-  loadingStore.start()
-  Promise.all([langStore.fetchProjectLanguages(projectSlug.value), langStore.fetchBaseLanguages()]).finally(() => loadingStore.stop())
+  tableLoading.value = true
+  Promise.all([langStore.fetchProjectLanguages(projectSlug.value), langStore.fetchBaseLanguages(), projectStore.fetchProjects(true)]).finally(() => {
+    tableLoading.value = false
+  })
+}
+
+async function handleSetSource(code: string) {
+  try {
+    await client.put(`/projects/${encPathParam(projectSlug.value)}/sourceLanguage`, { languageCode: code })
+    ElMessage.success('源语言已更新')
+    loadLangs()
+  }
+  catch {
+    ElMessage.error('设置失败')
+  }
 }
 
 async function onAliasSave(row: ProjectLanguage) {
@@ -128,7 +143,16 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
       </div>
     ),
   },
-  { dataKey: 'languageCode', title: '语言代码', minWidth: 120 },
+  {
+    title: '语言代码',
+    minWidth: 140,
+    cell: row => (
+      <div class="lang-name-cell">
+        <span>{row.languageCode}</span>
+        {row.languageCode === sourceLanguage.value ? <el-tag size="small" type="primary" class="source-tag">源语言</el-tag> : null}
+      </div>
+    ),
+  },
   {
     title: '语言名称',
     minWidth: 200,
@@ -154,10 +178,15 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
   },
   {
     title: '操作',
-    minWidth: 80,
+    minWidth: 150,
     cell: row => perm.canManageContent.value
       ? (
-          <BaseButton type="danger" link onClick={() => handleRemove(row.languageCode)}>删除</BaseButton>
+          <div class="op-cell">
+            {row.languageCode !== sourceLanguage.value
+              ? <BaseButton link type="primary" size="small" onClick={() => handleSetSource(row.languageCode)}>设为源语言</BaseButton>
+              : null}
+            <BaseButton type="danger" link disabled={row.languageCode === sourceLanguage.value} onClick={() => handleRemove(row.languageCode)}>删除</BaseButton>
+          </div>
         )
       : null,
   },
@@ -173,7 +202,7 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
         </BaseButton>
       </template>
     </BasePageHeader>
-    <BaseTable :data="projectLanguages || []" :columns="langColumns" stripe row-key="id" />
+    <BaseTable v-loading="tableLoading" :data="projectLanguages || []" :columns="langColumns" stripe row-key="id" />
     <EmptyState v-if="!projectLanguages || !projectLanguages.length" description="暂无语言" />
 
     <BaseDialog v-model="showAddDialog" title="添加语言" width="500px">
@@ -200,4 +229,6 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
 .lang-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .lang-option__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lang-option__code { flex: none; color: #909399; font-size: 12px; }
+:deep(.lang-name-cell) { display: inline-flex; align-items: center; gap: 12px; }
+:deep(.op-cell) { display: inline-flex; align-items: center; gap: 8px; }
 </style>

@@ -71,6 +71,14 @@ export interface AddLanguageBody {
   languageCode: string
 }
 
+export interface SourceLanguageBody {
+  /**
+   * 源语言代码（若不在项目语言中会自动添加并置顶）
+   * @example "zh-Hans"
+   */
+  languageCode: string
+}
+
 export interface AliasBody {
   /** 语言别名 */
   alias: string
@@ -284,6 +292,22 @@ export class ProjectsController extends Controller {
   public async updateSortOrder(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: SortOrderBody): Promise<ApiOk<ProjectLanguageRow>> {
     await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     return ok(await langService.updateLanguageSortOrder(langCode, body.sortOrder) as ProjectLanguageRow)
+  }
+
+  /**
+   * 设置项目源语言（若不在项目语言中会自动添加并置顶）
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param body 请求体
+   * @summary 设置源语言
+   */
+  @Put('{projectSlug}/sourceLanguage')
+  @Security('auth')
+  public async setSourceLanguage(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: SourceLanguageBody): Promise<ApiOk<ProjectRow>> {
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
+    if (!body.languageCode)
+      throw new AppError(ErrCode.InvalidParams, 'languageCode is required')
+    return ok(await projectService.setProjectSourceLanguage(access.projectId, body.languageCode) as unknown as ProjectRow)
   }
 
   /**

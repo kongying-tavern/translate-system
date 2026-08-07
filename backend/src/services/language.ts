@@ -27,7 +27,26 @@ export async function addProjectLanguage(projectId: string, languageCode: string
   return prisma.projectLanguage.create({ data: { projectId, languageCode } })
 }
 
+/** 确保语言已在项目语言中；不存在则自动添加（默认排序置于最前） */
+export async function ensureProjectLanguage(projectId: string, languageCode: string) {
+  const exists = await prisma.projectLanguage.findUnique({
+    where: { projectId_languageCode: { projectId, languageCode } },
+  })
+  if (exists)
+    return
+  const min = await prisma.projectLanguage.aggregate({
+    where: { projectId },
+    _min: { sortOrder: true },
+  })
+  await prisma.projectLanguage.create({
+    data: { projectId, languageCode, sortOrder: (min._min.sortOrder ?? 0) - 100 },
+  })
+}
+
 export async function removeProjectLanguage(projectId: string, languageCode: string) {
+  const project = await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } })
+  if (project?.sourceLanguage === languageCode)
+    throw new AppError(ErrCode.InvalidParams, '源语言不可删除，请先更换项目源语言')
   return prisma.projectLanguage.deleteMany({ where: { projectId, languageCode } })
 }
 
