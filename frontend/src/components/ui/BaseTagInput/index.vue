@@ -23,6 +23,36 @@ const emit = defineEmits<{
 }>()
 
 const modelValue = defineModel<string[]>({ required: true })
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.isComposing) {
+    return
+  }
+  const key = event.key
+  const isConfirm = key === ',' || key === '，' || key === ';' || key === '；' || key === 'Tab'
+  if (!isConfirm) {
+    return
+  }
+  const input = event.target as HTMLInputElement | null
+  const text = input?.value?.trim() ?? ''
+  if (!text) {
+    if (key !== 'Tab') {
+      event.preventDefault()
+    }
+    return
+  }
+  if (!modelValue.value.includes(text)) {
+    const next = [...modelValue.value, text]
+    modelValue.value = next
+    emit('change', next)
+  }
+  if (input) {
+    input.value = ''
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+  event.preventDefault()
+  event.stopPropagation()
+}
 </script>
 
 <template>
@@ -41,6 +71,7 @@ const modelValue = defineModel<string[]>({ required: true })
     allow-create
     default-first-option
     @change="emit('change', $event)"
+    @keydown="handleKeydown"
   />
 </template>
 

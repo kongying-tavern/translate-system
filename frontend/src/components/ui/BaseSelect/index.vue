@@ -34,6 +34,7 @@ const emit = defineEmits<{
   blur: [event: FocusEvent]
   clear: []
   visibleChange: [visible: boolean]
+  keydown: [event: KeyboardEvent]
 }>()
 
 const modelValue = defineModel<T>()
@@ -68,6 +69,9 @@ function handleClear() {
 function handleVisibleChange(visible: boolean) {
   emit('visibleChange', visible)
 }
+function handleKeydown(event: KeyboardEvent) {
+  emit('keydown', event)
+}
 </script>
 
 <template>
@@ -80,6 +84,7 @@ function handleVisibleChange(visible: boolean) {
     :reserve-keyword="reserveKeyword"
     @change="handleChange" @focus="handleFocus" @blur="handleBlur"
     @clear="handleClear" @visible-change="handleVisibleChange"
+    @keydown="handleKeydown"
   >
     <template v-if="options">
       <el-option v-for="item in options" :key="String(getValue(item))" :label="getLabel(item)" :value="getValue(item)" />
