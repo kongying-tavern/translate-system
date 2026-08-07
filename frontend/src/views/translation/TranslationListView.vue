@@ -504,7 +504,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         </BaseSelect>
       </BaseFormItem>
       <BaseFormItem label="标签筛选">
-        <BaseSelect v-model="filterTags" multiple filterable clearable placeholder="全部标签" style="width:200px">
+        <BaseSelect v-model="filterTags" multiple filterable clearable :reserve-keyword="false" placeholder="全部标签" style="width:200px">
           <el-option v-for="t in allTags" :key="t" class="base-option" :label="t" :value="t" />
         </BaseSelect>
       </BaseFormItem>

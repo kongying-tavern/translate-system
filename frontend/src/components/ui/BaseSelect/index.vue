@@ -8,6 +8,7 @@ const props = withDefaults(defineProps<{
   collapseTags?: boolean
   allowCreate?: boolean
   defaultFirstOption?: boolean
+  reserveKeyword?: boolean
   size?: 'large' | 'default' | 'small'
 
   options?: TItem[]
@@ -23,6 +24,7 @@ const props = withDefaults(defineProps<{
   collapseTags: false,
   allowCreate: false,
   defaultFirstOption: false,
+  reserveKeyword: false,
   size: 'default',
 })
 
@@ -75,6 +77,7 @@ function handleVisibleChange(visible: boolean) {
     :clearable="clearable" :filterable="filterable" :multiple="multiple"
     :collapse-tags="collapseTags" :size="size" :allow-create="allowCreate"
     :default-first-option="defaultFirstOption"
+    :reserve-keyword="reserveKeyword"
     @change="handleChange" @focus="handleFocus" @blur="handleBlur"
     @clear="handleClear" @visible-change="handleVisibleChange"
   >

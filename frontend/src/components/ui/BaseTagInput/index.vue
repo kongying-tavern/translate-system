@@ -8,12 +8,14 @@ withDefaults(defineProps<{
   clearable?: boolean
   disabled?: boolean
   collapseTags?: boolean
+  reserveKeyword?: boolean
 }>(), {
   placeholder: '选择或输入标签',
   size: 'default',
   clearable: true,
   disabled: false,
   collapseTags: false,
+  reserveKeyword: true,
 })
 
 const emit = defineEmits<{
@@ -33,6 +35,7 @@ const modelValue = defineModel<string[]>({ required: true })
     :clearable="clearable"
     :disabled="disabled"
     :collapse-tags="collapseTags"
+    :reserve-keyword="reserveKeyword"
     multiple
     filterable
     allow-create
