@@ -278,7 +278,7 @@ async function onCtxSave(row: GroupedRow) {
     ec.delete(row.translationKey)
     // eslint-disable-next-line no-console
     console.log('[备注]', { key: row.translationKey, prev: row.context, new: text })
-    ElMessage.success('备注已保存')
+    ElMessage.success('备注已更新')
   }
   catch {
     ElMessage.error('保存失败')
@@ -338,7 +338,7 @@ async function onSourceSave(row: GroupedRow) {
 async function onTagsChange(row: GroupedRow) {
   try {
     await saveTranslation(projectSlug.value, row.translationKey, '', { tags: row.tags })
-    ElMessage.success('标签已保存')
+    ElMessage.success('标签已更新')
     loadTags()
   }
   catch {
