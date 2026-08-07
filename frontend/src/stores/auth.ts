@@ -40,6 +40,61 @@ export const useAuthStore = defineStore('auth', () => {
     catch { /* 项目列表加载失败不阻断启动 */ }
     if (projectStore.loaded && activeProjectSlug.value && !projectStore.getProject(activeProjectSlug.value))
       setActiveProject('')
+    startPermissionPolling()
+  }
+
+  let pollTimer: ReturnType<typeof setInterval> | null = null
+  let visibilityHandler: (() => void) | null = null
+  let refreshing = false
+
+  /** 刷新权限来源：系统角色（getMe）+ 项目角色（项目列表），UI 权限 computeds 依赖这两处 store 状态，更新后响应式隐藏/显示操作入口 */
+  async function refreshPermissions() {
+    if (!getAccessToken() || refreshing)
+      return
+    refreshing = true
+    try {
+      try {
+        const { data: res } = await authApi.getMe()
+        user.value = res.data
+        role.value = res.data.role || SystemRole.User
+      }
+      catch { /* 网络或 token 失效，401 由 client 拦截器统一处理 */ }
+      try {
+        await projectStore.fetchProjects(true)
+      }
+      catch { /* 项目列表刷新失败不阻断 */ }
+      if (projectStore.loaded && activeProjectSlug.value && !projectStore.getProject(activeProjectSlug.value))
+        setActiveProject('')
+    }
+    finally {
+      refreshing = false
+    }
+  }
+
+  /** 每 30 秒轮询一次权限；标签页在后台时跳过，回到前台立即补一次 */
+  function startPermissionPolling() {
+    if (pollTimer || !getAccessToken())
+      return
+    pollTimer = setInterval(() => {
+      if (!document.hidden)
+        refreshPermissions()
+    }, 30000)
+    visibilityHandler = () => {
+      if (!document.hidden)
+        refreshPermissions()
+    }
+    document.addEventListener('visibilitychange', visibilityHandler)
+  }
+
+  function stopPermissionPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer)
+      pollTimer = null
+    }
+    if (visibilityHandler) {
+      document.removeEventListener('visibilitychange', visibilityHandler)
+      visibilityHandler = null
+    }
   }
 
   async function login(account: string, password: string) {
@@ -57,6 +112,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function logout() {
+    stopPermissionPolling()
     clearTokens()
     user.value = null
     isAuthenticated.value = false
@@ -65,5 +121,5 @@ export const useAuthStore = defineStore('auth', () => {
     projectStore.clear()
   }
 
-  return { user, isAuthenticated, role, projectRole, activeProjectSlug, activeProjectName, setActiveProject, init, login, register, logout }
+  return { user, isAuthenticated, role, projectRole, activeProjectSlug, activeProjectName, setActiveProject, init, login, register, logout, refreshPermissions }
 })
