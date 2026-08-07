@@ -265,6 +265,7 @@ GET    /languages|/languages/search    — 基础语言
 - context 和 tags 是 key 级属性，不按语言缓存
 - Key/原文/备注三列内联编辑均**失焦保存**（本地缓存 Map + `onBlur`），备注列曾误用 `onUpdate:modelValue` 每敲键发请求；三者共用 `composing` ref + `onCompositionstart/end` 做 IME 组合守卫，blur 时正在输入法组合则跳过保存（`handleBlurSave`），避免把未确认拼音串存库
 - 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在
+- Key/原文/备注文本域用 `BaseInput autosize={{ minRows: 1, maxRows: 4 }}`（译文列 maxRows 6）实现「加载后自适应高度、最小 1 行、最多 4 行」
 - 筛选条件（标签 / 搜索 / 仅未翻译）同时启用时以 **AND** 组合，全部满足才显示；多标签之间为 OR（命中任一即通过）
 
 ### API Key 鉴权

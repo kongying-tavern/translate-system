@@ -59,7 +59,7 @@ function handleClear() {
     class="base-input" :type="type" :placeholder="placeholder"
     :disabled="disabled" :readonly="readonly" :clearable="clearable"
     :size="size" :rows="rows" :maxlength="maxlength"
-    :show-word-limit="showWordLimit"
+    :show-word-limit="showWordLimit" :autosize="autosize"
     @input="handleInput" @change="handleChange"
     @focus="handleFocus" @blur="handleBlur" @clear="handleClear"
     @compositionstart="handleCompositionStart" @compositionend="handleCompositionEnd"
