@@ -20,6 +20,7 @@ const router = useRouter()
 const route = useRoute()
 const projectSlug = computed(() => route.params.projectSlug as string | undefined)
 const isProjectRoute = computed(() => route.path.startsWith('/projects/'))
+const isEditRoute = computed(() => route.name === 'ProjectEdit')
 const pwdVisible = ref(false)
 const pwdForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const switcherVisible = ref(false)
@@ -200,7 +201,7 @@ async function deleteApiKey(row: ApiKey) {
           <ArrowDown />
         </BaseIcon>
       </div>
-      <BaseButton v-if="perm.canEditProject.value" link style="margin-left:8px;padding:2px" title="编辑" @click="goEditProject">
+      <BaseButton v-if="perm.canEditProject.value && !isEditRoute" link style="margin-left:8px;padding:2px" title="编辑" @click="goEditProject">
         <BaseIcon size="18">
           <Edit />
         </BaseIcon>
