@@ -17,6 +17,7 @@ async function resolveProject(identifier: string) {
 export interface ProjectAccess {
   projectId: string
   projectRole: string
+  sourceLanguage: string
 }
 
 /**
@@ -34,10 +35,10 @@ export async function assertProjectAccess(
     throw new AppError(ErrCode.NotFound, 'project not found')
 
   if (userRole === SystemRole.SuperAdmin)
-    return { projectId: project.id, projectRole: ProjectRole.Admin }
+    return { projectId: project.id, projectRole: ProjectRole.Admin, sourceLanguage: project.sourceLanguage }
 
   if (project.userId === userId)
-    return { projectId: project.id, projectRole: ProjectRole.Admin }
+    return { projectId: project.id, projectRole: ProjectRole.Admin, sourceLanguage: project.sourceLanguage }
 
   const member = await prisma.projectMember.findUnique({
     where: { projectId_userId: { projectId: project.id, userId } },
@@ -51,7 +52,7 @@ export async function assertProjectAccess(
       throw new AppError(ErrCode.Forbidden, '项目权限不足')
   }
 
-  return { projectId: project.id, projectRole: member.projectRole }
+  return { projectId: project.id, projectRole: member.projectRole, sourceLanguage: project.sourceLanguage }
 }
 
 /** 校验系统角色等级，不足则抛 Forbidden */

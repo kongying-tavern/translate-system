@@ -236,7 +236,7 @@ PUT    /projects/:id/translations/key/:oldKey — 更新 Key/原文（Maintainer
 PUT    /projects/:id/translations/sortOrders — 批量排序（Maintainer+）
 POST   /projects/:id/translations/batch      — 批量导入（Maintainer+）
 PUT    /projects/:id/translations/{key}      — 保存 key 级属性 context/tags（Maintainer+）
-PUT    /projects/:id/translations/{key}/{langCode} — 保存译文（任意项目成员；body 携带 tags/context 时动态升级为 Maintainer+，防 member 改 key 级属性）
+PUT    /projects/:id/translations/{key}/{langCode} — 保存译文（任意项目成员；目标语言为项目源语言或 body 携带 tags/context 时动态升级为 Maintainer+，防 member 改原文与 key 级属性）
 DELETE /projects/:id/translations/{translationId} — 删除 Key（Maintainer+）
 GET    /projects/:id/translations/count|tags/list — 需项目访问
 POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+）

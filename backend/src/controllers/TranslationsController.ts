@@ -290,9 +290,12 @@ export class TranslationsController extends Controller {
   @Put('{projectSlug}/translations/{key}/{langCode}')
   @Security('auth')
   public async saveForLang(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() key: string, @Path() langCode: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
-    // 译文列任意成员可编辑；tags/context 为 key 级属性，必须 Maintainer+
-    const minRole = body.tags !== undefined || body.context !== undefined ? ProjectRole.Maintainer : undefined
-    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, minRole)
+    // 译文列任意成员可编辑；tags/context 为 key 级属性、更新源语言原文，均必须 Maintainer+
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
+    const isSource = body.tags !== undefined || body.context !== undefined || access.sourceLanguage === langCode
+    if (isSource) {
+      await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
+    }
     return ok(await transService.saveForLang(access.projectId, key, langCode, body, false))
   }
 }
