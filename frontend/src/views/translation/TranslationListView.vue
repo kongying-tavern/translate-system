@@ -1,6 +1,7 @@
 <script setup lang="tsx">
 import type { GroupedRow } from '@/api/translation'
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
+import { Loading } from '@element-plus/icons-vue'
 import elTableInfiniteScroll from 'el-table-infinite-scroll'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
@@ -545,7 +546,19 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         </BaseButton>
       </BaseFormItem>
     </BaseForm>
-    <BaseTable :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" :columns="translationColumns" stripe row-key="translationKey" height="100%" class="trans-table" />
+    <BaseTable :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" :columns="translationColumns" stripe row-key="translationKey" height="100%" class="trans-table">
+      <template #append>
+        <div v-if="loadingMore" class="load-more-tip">
+          <el-icon class="is-loading">
+            <Loading />
+          </el-icon>
+          正在加载更多...
+        </div>
+        <div v-else-if="!loading && rows.length >= total" class="load-more-tip">
+          已全部加载
+        </div>
+      </template>
+    </BaseTable>
     <BaseDialog v-model="showCreateDialog" title="新增 Key" width="500px">
       <BaseForm label-width="60px" class="dialog-form">
         <BaseFormItem label="Key">
@@ -577,4 +590,5 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 .trans-table :deep(.el-table__body .el-table__cell) { vertical-align: top; }
 .trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; padding: 8px 0; }
 .trans-table :deep(.drag-handle:hover) { color: #409eff; }
+.load-more-tip { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 0; color: #606266; font-size: 14px; background: #f5f7fa; border-top: 1px solid #e4e7ed; }
 </style>
