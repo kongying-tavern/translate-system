@@ -114,7 +114,7 @@ export async function listGrouped(projectId: string, query: {
 export async function createTranslation(projectId: string, data: {
   translationKey: string
   languageCode: string
-  sourceText: string
+  sourceText?: string
   translatedText?: string
   context?: string
   tags?: string[]

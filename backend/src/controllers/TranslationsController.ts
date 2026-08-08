@@ -62,10 +62,10 @@ export interface CreateTranslationBody {
    */
   languageCode: string
   /**
-   * 原文文本
+   * 原文文本（可空，为空则新建后不写入源语言）
    * @example "登录"
    */
-  sourceText: string
+  sourceText?: string
   /**
    * 已翻译文本（可空）
    * @example "Login"

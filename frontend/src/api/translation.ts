@@ -17,7 +17,7 @@ export interface GroupedRow {
 export interface CreateTranslationData {
   translationKey: string
   languageCode: string
-  sourceText: string
+  sourceText?: string
   translatedText?: string
   context?: string
   tags?: string[]

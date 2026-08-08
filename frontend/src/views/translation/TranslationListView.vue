@@ -43,7 +43,7 @@ const rowLangs = ref<string[]>([])
 const tableKey = ref(0)
 const showCreateDialog = ref(false)
 const saving = ref(false)
-const form = reactive({ translationKey: '', sourceText: '', tags: [] as string[] })
+const form = reactive({ translationKey: '', tags: [] as string[] })
 const transCache = reactive<Record<string, string>>({})
 const editKey = ref<Map<string, string>>(new Map())
 const editSource = ref<Map<string, string>>(new Map())
@@ -352,13 +352,13 @@ async function onTagsChange(row: GroupedRow) {
   }
 }
 function openCreate() {
-  Object.assign(form, { translationKey: '', sourceText: '', tags: [] })
+  Object.assign(form, { translationKey: '', tags: [] })
   showCreateDialog.value = true
 }
 
 async function handleCreate() {
-  if (!form.translationKey.trim() || !form.sourceText.trim()) {
-    ElMessage.warning('Key 和原文为必填')
+  if (!form.translationKey.trim()) {
+    ElMessage.warning('请填写 Key')
     return
   }
   if (!globalLang.value) {
@@ -367,7 +367,7 @@ async function handleCreate() {
   }
   saving.value = true
   try {
-    await transStore.create(projectSlug.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, sourceText: form.sourceText.trim(), translatedText: '', tags: form.tags })
+    await transStore.create(projectSlug.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, translatedText: '', tags: form.tags })
     ElMessage.success('创建成功')
     showCreateDialog.value = false
     loadTags()
@@ -548,8 +548,6 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
       <BaseForm label-width="60px" class="dialog-form">
         <BaseFormItem label="Key">
           <BaseInput v-model="form.translationKey" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入翻译 Key" />
-        </BaseFormItem><BaseFormItem label="原文">
-          <BaseInput v-model="form.sourceText" type="textarea" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="输入原文" />
         </BaseFormItem><BaseFormItem label="标签">
           <BaseTagInput v-model="form.tags" :options="allTags" style="width:100%" />
         </BaseFormItem>
