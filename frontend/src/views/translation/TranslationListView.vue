@@ -112,13 +112,18 @@ function bindSortable() {
       rows.value.forEach((r, i) => {
         r.rowIndex = i + 1
       })
-      // Update moved row's sortOrder between neighbors' actual sortOrders
+      // 折半插入 moved 行到相邻行 sortOrder 之间；相邻值相同/重叠（间距耗尽）时无空位，
+      // 折半结果与邻居相等导致排序不生效，此时从相邻最小值开始整页重排以保留相对位置
       const prev = newIndex > 0 ? rows.value[newIndex - 1] : null
       const nxt = newIndex < rows.value.length - 1 ? rows.value[newIndex + 1] : null
       const prevSo = prev?.sortOrder ?? 0
-      const nxtSo = nxt?.sortOrder ?? (prevSo + 200)
+      const nxtSo = nxt?.sortOrder ?? (prevSo + 1000)
       const so = prev ? Math.round((prevSo + nxtSo) / 2) : Math.round(nxtSo / 2)
-      client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders: [{ keyId: moved.keyId, sortOrder: so }] }).catch(() => {})
+      const base = prev ? prevSo : nxtSo
+      const orders = (so <= prevSo || (nxt && so >= nxtSo))
+        ? rows.value.map((r, i) => ({ keyId: r.keyId, sortOrder: base + (i + 1) * 10 }))
+        : [{ keyId: moved.keyId, sortOrder: so }]
+      client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders }).catch(() => {})
     },
   })
 }

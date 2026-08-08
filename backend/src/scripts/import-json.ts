@@ -34,8 +34,9 @@ async function main() {
       where: { projectId_key: { projectId, key } },
     })
     if (!translationKey) {
+      const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
       translationKey = await prisma.translationKey.create({
-        data: { projectId, key },
+        data: { projectId, key, sortOrder: (maxSo._max.sortOrder || 0) + 100 },
       })
     }
     await prisma.translationValue.upsert({

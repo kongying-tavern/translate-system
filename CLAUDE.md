@@ -278,6 +278,7 @@ GET    /languages|/languages/search    — 基础语言
 - 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在
 - Key/原文/备注文本域用 `BaseInput autosize={{ minRows: 1, maxRows: 4 }}`（译文列 maxRows 6）实现「加载后自适应高度、最小 1 行、最多 4 行」
 - 筛选条件（标签 / 搜索 / 仅未翻译）同时启用时以 **AND** 组合，全部满足才显示；多标签之间为 OR（命中任一即通过）
+- **行排序机制**：key 级 `sortOrder` 默认从 0 开始，后端 `listGrouped` 按 `sortOrder asc, key asc` 排序。新增 key（普通创建/批量/导入/`import-json.ts` 脚本）均分配 `maxSo + 100` 递增步长，为拖拽折半插入留空位。前端拖拽保存 `so = Math.round((prevSo + nxtSo) / 2)`，间距耗尽无空位时从相邻最小值开始整页重排（`base + (i+1)*10`）。存量数据由 `20260808030000_backfill_key_sort_order` 迁移重排（按当前顺序 0/100/200...）——**该迁移随部署自动应用，勿手动用 `db:push` 绕过**，否则存量 key 全 0 时排序不生效
 
 **翻译管理页测试要点（keyid 化回归）**
 

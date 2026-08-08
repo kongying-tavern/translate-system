@@ -123,8 +123,9 @@ export async function createTranslation(projectId: string, data: {
   const sourceLang = await getSourceLanguage(projectId)
   let key = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: data.translationKey } } })
   if (!key) {
+    const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
     key = await prisma.translationKey.create({
-      data: { projectId, key: data.translationKey, context: data.context || '', tags: data.tags || [] },
+      data: { projectId, key: data.translationKey, context: data.context || '', tags: data.tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 },
     })
   }
   if (data.sourceText && sourceLang) {
@@ -218,8 +219,9 @@ export async function batchUpsert(projectId: string, items: BatchUpsertItem[]) {
   for (const item of items) {
     let key = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: item.translationKey } } })
     if (!key) {
+      const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
       key = await prisma.translationKey.create({
-        data: { projectId, key: item.translationKey, context: item.context || '', tags: item.tags || [] },
+        data: { projectId, key: item.translationKey, context: item.context || '', tags: item.tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 },
       })
     }
     if (item.sourceText && sourceLang) {
