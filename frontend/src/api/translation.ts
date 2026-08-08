@@ -38,14 +38,14 @@ export function getTranslations(projectId: string, params: TranslationQuery) {
 export function createTranslation(projectId: string, data: CreateTranslationData) {
   return client.post<ApiResponse<TranslationKey & { value: TranslationValue }>>(`/projects/${encPathParam(projectId)}/translations`, data)
 }
-export function saveTranslation(projectId: string, key: string, langCode: string, data: { translatedText?: string, tags?: string[], context?: string }) {
-  return client.put(`/projects/${encPathParam(projectId)}/translations/${encPathParam(key)}/${encPathParam(langCode)}`, data)
+export function saveTranslation(projectId: string, keyId: string, langCode: string, translatedText: string) {
+  return client.put(`/projects/${encPathParam(projectId)}/translations/${encPathParam(keyId)}/${encPathParam(langCode)}`, { translatedText })
+}
+export function updateKey(projectId: string, keyId: string, data: { translationKey?: string, sourceText?: string, tags?: string[], context?: string }) {
+  return client.put(`/projects/${encPathParam(projectId)}/translations/${encPathParam(keyId)}`, data)
 }
 export function deleteTranslation(projectId: string, id: string) {
   return client.delete(`/projects/${encPathParam(projectId)}/translations/${encPathParam(id)}`)
-}
-export function updateKey(projectId: string, oldKey: string, translationKey: string, sourceText: string) {
-  return client.put(`/projects/${encPathParam(projectId)}/translations/key/${encPathParam(oldKey)}`, { translationKey, sourceText })
 }
 export function getTags(projectId: string) {
   return client.get<ApiResponse<string[]>>(`/projects/${encPathParam(projectId)}/translations/tags/list`)

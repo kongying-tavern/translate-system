@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { ErrCode } from '../lib/errors'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
 import { resolveProject } from './project'
@@ -141,63 +142,71 @@ export async function createTranslation(projectId: string, data: {
   return { ...key, value: val }
 }
 
-export async function saveForLang(projectId: string, translationKey: string, languageCode: string, data: {
-  translatedText?: string
+/** 更新 key 级属性（keyId 定位）：Key 名 / 原文 / 标签 / 备注 */
+export async function updateKeyByKeyId(projectId: string, keyId: string, data: {
+  translationKey?: string
+  sourceText?: string
   tags?: string[]
   context?: string
-}, createIfMissing = true) {
-  let key = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: translationKey } } })
-  if (!key) {
-    if (!createIfMissing)
-      throw new AppError(1003, 'Key not found')
-    key = await prisma.translationKey.create({
-      data: { projectId, key: translationKey, context: data.context || '', tags: data.tags || [] },
-    })
-  }
-  else if (data.tags !== undefined || data.context !== undefined) {
-    const updateData: Prisma.TranslationKeyUpdateInput = {}
-    if (data.tags !== undefined)
-      updateData.tags = data.tags
-    if (data.context !== undefined)
-      updateData.context = data.context
-    await prisma.translationKey.update({ where: { id: key.id }, data: updateData })
-  }
+}) {
+  const existing = await prisma.translationKey.findUnique({ where: { id: keyId } })
+  if (!existing || existing.projectId !== projectId)
+    throw new AppError(ErrCode.NotFound, 'Key 不存在或不属于该项目')
 
-  if (data.translatedText !== undefined) {
-    return prisma.translationValue.upsert({
-      where: { keyId_languageCode: { keyId: key.id, languageCode } },
-      update: { translatedText: data.translatedText },
-      create: { keyId: key.id, languageCode, translatedText: data.translatedText },
-    })
-  }
-  return key
-}
-
-export async function updateKeyAndSource(projectId: string, oldKey: string, newKey: string, sourceText?: string) {
-  const existing = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: oldKey } } })
-  if (!existing)
-    throw new AppError(1003, 'Key not found')
-
-  if (oldKey !== newKey) {
+  const newKey = data.translationKey !== undefined ? data.translationKey.trim() : undefined
+  if (newKey !== undefined && newKey !== existing.key) {
+    if (!newKey)
+      throw new AppError(ErrCode.InvalidParams, 'Key 不能为空')
     const dup = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: newKey } } })
     if (dup)
-      throw new AppError(1004, 'Key 已存在，不能重复')
+      throw new AppError(ErrCode.Conflict, 'Key 已存在，不能重复')
   }
 
-  await prisma.translationKey.update({ where: { id: existing.id }, data: { key: newKey } })
+  const updateData: Prisma.TranslationKeyUpdateInput = {}
+  if (newKey !== undefined)
+    updateData.key = newKey
+  if (data.tags !== undefined)
+    updateData.tags = data.tags
+  if (data.context !== undefined)
+    updateData.context = data.context
+  if (Object.keys(updateData).length)
+    await prisma.translationKey.update({ where: { id: keyId }, data: updateData })
 
   // 原文写入源语言语言值
-  if (sourceText !== undefined) {
+  if (data.sourceText !== undefined) {
     const sourceLang = await getSourceLanguage(projectId)
     if (sourceLang) {
       await prisma.translationValue.upsert({
-        where: { keyId_languageCode: { keyId: existing.id, languageCode: sourceLang } },
-        update: { translatedText: sourceText },
-        create: { keyId: existing.id, languageCode: sourceLang, translatedText: sourceText },
+        where: { keyId_languageCode: { keyId, languageCode: sourceLang } },
+        update: { translatedText: data.sourceText },
+        create: { keyId, languageCode: sourceLang, translatedText: data.sourceText },
       })
     }
   }
-  return { oldKey, newKey, sourceText, count: 1 }
+  return { keyId, count: 1 }
+}
+
+/** 保存指定语言译文（keyId 定位）。目标语言必须是项目语言，且不能是源语言（原文走 key 级接口） */
+export async function saveValueForLang(projectId: string, keyId: string, languageCode: string, translatedText: string) {
+  const key = await prisma.translationKey.findUnique({ where: { id: keyId } })
+  if (!key || key.projectId !== projectId)
+    throw new AppError(ErrCode.NotFound, 'Key 不存在或不属于该项目')
+
+  const sourceLang = await getSourceLanguage(projectId)
+  if (languageCode === sourceLang)
+    throw new AppError(ErrCode.InvalidParams, '源语言为项目原文，原文内容请在「原文」列中编辑修改')
+
+  const projectLang = await prisma.projectLanguage.findUnique({
+    where: { projectId_languageCode: { projectId, languageCode } },
+  })
+  if (!projectLang)
+    throw new AppError(ErrCode.InvalidParams, `语言 ${languageCode} 不是项目语言`)
+
+  return prisma.translationValue.upsert({
+    where: { keyId_languageCode: { keyId, languageCode } },
+    update: { translatedText },
+    create: { keyId, languageCode, translatedText },
+  })
 }
 
 export async function deleteTranslation(id: string) {

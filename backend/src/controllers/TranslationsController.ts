@@ -5,11 +5,9 @@ import { Body, Controller, Delete, Get, Middlewares, Path, Post, Put, Query, Req
 import { ProjectRole } from '../constants/roles'
 import { assertProjectAccess } from '../lib/access'
 import { ok, okPage } from '../lib/api'
-import { ErrCode } from '../lib/errors'
 import { prisma } from '../lib/prisma'
 import { decodePathParams } from '../middleware/decodePathParams'
 import * as transService from '../services/translation'
-import { AppError } from '../utils/AppError'
 
 export interface TranslationValue {
   /** 译文记录ID */
@@ -84,19 +82,19 @@ export interface CreateTranslationBody {
 }
 
 export interface UpdateKeyBody {
-  /** 新的翻译键名 */
-  translationKey: string
+  /** 新的翻译键名（可空） */
+  translationKey?: string
   /** 原文文本（可空） */
   sourceText?: string
-}
-
-export interface SaveForLangBody {
-  /** 已翻译文本（可空） */
-  translatedText?: string
   /** 标签列表（可空） */
   tags?: string[]
   /** 备注上下文（可空） */
   context?: string
+}
+
+export interface SaveForLangBody {
+  /** 已翻译文本 */
+  translatedText: string
 }
 
 export interface SortOrderItem {
@@ -170,23 +168,6 @@ export class TranslationsController extends Controller {
   public async create(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: CreateTranslationBody): Promise<ApiOk<unknown>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     return ok(await transService.createTranslation(access.projectId, body))
-  }
-
-  /**
-   * 更新 key 与原文（必须在 translations/{key}/{langCode} 之前）
-   * @param req 请求对象
-   * @param projectSlug 项目标识
-   * @param oldKey 原键名
-   * @param body 请求体
-   * @summary 更新 key 与原文
-   */
-  @Put('{projectSlug}/translations/key/{oldKey}')
-  @Security('auth')
-  public async updateKey(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() oldKey: string, @Body() body: UpdateKeyBody): Promise<ApiOk<unknown>> {
-    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    if (!body.translationKey?.trim())
-      throw new AppError(ErrCode.InvalidParams, 'Key cannot be empty')
-    return ok(await transService.updateKeyAndSource(access.projectId, oldKey, body.translationKey.trim(), body.sourceText))
   }
 
   /**
@@ -264,38 +245,34 @@ export class TranslationsController extends Controller {
   }
 
   /**
-   * 保存 key 级属性（context/tags，无语言维度）
+   * 更新 key 级属性（keyId 定位）：Key 名 / 原文 / 标签 / 备注
    * @param req 请求对象
    * @param projectSlug 项目标识
-   * @param key 翻译键名
+   * @param keyId 翻译键 ID
    * @param body 请求体
-   * @summary 保存 key 级属性
+   * @summary 更新 key 级属性
    */
-  @Put('{projectSlug}/translations/{key}')
+  @Put('{projectSlug}/translations/{keyId}')
   @Security('auth')
-  public async saveForKey(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() key: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
+  public async updateKey(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() keyId: string, @Body() body: UpdateKeyBody): Promise<ApiOk<unknown>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    return ok(await transService.saveForLang(access.projectId, key, '', body))
+    return ok(await transService.updateKeyByKeyId(access.projectId, keyId, body))
   }
 
   /**
-   * 保存指定语言的译文
+   * 保存指定语言的译文（keyId 定位）
    * @param req 请求对象
    * @param projectSlug 项目标识
-   * @param key 翻译键名
+   * @param keyId 翻译键 ID
    * @param langCode 语言代码
    * @param body 请求体
    * @summary 保存指定语言译文
    */
-  @Put('{projectSlug}/translations/{key}/{langCode}')
+  @Put('{projectSlug}/translations/{keyId}/{langCode}')
   @Security('auth')
-  public async saveForLang(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() key: string, @Path() langCode: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
-    // 译文列任意成员可编辑；tags/context 为 key 级属性、更新源语言原文，均必须 Maintainer+
+  public async saveForLang(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() keyId: string, @Path() langCode: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
+    // 译文列任意成员可编辑；service 层校验目标语言为项目语言且非源语言
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
-    const isSource = body.tags !== undefined || body.context !== undefined || access.sourceLanguage === langCode
-    if (isSource) {
-      await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    }
-    return ok(await transService.saveForLang(access.projectId, key, langCode, body, false))
+    return ok(await transService.saveValueForLang(access.projectId, keyId, langCode, body.translatedText))
   }
 }

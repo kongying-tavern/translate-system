@@ -22,13 +22,9 @@ export const useTranslationStore = defineStore('translation', () => {
     await translationApi.createTranslation(projectId, data)
   }
 
-  async function saveForLang(projectId: string, key: string, langCode: string, data: { translatedText?: string, tags?: string[], context?: string }) {
-    await translationApi.saveTranslation(projectId, key, langCode, data)
-  }
-
   async function remove(projectId: string, id: string) {
     await translationApi.deleteTranslation(projectId, id)
   }
 
-  return { rows, total, loading, fetchTranslations, create, saveForLang, remove }
+  return { rows, total, loading, fetchTranslations, create, remove }
 })

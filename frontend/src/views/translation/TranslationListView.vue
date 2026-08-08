@@ -58,7 +58,7 @@ const dragOrderable = ref(true)
 function buildCache() {
   for (const row of rows.value) {
     for (const [lang, t] of Object.entries(row.translations)) {
-      const ck = `${row.translationKey}|${lang}`
+      const ck = `${row.keyId}|${lang}`
       if (!(ck in transCache))
         transCache[ck] = t.translatedText
     }
@@ -257,13 +257,13 @@ function onRowLangChange(index: number, lang: string) {
 }
 
 async function onSave(row: GroupedRow, langCode: string) {
-  const ck = `${row.translationKey}|${langCode}`
+  const ck = `${row.keyId}|${langCode}`
   const text = transCache[ck] ?? ''
   const prev = row.translations[langCode]?.translatedText ?? ''
   if (text === prev)
     return
   try {
-    await saveTranslation(projectSlug.value, row.translationKey, langCode, { translatedText: text })
+    await saveTranslation(projectSlug.value, row.keyId, langCode, text)
     if (row.translations[langCode])
       row.translations[langCode].translatedText = text
     else
@@ -279,15 +279,15 @@ async function onSave(row: GroupedRow, langCode: string) {
 
 async function onCtxSave(row: GroupedRow) {
   const ec = editContext.value
-  const text = ec.get(row.translationKey) ?? row.context
+  const text = ec.get(row.keyId) ?? row.context
   if (text === row.context) {
-    ec.delete(row.translationKey)
+    ec.delete(row.keyId)
     return
   }
   try {
-    await saveTranslation(projectSlug.value, row.translationKey, '', { context: text })
+    await updateKey(projectSlug.value, row.keyId, { context: text })
     row.context = text
-    ec.delete(row.translationKey)
+    ec.delete(row.keyId)
     // eslint-disable-next-line no-console
     console.log('[备注]', { key: row.translationKey, prev: row.context, new: text })
     ElMessage.success('备注已更新')
@@ -298,58 +298,48 @@ async function onCtxSave(row: GroupedRow) {
 }
 
 async function onKeySave(row: GroupedRow) {
-  const oldKey = row.translationKey
   const ek = editKey.value
-  const newKey = ek.get(oldKey)
-  if (newKey === undefined || newKey === oldKey)
+  const newKey = ek.get(row.keyId)
+  if (newKey === undefined || newKey === row.translationKey)
     return
   if (!newKey.trim()) {
     ElMessage.warning('Key 不能为空')
-    ek.delete(oldKey)
+    ek.delete(row.keyId)
     return
   }
   try {
-    await updateKey(projectSlug.value, oldKey, newKey.trim(), editSource.value.get(oldKey) ?? row.sourceText)
-    ek.delete(oldKey)
-    editSource.value.delete(oldKey)
-    for (const lang of Object.keys(row.translations)) {
-      const oc = `${oldKey}|${lang}`
-      const nc = `${newKey}|${lang}`
-      if (oc in transCache) {
-        transCache[nc] = transCache[oc]
-        delete transCache[oc]
-      }
-    }
+    await updateKey(projectSlug.value, row.keyId, { translationKey: newKey.trim(), sourceText: editSource.value.get(row.keyId) ?? row.sourceText })
+    ek.delete(row.keyId)
+    editSource.value.delete(row.keyId)
     row.translationKey = newKey.trim()
     ElMessage.success('Key 已更新')
   }
   catch (e: unknown) {
     ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Key 更新失败')
-    ek.delete(oldKey)
+    ek.delete(row.keyId)
   }
 }
 
 async function onSourceSave(row: GroupedRow) {
-  const oldKey = row.translationKey
   const es = editSource.value
-  const newSrc = es.get(oldKey)
+  const newSrc = es.get(row.keyId)
   if (newSrc === undefined || newSrc === row.sourceText)
     return
   try {
-    await updateKey(projectSlug.value, oldKey, oldKey, newSrc)
-    es.delete(oldKey)
+    await updateKey(projectSlug.value, row.keyId, { sourceText: newSrc })
+    es.delete(row.keyId)
     row.sourceText = newSrc
     ElMessage.success('原文已更新')
   }
   catch (e: unknown) {
     ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败')
-    es.delete(oldKey)
+    es.delete(row.keyId)
   }
 }
 
 async function onTagsChange(row: GroupedRow) {
   try {
-    await saveTranslation(projectSlug.value, row.translationKey, '', { tags: row.tags })
+    await updateKey(projectSlug.value, row.keyId, { tags: row.tags })
     ElMessage.success('标签已更新')
     loadTags()
   }
@@ -442,7 +432,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     minWidth: 160,
     cell: (row) => {
       if (perm.canEditKeyColumn.value) {
-        return <BaseInput modelValue={editKey.value.get(row.translationKey) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.translationKey, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onKeySave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+        return <BaseInput modelValue={editKey.value.get(row.keyId) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onKeySave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
       }
       return <span class="pre-wrap">{row.translationKey}</span>
     },
@@ -453,7 +443,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     minWidth: 160,
     cell: (row) => {
       if (perm.canEditSourceColumn.value) {
-        return <BaseInput modelValue={editSource.value.get(row.translationKey) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.translationKey, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onSourceSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+        return <BaseInput modelValue={editSource.value.get(row.keyId) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onSourceSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
       }
       return <span class="pre-wrap">{row.sourceText}</span>
     },
@@ -468,7 +458,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
   cols.push({
     title: '译文',
     minWidth: 200,
-    cell: (row, _val, index) => <BaseInput modelValue={transCache[`${row.translationKey}|${rowLangs.value[index]}`]} onUpdate:modelValue={(v: string) => transCache[`${row.translationKey}|${rowLangs.value[index]}`] = v} onBlur={() => onSave(row, rowLangs.value[index])} type="textarea" autosize={{ minRows: 1, maxRows: 6 }} size="small" placeholder="输入译文..." />,
+    cell: (row, _val, index) => <BaseInput modelValue={transCache[`${row.keyId}|${rowLangs.value[index]}`]} onUpdate:modelValue={(v: string) => transCache[`${row.keyId}|${rowLangs.value[index]}`] = v} onBlur={() => onSave(row, rowLangs.value[index])} type="textarea" autosize={{ minRows: 1, maxRows: 6 }} size="small" placeholder="输入译文..." />,
   })
 
   cols.push({
@@ -495,7 +485,7 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     minWidth: 160,
     cell: (row) => {
       if (perm.canEditContextColumn.value) {
-        return <BaseInput modelValue={editContext.value.get(row.translationKey) ?? row.context} onUpdate:modelValue={(v: string) => editContext.value.set(row.translationKey, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onCtxSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
+        return <BaseInput modelValue={editContext.value.get(row.keyId) ?? row.context} onUpdate:modelValue={(v: string) => editContext.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onCtxSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
       }
       return <span style={{ fontSize: '13px' }} class="pre-wrap">{row.context || '-'}</span>
     },

@@ -105,12 +105,12 @@ middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴�
 
 **注意**：
 - 字面量类型陷阱：`{ deleted: true }` 这类内联字面量会让 tsoa 崩溃（`isEnumMember` TypeError），必须命名接口（如 `DeletedResult`）。
-- tsoa 不支持可选路径参数（`{langCode?}`），需拆成两条路由：`PUT .../{key}`（key 级属性）与 `PUT .../{key}/{langCode}`（语言级）。
-- 路由注册顺序 = 方法声明顺序，literal 路由（`key/:oldKey`、`sortOrders`、`batch`）必须声明在参数路由（`{key}`、`{key}/{langCode}`）之前，否则被吃掉。
+- tsoa 不支持可选路径参数（`{langCode?}`），需拆成两条路由：`PUT .../{keyId}`（key 级属性）与 `PUT .../{keyId}/{langCode}`（语言级）。
+- 路由注册顺序 = 方法声明顺序，literal 路由（`sortOrders`、`batch`、`count`）必须声明在参数路由（`{keyId}`、`{keyId}/{langCode}`）之前，否则被吃掉。
 - 响应类型用 `Date`（tsoa 序列化为 ISO），`description` 等可空字段用 `string | null`；Prisma 返回行与自定义 Row 接口不一致时用 `as unknown as` 转换。
 - OpenAPI 字段描述来源：接口/模型属性上方的 `/** 中文说明 */` JSDoc 会映射到 schema 的 `description`；tsoa 无法穿透 Prisma 生成的 client 类型，直接暴露的 Prisma 模型（如 `ProjectLanguage`）应改为控制器内自定义 Row 接口（如 `ProjectLanguageRow`）并加 JSDoc，服务层返回的 Prisma 行结构兼容可直接断言赋值。字段示例用属性 JSDoc 里的 `@example` 标签（**必须是合法 JSON**，字符串要加引号，如 `@example "my-template"`、`@example ["zh-Hans", "en"]`），导入工具时会作为默认值预填。
 - Path/Query 参数描述来自方法 JSDoc 的 `@param 参数名 中文描述`（`@Body` 用 `@param body` 会成为 requestBody 描述）；`@Request() req` 用 `@param req`。ESLint jsdoc 规则要求 `@param` 覆盖方法全部参数（req → path/query → body）且多行块 `/**` 独占一行，`@summary` 保持最后一个标签，否则 `pnpm lint` 报 warning。
-- 路由拆分后前端调用 `saveTranslation(projectId, key, '', { context })` 会产生尾部斜杠 `/key/`，Express 非严格模式会匹配 `/{key}` 路由。
+- 编辑类操作统一用 **keyId 定位**（Key 长度不可控且可含任意字符，避免路径参数编码问题；keyId 固定 UUID，改名不变）：key 级属性走 `PUT .../translations/{keyId}`，译文走 `PUT .../translations/{keyId}/{langCode}`。
 
 ### 前端分层
 
@@ -232,11 +232,10 @@ PUT|DELETE /projects/:id               — 编辑/删除项目（仅 super_admin
 GET    /projects/:id                   — 需 auth + 项目访问（super_admin/owner 放行，成员按角色）
 GET    /projects/:id/translations      — 需项目访问
 POST   /projects/:id/translations      — 新增 Key（Maintainer+）
-PUT    /projects/:id/translations/key/:oldKey — 更新 Key/原文（Maintainer+，必须在 /:key/:langCode 之前）
 PUT    /projects/:id/translations/sortOrders — 批量排序（Maintainer+）
 POST   /projects/:id/translations/batch      — 批量导入（Maintainer+）
-PUT    /projects/:id/translations/{key}      — 保存 key 级属性 context/tags（Maintainer+）
-PUT    /projects/:id/translations/{key}/{langCode} — 保存译文（任意项目成员；目标语言为项目源语言或 body 携带 tags/context 时动态升级为 Maintainer+，防 member 改原文与 key 级属性）
+PUT    /projects/:id/translations/{keyId}    — 更新 key 级属性 Key名/原文/标签/备注（Maintainer+，keyId 定位）
+PUT    /projects/:id/translations/{keyId}/{langCode} — 保存译文（任意项目成员，仅传 translatedText；service 层拒绝源语言与非项目语言，防 member 改原文）
 DELETE /projects/:id/translations/{translationId} — 删除 Key（Maintainer+）
 GET    /projects/:id/translations/count|tags/list — 需项目访问
 POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+）
@@ -272,12 +271,21 @@ GET    /languages|/languages/search    — 基础语言
 ### 翻译页面关键逻辑
 
 - 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText（= 源语言 value）+ context + tags + translations{}`；原文列内联编辑保存即更新源语言 value
-- 译文用 `transCache` (key+lang → text) 缓存
+- 译文用 `transCache` (keyId+lang → text) 缓存
 - context 和 tags 是 key 级属性，不按语言缓存
+- 编辑类保存全部走 keyId 定位：译文列 `PUT .../translations/{keyId}/{langCode}`（任意成员，仅传 translatedText），Key/原文/标签/备注走 `PUT .../translations/{keyId}`（Maintainer+）；Key 改名不影响缓存键（keyId 稳定）
 - Key/原文/备注三列内联编辑均**失焦保存**（本地缓存 Map + `onBlur`），备注列曾误用 `onUpdate:modelValue` 每敲键发请求；三者共用 `composing` ref + `onCompositionstart/end` 做 IME 组合守卫，blur 时正在输入法组合则跳过保存（`handleBlurSave`），避免把未确认拼音串存库
 - 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在
 - Key/原文/备注文本域用 `BaseInput autosize={{ minRows: 1, maxRows: 4 }}`（译文列 maxRows 6）实现「加载后自适应高度、最小 1 行、最多 4 行」
 - 筛选条件（标签 / 搜索 / 仅未翻译）同时启用时以 **AND** 组合，全部满足才显示；多标签之间为 OR（命中任一即通过）
+
+**翻译管理页测试要点（keyid 化回归）**
+
+1. **特殊字符 Key**：含 `/`、空格、中文等字符的 Key，改名/原文/标签/备注/译文保存均正常，改名后同行其余列仍可编辑
+2. **权限**：member 仅可编辑译文列（Key/原文/标签/备注列不可编辑、无操作列）；maintainer/admin 全列可编辑；member 越权调用（改源语言、改非项目语言）后端拒绝并返回中文提示
+3. **新增 Key**：对话框无原文输入框，创建后原文列为空，可在原文列内联编辑
+4. **原文保护**：译文保存不影响源语言原文；源语言不在翻译目标语言中
+5. **列表交互**：全局语言切换仅改显示不刷新；「仅未翻译」开启时切换才刷新；滚动到底显示「已全部加载」不再一直 loading
 
 ### API Key 鉴权
 
@@ -322,8 +330,8 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 1. **Vite 模块找不到** — `rm -rf node_modules/.vite && pnpm dev`
 2. **Prisma 文件锁** — `rm -rf node_modules/.prisma && pnpm prisma generate`
 3. **`psql` 中文乱码** — 用 `pnpm tsx -e "import{PrismaClient}..."` 查数据
-4. **路由冲突** — `/:key/:langCode` 会吃掉 `/key/:oldKey`，tsoa 按方法声明顺序注册路由，必须把 literal 路由（`key/:oldKey`、`sortOrders`、`batch`）声明在参数路由前面
-5. **含 `/` 的 Key 保存报 `Key not found`** — UAT 前置 nginx 的 `merge_slashes` 会把 `%2F` 解码成字面 `/` 并合并斜杠导致 key 失真。已用 URL-safe Base64（`encPathParam` 带 `b64_` 前缀）解决；排查时若发现某 path 参数被 nginx 改写，确认前后端都走 `encPathParam`/`decPathParam`，禁止百分号编码
+4. **路由冲突** — `/:keyId` 会吃掉 `/sortOrders`、`/batch`，tsoa 按方法声明顺序注册路由，必须把 literal 路由（`sortOrders`、`batch`、`count`）声明在参数路由（`{keyId}`、`{keyId}/{langCode}`）前面
+5. **含 `/` 的 Key 保存报 `Key not found`** — UAT 前置 nginx 的 `merge_slashes` 会把 `%2F` 解码成字面 `/` 并合并斜杠导致 key 失真。编辑类操作已全面改用 **keyId 定位**（UUID 纯 unreserved 字符，天然免疫），列表查询路径无此问题；排查时若发现某 path 参数被 nginx 改写，确认前后端都走 `encPathParam`/`decPathParam`，禁止百分号编码
 6. **`cannot edit` 报错** — GateGuard hook，用 `ECC_GATEGUARD=off` 前缀或加到 `settings.json`
 7. **前端 TS 报错（`Property 'xxx' does not exist on type`）** — 改 schema 后未同步 `frontend/src/types/models.d.ts`，检查并添加对应字段
 
