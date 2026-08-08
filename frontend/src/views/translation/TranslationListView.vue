@@ -1,7 +1,7 @@
 <script setup lang="tsx">
 import type { GroupedRow } from '@/api/translation'
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
-import { Loading } from '@element-plus/icons-vue'
+import { Edit, Loading } from '@element-plus/icons-vue'
 import elTableInfiniteScroll from 'el-table-infinite-scroll'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
@@ -10,7 +10,7 @@ import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, getTranslations, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable, BaseTagInput } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTable, BaseTagInput } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -50,6 +50,13 @@ const editKey = ref<Map<string, string>>(new Map())
 const editSource = ref<Map<string, string>>(new Map())
 const editContext = ref<Map<string, string>>(new Map())
 const composing = ref(false)
+const expandDialog = reactive<{
+  visible: boolean
+  field: 'key' | 'source' | 'translation' | 'context'
+  row: GroupedRow | null
+  langCode?: string
+}>({ visible: false, field: 'key', row: null })
+const expandText = ref('')
 
 const appliedSearch = ref('')
 const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
@@ -419,6 +426,60 @@ function handleBlurSave(action: () => void) {
     action()
 }
 
+const expandTitle = computed(() => {
+  const names = { key: 'Key', source: '原文', translation: '译文', context: '备注' }
+  return `编辑${names[expandDialog.field]}`
+})
+
+function openExpand(field: 'key' | 'source' | 'translation' | 'context', row: GroupedRow, langCode?: string) {
+  expandDialog.field = field
+  expandDialog.row = row
+  expandDialog.langCode = langCode
+  switch (field) {
+    case 'key':
+      expandText.value = editKey.value.get(row.keyId) ?? row.translationKey
+      break
+    case 'source':
+      expandText.value = editSource.value.get(row.keyId) ?? row.sourceText
+      break
+    case 'context':
+      expandText.value = editContext.value.get(row.keyId) ?? row.context
+      break
+    case 'translation':
+      expandText.value = langCode ? (transCache[`${row.keyId}|${langCode}`] ?? row.translations[langCode]?.translatedText ?? '') : ''
+      break
+  }
+  expandDialog.visible = true
+}
+
+function saveExpand() {
+  const row = expandDialog.row
+  if (!row)
+    return
+  const text = expandText.value
+  switch (expandDialog.field) {
+    case 'key':
+      editKey.value.set(row.keyId, text)
+      onKeySave(row)
+      break
+    case 'source':
+      editSource.value.set(row.keyId, text)
+      onSourceSave(row)
+      break
+    case 'context':
+      editContext.value.set(row.keyId, text)
+      onCtxSave(row)
+      break
+    case 'translation': {
+      const langCode = expandDialog.langCode!
+      transCache[`${row.keyId}|${langCode}`] = text
+      onSave(row, langCode)
+      break
+    }
+  }
+  expandDialog.visible = false
+}
+
 const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
   const cols: BaseTableColumnConfig<GroupedRow>[] = []
 
@@ -439,10 +500,15 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 
   cols.push({
     title: 'Key',
-    minWidth: 160,
+    minWidth: 200,
     cell: (row) => {
       if (perm.canEditKeyColumn.value) {
-        return <BaseInput modelValue={editKey.value.get(row.keyId) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onKeySave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+        return (
+          <div class="expand-cell">
+            <BaseInput modelValue={editKey.value.get(row.keyId) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onKeySave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+            <span class="expand-btn" onClick={() => openExpand('key', row)}><BaseIcon><Edit /></BaseIcon></span>
+          </div>
+        )
       }
       return <span class="pre-wrap">{row.translationKey}</span>
     },
@@ -450,10 +516,15 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 
   cols.push({
     title: '原文',
-    minWidth: 160,
+    minWidth: 200,
     cell: (row) => {
       if (perm.canEditSourceColumn.value) {
-        return <BaseInput modelValue={editSource.value.get(row.keyId) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onSourceSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+        return (
+          <div class="expand-cell">
+            <BaseInput modelValue={editSource.value.get(row.keyId) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onSourceSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
+            <span class="expand-btn" onClick={() => openExpand('source', row)}><BaseIcon><Edit /></BaseIcon></span>
+          </div>
+        )
       }
       return <span class="pre-wrap">{row.sourceText}</span>
     },
@@ -467,8 +538,13 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 
   cols.push({
     title: '译文',
-    minWidth: 200,
-    cell: (row, _val, index) => <BaseInput modelValue={transCache[`${row.keyId}|${rowLangs.value[index]}`]} onUpdate:modelValue={(v: string) => transCache[`${row.keyId}|${rowLangs.value[index]}`] = v} onBlur={() => onSave(row, rowLangs.value[index])} type="textarea" autosize={{ minRows: 1, maxRows: 6 }} size="small" placeholder="输入译文..." />,
+    minWidth: 260,
+    cell: (row, _val, index) => (
+      <div class="expand-cell">
+        <BaseInput modelValue={transCache[`${row.keyId}|${rowLangs.value[index]}`]} onUpdate:modelValue={(v: string) => transCache[`${row.keyId}|${rowLangs.value[index]}`] = v} onBlur={() => onSave(row, rowLangs.value[index])} type="textarea" autosize={{ minRows: 1, maxRows: 6 }} size="small" placeholder="输入译文..." />
+        <span class="expand-btn" onClick={() => openExpand('translation', row, rowLangs.value[index])}><BaseIcon><Edit /></BaseIcon></span>
+      </div>
+    ),
   })
 
   cols.push({
@@ -492,10 +568,15 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 
   cols.push({
     title: '备注',
-    minWidth: 160,
+    minWidth: 200,
     cell: (row) => {
       if (perm.canEditContextColumn.value) {
-        return <BaseInput modelValue={editContext.value.get(row.keyId) ?? row.context} onUpdate:modelValue={(v: string) => editContext.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onCtxSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
+        return (
+          <div class="expand-cell">
+            <BaseInput modelValue={editContext.value.get(row.keyId) ?? row.context} onUpdate:modelValue={(v: string) => editContext.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onCtxSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
+            <span class="expand-btn" onClick={() => openExpand('context', row)}><BaseIcon><Edit /></BaseIcon></span>
+          </div>
+        )
       }
       return <span style={{ fontSize: '13px' }} class="pre-wrap">{row.context || '-'}</span>
     },
@@ -581,6 +662,40 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         </BaseButton>
       </template>
     </BaseDialog>
+    <BaseDialog v-model="expandDialog.visible" :title="expandTitle" width="720px">
+      <div v-if="expandDialog.row" class="expand-meta">
+        <span class="expand-meta-label">Key</span>
+        <span class="expand-meta-value pre-wrap">{{ expandDialog.row.translationKey }}</span>
+        <template v-if="expandDialog.langCode">
+          <span class="expand-meta-label">语言</span>
+          <span class="expand-meta-value">{{ expandDialog.langCode }}</span>
+        </template>
+      </div>
+      <div v-if="expandDialog.field === 'translation'" class="expand-trans">
+        <div class="expand-orig">
+          <div class="expand-subtitle">
+            原文
+          </div>
+          <div class="expand-orig-text pre-wrap">
+            {{ expandDialog.row?.sourceText || '-' }}
+          </div>
+        </div>
+        <div class="expand-edit">
+          <div class="expand-subtitle">
+            译文
+          </div>
+          <BaseInput v-model="expandText" type="textarea" :autosize="{ minRows: 10, maxRows: 24 }" placeholder="在此输入内容..." />
+        </div>
+      </div>
+      <BaseInput v-else v-model="expandText" type="textarea" :autosize="{ minRows: 10, maxRows: 24 }" placeholder="在此输入内容..." />
+      <template #footer>
+        <BaseButton @click="expandDialog.visible = false">
+          取消
+        </BaseButton><BaseButton type="primary" @click="saveExpand">
+          更新
+        </BaseButton>
+      </template>
+    </BaseDialog>
   </div>
 </template>
 
@@ -591,7 +706,18 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
 .pagination-wrap { display: flex; justify-content: center; margin-top: 16px; }
-.inline-input { } .inline-input :deep(.el-textarea__inner) { padding: 2px 6px; font-size: 13px; }
+.trans-table :deep(.expand-cell) { display: flex; align-items: flex-start; gap: 6px; }
+.trans-table :deep(.expand-cell .inline-input) { flex: 1; min-width: 0; }
+.trans-table :deep(.expand-btn) { flex-shrink: 0; display: inline-flex; align-items: center; margin-top: 4px; font-size: 16px; color: #909399; cursor: pointer; }
+.trans-table :deep(.expand-btn:hover) { color: #409eff; }
+.trans-table :deep(.inline-input .el-textarea__inner) { padding: 2px 6px; font-size: 13px; }
+.expand-meta { display: grid; grid-template-columns: 48px 1fr; row-gap: 2px; column-gap: 12px; padding: 6px 10px; margin-bottom: 8px; background: #f5f7fa; border-radius: 6px; }
+.expand-meta-label { font-size: 13px; color: #909399; line-height: 1.5; white-space: nowrap; }
+.expand-meta-value { font-size: 13px; color: #303133; line-height: 1.5; word-break: break-all; }
+.expand-trans { display: flex; gap: 10px; }
+.expand-trans .expand-orig, .expand-trans .expand-edit { flex: 1; min-width: 0; }
+.expand-subtitle { margin-bottom: 4px; font-size: 13px; color: #909399; }
+.expand-orig-text { max-height: 420px; overflow: auto; padding: 6px 10px; background: #fafafa; border: 1px solid #e4e7ed; border-radius: 6px; font-size: 13px; color: #606266; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .pre-wrap { white-space: pre-wrap; word-break: break-word; }
 .trans-table :deep(.el-table__body .el-table__cell) { vertical-align: top; }
 .trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; padding: 8px 0; }
