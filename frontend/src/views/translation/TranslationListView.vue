@@ -497,11 +497,13 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
     },
   })
 
-  cols.push({
-    title: '操作',
-    width: 80,
-    cell: row => perm.canManageKeys.value ? <BaseButton link type="danger" size="small" onClick={() => handleDelete(row)}>删除</BaseButton> : null,
-  })
+  if (perm.canManageKeys.value) {
+    cols.push({
+      title: '操作',
+      width: 80,
+      cell: row => <BaseButton link type="danger" size="small" onClick={() => handleDelete(row)}>删除</BaseButton>,
+    })
+  }
 
   return cols
 })
