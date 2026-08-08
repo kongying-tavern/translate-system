@@ -1,16 +1,14 @@
 <script setup lang="tsx">
+import type { Column, RowClassNameGetter } from 'element-plus'
 import type { GroupedRow } from '@/api/translation'
-import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
-import { Edit, Loading } from '@element-plus/icons-vue'
-import elTableInfiniteScroll from 'el-table-infinite-scroll'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { Edit } from '@element-plus/icons-vue'
+import { ElAutoResizer, ElMessage, ElMessageBox, ElOption, ElTableV2, TableV2FixedDir } from 'element-plus'
 import { storeToRefs } from 'pinia'
-import Sortable from 'sortablejs'
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { getTags, getTranslations, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTable, BaseTagInput } from '@/components/ui'
+import { getTags, saveTranslation, updateKey } from '@/api/translation'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTagInput } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -18,7 +16,7 @@ import { useProjectStore } from '@/stores/project'
 import { useTranslationStore } from '@/stores/translation'
 import { decPathParam, encPathParam } from '@/utils/path'
 
-const vElTableInfiniteScroll = elTableInfiniteScroll
+const ROW_HEIGHT = 44
 
 const perm = useProjectPermission()
 const loadingStore = useLoadingStore()
@@ -32,24 +30,15 @@ const { projectLanguages } = storeToRefs(langStore)
 const sourceLanguage = computed(() => projectStore.getProject(projectSlug.value)?.sourceLanguage || '')
 const editableLangs = computed(() => (projectLanguages.value || []).filter(l => l.languageCode !== sourceLanguage.value))
 
-const page = ref(1)
-const pageSize = ref(20)
 const filters = reactive({ search: '' })
-const loadingMore = ref(false)
 const filterTags = ref<string[]>([])
 const allTags = ref<string[]>([])
 const untransOnly = ref(false)
 const globalLang = ref('')
 const rowLangs = ref<string[]>([])
-const tableKey = ref(0)
 const showCreateDialog = ref(false)
 const saving = ref(false)
 const form = reactive({ translationKey: '', tags: [] as string[] })
-const transCache = reactive<Record<string, string>>({})
-const editKey = ref<Map<string, string>>(new Map())
-const editSource = ref<Map<string, string>>(new Map())
-const editContext = ref<Map<string, string>>(new Map())
-const composing = ref(false)
 const expandDialog = reactive<{
   visible: boolean
   field: 'key' | 'source' | 'translation' | 'context'
@@ -57,20 +46,23 @@ const expandDialog = reactive<{
   langCode?: string
 }>({ visible: false, field: 'key', row: null })
 const expandText = ref('')
+const editCache = reactive<Record<string, string>>({})
+const composing = ref(false)
 
 const appliedSearch = ref('')
 const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
 const dragOrderable = ref(true)
+const dragKeyId = ref('')
+const dragTargetIndex = ref(-1)
+const dragGhost = ref<{ key: string, source: string } | null>(null)
+const dragPos = reactive({ x: 0, y: 0 })
+const dragLine = reactive({ top: 0, left: 0, width: 0 })
+const tableWrapEl = ref<HTMLElement | null>(null)
+const tableHeight = ref(0)
+const scrollTopRef = ref(0)
+const scrolling = ref(false)
+let scrollingTimer: ReturnType<typeof setTimeout> | undefined
 
-function buildCache() {
-  for (const row of rows.value) {
-    for (const [lang, t] of Object.entries(row.translations)) {
-      const ck = `${row.keyId}|${lang}`
-      if (!(ck in transCache))
-        transCache[ck] = t.translatedText
-    }
-  }
-}
 async function loadTags() {
   try {
     const { data: res } = await getTags(projectSlug.value)
@@ -96,49 +88,6 @@ function init() {
   loadTags()
   load()
 }
-
-let sortable: { destroy: () => void } | null = null
-function bindSortable() {
-  const el = document.querySelector('.el-table__body-wrapper tbody') as HTMLElement
-  if (sortable) {
-    sortable.destroy()
-    sortable = null
-  }
-  if (!el || !perm.canReorderRows.value || !dragOrderable.value)
-    return
-  sortable = Sortable.create(el, {
-    handle: '.drag-handle',
-    animation: 200,
-    onEnd({ oldIndex, newIndex }: { oldIndex: number, newIndex: number }) {
-      if (oldIndex === newIndex)
-        return
-      const clone = [...rows.value]
-      const [moved] = clone.splice(oldIndex, 1)
-      clone.splice(newIndex, 0, moved)
-      rows.value = clone
-      rows.value.forEach((r, i) => {
-        r.rowIndex = i + 1
-      })
-      // 折半插入 moved 行到相邻行 sortOrder 之间；相邻值相同/重叠（间距耗尽）时无空位，
-      // 折半结果与邻居相等导致排序不生效，此时从相邻最小值开始整页重排以保留相对位置
-      const prev = newIndex > 0 ? rows.value[newIndex - 1] : null
-      const nxt = newIndex < rows.value.length - 1 ? rows.value[newIndex + 1] : null
-      const prevSo = prev?.sortOrder ?? 0
-      const nxtSo = nxt?.sortOrder ?? (prevSo + 1000)
-      const so = prev ? Math.round((prevSo + nxtSo) / 2) : Math.round(nxtSo / 2)
-      const base = prev ? prevSo : nxtSo
-      const orders = (so <= prevSo || (nxt && so >= nxtSo))
-        ? rows.value.map((r, i) => ({ keyId: r.keyId, sortOrder: base + (i + 1) * 10 }))
-        : [{ keyId: moved.keyId, sortOrder: so }]
-      client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders })
-        .then(() => ElMessage.success('排序已更新'))
-        .catch(() => {
-          ElMessage.error('排序更新失败')
-          load()
-        })
-    },
-  })
-}
 watch(editableLangs, (langs) => {
   if (langs.length && (!globalLang.value || !langs.some(l => l.languageCode === globalLang.value))) {
     globalLang.value = langs[0].languageCode
@@ -149,117 +98,34 @@ function syncRowLangs() {
   rowLangs.value = rows.value.map(() => globalLang.value || editableLangs.value[0]?.languageCode || '')
 }
 
-let resetting = false
 async function load() {
   dragOrderable.value = !hasFilter.value
-  page.value = 1
-  resetting = true
   loadingStore.start()
-  loadingMore.value = true
   try {
     const lang = globalLang.value || editableLangs.value[0]?.languageCode
     const isRowSearch = appliedSearch.value.startsWith('#')
-    const rowQuery = isRowSearch ? appliedSearch.value.slice(1) : ''
-    const isRange = rowQuery.includes('-')
-    const rowStart = isRowSearch ? parseInt(rowQuery.split('-')[0]) : 0
-    const rowEnd = isRange ? (parseInt(rowQuery.split('-')[1]) || 99999) : rowStart
-    const PZ = pageSize.value
-    let pg = isRowSearch && !isNaN(rowStart) ? Math.ceil(rowStart / PZ) : 1
-    if (isRowSearch && isRange && !isNaN(rowStart)) {
-      // Load enough pages to get at least 20 filtered rows for range search
-      const allRows: GroupedRow[] = []
-      while (allRows.filter((r: GroupedRow) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd).length < PZ && allRows.length < (rowEnd - rowStart + PZ)) {
-        const { data: r } = await getTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
-        allRows.push(...r.data.list)
-        pg++
-      }
-      rows.value = allRows.filter((r: GroupedRow) => r.rowIndex >= rowStart && r.rowIndex <= rowEnd)
-      total.value = rowEnd - rowStart + 1
-      page.value = pg // remember next page for loadMore
-    }
-    else if (isRowSearch && !isNaN(rowStart)) {
-      await transStore.fetchTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
-      rows.value = rows.value.filter((r: GroupedRow) => r.rowIndex === rowStart)
-      total.value = 1
-    }
-    else {
-      await transStore.fetchTranslations(projectSlug.value, { page: 1, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: appliedSearch.value })
-    }
-    if (isRowSearch && !isNaN(rowStart)) {
-      rows.value = rows.value.filter((r: GroupedRow) => isRange ? (r.rowIndex >= rowStart && r.rowIndex <= rowEnd) : r.rowIndex === rowStart)
-      total.value = isRange ? (rowEnd - rowStart + 1) : 1
-    }
-    buildCache()
-    syncRowLangs()
-    tableKey.value++
-    await nextTick()
-    // Viewport fill for range search: calc visible rows, load enough to overflow
-    if (isRowSearch && isRange && !isNaN(rowStart)) {
-      const pageEl = document.querySelector('.trans-page') as HTMLElement
-      const rowEl = document.querySelector('.el-table__row') as HTMLElement
-      const headerEl = document.querySelector('.page-header') as HTMLElement
-      const filterEl = document.querySelector('.filter-bar') as HTMLElement
-      const pageH = pageEl?.clientHeight || window.innerHeight - 100
-      const headerH = headerEl?.offsetHeight || 0
-      const filterH = filterEl?.offsetHeight || 0
-      const rowH = rowEl?.offsetHeight || 40
-      const visible = Math.max(1, Math.ceil((pageH - headerH - filterH - 32) / rowH))
-      const needed = visible + 5
-      while (rows.value.length < needed && rows.value.length < total.value) {
-        const { data: r } = await getTranslations(projectSlug.value, { page: pg, pageSize: PZ, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: undefined })
-        const filtered = r.data.list.filter((row: GroupedRow) => row.rowIndex >= rowStart && row.rowIndex <= rowEnd)
-        if (!filtered.length)
-          break
-        rows.value.push(...filtered)
-        pg++
-        page.value = pg
-        await nextTick()
-      }
-    }
-    nextTick(() => {
-      bindSortable()
-      document.querySelector('.el-table__body-wrapper')?.scrollTo(0, 0)
+    await transStore.fetchTranslations(projectSlug.value, {
+      page: 1,
+      pageSize: -1,
+      languageCode: untransOnly.value ? lang : undefined,
+      untransOnly: untransOnly.value,
+      tags: filterTags.value.length ? filterTags.value.join(',') : undefined,
+      search: isRowSearch ? undefined : appliedSearch.value,
     })
+    if (isRowSearch) {
+      const q = appliedSearch.value.slice(1)
+      const isRange = q.includes('-')
+      const start = parseInt(q.split('-')[0])
+      const end = isRange ? (parseInt(q.split('-')[1]) || 99999) : start
+      if (!isNaN(start)) {
+        rows.value = rows.value.filter(r => isRange ? (r.rowIndex >= start && r.rowIndex <= end) : r.rowIndex === start)
+        total.value = isRange ? (end - start + 1) : 1
+      }
+    }
+    syncRowLangs()
   }
   finally {
     loadingStore.stop()
-    setTimeout(() => {
-      resetting = false
-      loadingMore.value = false
-    }, 600)
-  }
-}
-
-async function loadMore() {
-  const isSingleRow = appliedSearch.value.startsWith('#') && !appliedSearch.value.includes('-')
-  if (loading.value || loadingMore.value || resetting || isSingleRow)
-    return
-  // 已全部加载则不再请求（行号范围搜索的 rows 是过滤结果，跳过此判断）
-  const isRangeSearch = appliedSearch.value.startsWith('#') && appliedSearch.value.includes('-')
-  if (!isRangeSearch && rows.value.length >= total.value)
-    return
-  page.value++
-  loadingMore.value = true
-  try {
-    const lang = globalLang.value || editableLangs.value[0]?.languageCode
-    const isRowSearch = appliedSearch.value.startsWith('#')
-    const { data: res } = await getTranslations(projectSlug.value, { page: page.value, pageSize: pageSize.value, languageCode: untransOnly.value ? lang : undefined, untransOnly: untransOnly.value, tags: filterTags.value.length ? filterTags.value.join(',') : undefined, search: isRowSearch ? undefined : appliedSearch.value })
-    rows.value.push(...res.data.list)
-    if (isRowSearch && appliedSearch.value.includes('-')) {
-      const s = parseInt(appliedSearch.value.slice(1).split('-')[0])
-      const e = parseInt(appliedSearch.value.split('-')[1]) || 99999
-      if (!isNaN(s))
-        rows.value = rows.value.filter((r: GroupedRow) => r.rowIndex >= s && r.rowIndex <= e)
-    }
-    else {
-      total.value = res.data.total
-    }
-    buildCache()
-    syncRowLangs()
-    nextTick(() => bindSortable())
-  }
-  finally {
-    loadingMore.value = false
   }
 }
 
@@ -273,98 +139,134 @@ function onRowLangChange(index: number, lang: string) {
   rowLangs.value[index] = lang
 }
 
-async function onSave(row: GroupedRow, langCode: string) {
-  const ck = `${row.keyId}|${langCode}`
-  const text = transCache[ck] ?? ''
-  const prev = row.translations[langCode]?.translatedText ?? ''
-  if (text === prev)
+function onResize({ height }: { height: number }) {
+  tableHeight.value = height
+}
+function onTableScroll({ scrollTop }: { scrollTop: number }) {
+  scrollTopRef.value = scrollTop
+  scrolling.value = true
+  if (scrollingTimer)
+    clearTimeout(scrollingTimer)
+  scrollingTimer = setTimeout(() => {
+    scrolling.value = false
+  }, 300)
+}
+
+let dragStart: { index: number, keyId: string, y: number } | null = null
+let dragRaf = 0
+let dragClientY = 0
+function onDragStart(e: PointerEvent, index: number, keyId: string) {
+  if (!dragOrderable.value || !perm.canReorderRows.value)
     return
+  e.preventDefault()
+  dragStart = { index, keyId, y: e.clientY }
+  dragKeyId.value = keyId
+  dragTargetIndex.value = index
+  const row = rows.value.find(r => r.keyId === keyId)
+  dragGhost.value = row
+    ? { key: row.translationKey, source: row.sourceText }
+    : { key: '', source: '' }
+  dragPos.x = e.clientX
+  dragPos.y = e.clientY
+  window.addEventListener('pointermove', onDragMove)
+  window.addEventListener('pointerup', onDragEnd)
+}
+function onDragMove(e: PointerEvent) {
+  if (!dragStart)
+    return
+  dragClientY = e.clientY
+  dragPos.x = e.clientX
+  dragPos.y = e.clientY
+  if (dragRaf)
+    return
+  dragRaf = requestAnimationFrame(() => {
+    dragRaf = 0
+    dragStep()
+  })
+}
+function dragStep() {
+  const ds = dragStart
+  if (!ds)
+    return
+  const firstVisible = Math.floor(scrollTopRef.value / ROW_HEIGHT)
+  const lastVisible = firstVisible + Math.max(1, Math.ceil(tableHeight.value / ROW_HEIGHT) - 1)
+  const dy = dragClientY - ds.y
+  let target = ds.index + Math.round(dy / ROW_HEIGHT)
+  target = Math.max(firstVisible, Math.min(lastVisible, target))
+  target = Math.max(0, Math.min(rows.value.length - 1, target))
+  dragTargetIndex.value = target
+  const wrap = tableWrapEl.value
+  if (wrap) {
+    const rect = wrap.getBoundingClientRect()
+    dragLine.top = rect.top + 44 + (target - firstVisible) * ROW_HEIGHT
+    dragLine.left = rect.left
+    dragLine.width = rect.width
+  }
+}
+function onDragEnd() {
+  if (dragRaf) {
+    cancelAnimationFrame(dragRaf)
+    dragRaf = 0
+  }
+  const start = dragStart
+  dragStart = null
+  window.removeEventListener('pointermove', onDragMove)
+  window.removeEventListener('pointerup', onDragEnd)
+  const keyId = start?.keyId ?? dragKeyId.value
+  dragKeyId.value = ''
+  dragGhost.value = null
+  const target = dragTargetIndex.value
+  dragTargetIndex.value = -1
+  if (!start || target < 0)
+    return
+  const from = rows.value.findIndex(r => r.keyId === keyId)
+  if (from < 0) {
+    load()
+    return
+  }
+  if (from === target)
+    return
+  const clone = [...rows.value]
+  const [moved] = clone.splice(from, 1)
+  clone.splice(target, 0, moved)
+  rows.value = clone
+  // 折半插入 moved 行到相邻行 sortOrder 之间；相邻值相同/重叠（间距耗尽）时无空位，
+  // 折半结果与邻居相等导致排序不生效，此时从相邻最小值开始整页重排以保留相对位置
+  const prev = target > 0 ? clone[target - 1] : null
+  const nxt = target < clone.length - 1 ? clone[target + 1] : null
+  const prevSo = prev?.sortOrder ?? 0
+  const nxtSo = nxt?.sortOrder ?? (prevSo + 1000)
+  const so = prev ? Math.round((prevSo + nxtSo) / 2) : Math.round(nxtSo / 2)
+  const base = prev ? prevSo : nxtSo
+  const orders = (so <= prevSo || (nxt && so >= nxtSo))
+    ? clone.map((r, i) => ({ keyId: r.keyId, sortOrder: base + (i + 1) * 10 }))
+    : [{ keyId, sortOrder: so }]
+  client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders })
+    .then(() => ElMessage.success('排序已更新'))
+    .catch(() => {
+      ElMessage.error('排序更新失败')
+      load()
+    })
+}
+
+async function handleDelete(row: GroupedRow) {
   try {
-    await saveTranslation(projectSlug.value, row.keyId, langCode, text)
-    if (row.translations[langCode])
-      row.translations[langCode].translatedText = text
-    else
-      row.translations[langCode] = { id: '', translatedText: text }
-    // eslint-disable-next-line no-console
-    console.log('[翻译]', { key: row.translationKey, lang: langCode, prev: prev || '(空)', new: text })
-    ElMessage.success(`${langCode}: 译文已保存`)
+    await ElMessageBox.confirm(`确定要删除 Key ${row.translationKey} 的所有翻译吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
   }
   catch {
-    ElMessage.error('保存失败')
-  }
-}
-
-async function onCtxSave(row: GroupedRow) {
-  const ec = editContext.value
-  const text = ec.get(row.keyId) ?? row.context
-  if (text === row.context) {
-    ec.delete(row.keyId)
     return
   }
   try {
-    await updateKey(projectSlug.value, row.keyId, { context: text })
-    row.context = text
-    ec.delete(row.keyId)
-    // eslint-disable-next-line no-console
-    console.log('[备注]', { key: row.translationKey, prev: row.context, new: text })
-    ElMessage.success('备注已更新')
-  }
-  catch {
-    ElMessage.error('保存失败')
-  }
-}
-
-async function onKeySave(row: GroupedRow) {
-  const ek = editKey.value
-  const newKey = ek.get(row.keyId)
-  if (newKey === undefined || newKey === row.translationKey)
-    return
-  if (!newKey.trim()) {
-    ElMessage.warning('Key 不能为空')
-    ek.delete(row.keyId)
-    return
-  }
-  try {
-    await updateKey(projectSlug.value, row.keyId, { translationKey: newKey.trim(), sourceText: editSource.value.get(row.keyId) ?? row.sourceText })
-    ek.delete(row.keyId)
-    editSource.value.delete(row.keyId)
-    row.translationKey = newKey.trim()
-    ElMessage.success('Key 已更新')
-  }
-  catch (e: unknown) {
-    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Key 更新失败')
-    ek.delete(row.keyId)
-  }
-}
-
-async function onSourceSave(row: GroupedRow) {
-  const es = editSource.value
-  const newSrc = es.get(row.keyId)
-  if (newSrc === undefined || newSrc === row.sourceText)
-    return
-  try {
-    await updateKey(projectSlug.value, row.keyId, { sourceText: newSrc })
-    es.delete(row.keyId)
-    row.sourceText = newSrc
-    ElMessage.success('原文已更新')
-  }
-  catch (e: unknown) {
-    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败')
-    es.delete(row.keyId)
-  }
-}
-
-async function onTagsChange(row: GroupedRow) {
-  try {
-    await updateKey(projectSlug.value, row.keyId, { tags: row.tags })
-    ElMessage.success('标签已更新')
+    await transStore.remove(projectSlug.value, row.keyId)
+    ElMessage.success('删除成功')
     loadTags()
-  }
-  catch {
-    ElMessage.error('保存失败')
     load()
   }
+  catch {
+    ElMessage.error('删除失败')
+  }
 }
+
 function openCreate() {
   Object.assign(form, { translationKey: '', tags: [] })
   showCreateDialog.value = true
@@ -395,24 +297,6 @@ async function handleCreate() {
   }
 }
 
-async function handleDelete(row: GroupedRow) {
-  try {
-    await ElMessageBox.confirm(`确定要删除 Key ${row.translationKey} 的所有翻译吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
-  }
-  catch {
-    return
-  }
-  try {
-    await transStore.remove(projectSlug.value, row.keyId)
-    ElMessage.success('删除成功')
-    loadTags()
-    load()
-  }
-  catch {
-    ElMessage.error('删除失败')
-  }
-}
-
 function onCompositionStart() {
   composing.value = true
 }
@@ -426,6 +310,96 @@ function handleBlurSave(action: () => void) {
     action()
 }
 
+async function onTagsChange(row: GroupedRow) {
+  try {
+    await updateKey(projectSlug.value, row.keyId, { tags: row.tags })
+    ElMessage.success('标签已更新')
+    loadTags()
+  }
+  catch {
+    ElMessage.error('标签更新失败')
+    load()
+  }
+}
+
+async function onKeySave(row: GroupedRow) {
+  const newKey = (editCache[`key|${row.keyId}`] ?? row.translationKey).trim()
+  if (!newKey) {
+    ElMessage.warning('Key 不能为空')
+    return
+  }
+  if (newKey === row.translationKey) {
+    delete editCache[`key|${row.keyId}`]
+    return
+  }
+  try {
+    await updateKey(projectSlug.value, row.keyId, { translationKey: newKey, sourceText: row.sourceText })
+    row.translationKey = newKey
+    delete editCache[`key|${row.keyId}`]
+    ElMessage.success('Key 已更新')
+  }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || 'Key 更新失败')
+  }
+}
+
+async function onSourceSave(row: GroupedRow) {
+  const newText = editCache[`source|${row.keyId}`] ?? row.sourceText
+  if (newText === row.sourceText) {
+    delete editCache[`source|${row.keyId}`]
+    return
+  }
+  try {
+    await updateKey(projectSlug.value, row.keyId, { sourceText: newText })
+    row.sourceText = newText
+    delete editCache[`source|${row.keyId}`]
+    ElMessage.success('原文已更新')
+  }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '原文更新失败')
+  }
+}
+
+async function onContextSave(row: GroupedRow) {
+  const newText = editCache[`context|${row.keyId}`] ?? row.context
+  if (newText === row.context) {
+    delete editCache[`context|${row.keyId}`]
+    return
+  }
+  try {
+    await updateKey(projectSlug.value, row.keyId, { context: newText })
+    row.context = newText
+    delete editCache[`context|${row.keyId}`]
+    ElMessage.success('备注已更新')
+  }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '备注更新失败')
+  }
+}
+
+async function onTranslationSave(row: GroupedRow, lang: string) {
+  if (!lang)
+    return
+  const ck = `translation|${row.keyId}|${lang}`
+  const newText = editCache[ck] ?? ''
+  const prev = row.translations[lang]?.translatedText ?? ''
+  if (newText === prev) {
+    delete editCache[ck]
+    return
+  }
+  try {
+    await saveTranslation(projectSlug.value, row.keyId, lang, newText)
+    if (row.translations[lang])
+      row.translations[lang].translatedText = newText
+    else
+      row.translations[lang] = { id: '', translatedText: newText }
+    delete editCache[ck]
+  }
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '译文保存失败')
+  }
+}
+
 const expandTitle = computed(() => {
   const names = { key: 'Key', source: '原文', translation: '译文', context: '备注' }
   return `编辑${names[expandDialog.field]}`
@@ -437,156 +411,252 @@ function openExpand(field: 'key' | 'source' | 'translation' | 'context', row: Gr
   expandDialog.langCode = langCode
   switch (field) {
     case 'key':
-      expandText.value = editKey.value.get(row.keyId) ?? row.translationKey
+      expandText.value = row.translationKey
       break
     case 'source':
-      expandText.value = editSource.value.get(row.keyId) ?? row.sourceText
+      expandText.value = row.sourceText
       break
     case 'context':
-      expandText.value = editContext.value.get(row.keyId) ?? row.context
+      expandText.value = row.context
       break
     case 'translation':
-      expandText.value = langCode ? (transCache[`${row.keyId}|${langCode}`] ?? row.translations[langCode]?.translatedText ?? '') : ''
+      expandText.value = langCode ? (row.translations[langCode]?.translatedText ?? '') : ''
       break
   }
   expandDialog.visible = true
 }
 
-function saveExpand() {
+async function saveExpand() {
   const row = expandDialog.row
   if (!row)
     return
   const text = expandText.value
-  switch (expandDialog.field) {
-    case 'key':
-      editKey.value.set(row.keyId, text)
-      onKeySave(row)
-      break
-    case 'source':
-      editSource.value.set(row.keyId, text)
-      onSourceSave(row)
-      break
-    case 'context':
-      editContext.value.set(row.keyId, text)
-      onCtxSave(row)
-      break
-    case 'translation': {
-      const langCode = expandDialog.langCode!
-      transCache[`${row.keyId}|${langCode}`] = text
-      onSave(row, langCode)
-      break
+  try {
+    switch (expandDialog.field) {
+      case 'key': {
+        const newKey = text.trim()
+        if (!newKey) {
+          ElMessage.warning('Key 不能为空')
+          return
+        }
+        await updateKey(projectSlug.value, row.keyId, { translationKey: newKey, sourceText: row.sourceText })
+        row.translationKey = newKey
+        break
+      }
+      case 'source':
+        await updateKey(projectSlug.value, row.keyId, { sourceText: text })
+        row.sourceText = text
+        break
+      case 'context':
+        await updateKey(projectSlug.value, row.keyId, { context: text })
+        row.context = text
+        break
+      case 'translation': {
+        const langCode = expandDialog.langCode!
+        await saveTranslation(projectSlug.value, row.keyId, langCode, text)
+        if (row.translations[langCode])
+          row.translations[langCode].translatedText = text
+        else
+          row.translations[langCode] = { id: '', translatedText: text }
+        break
+      }
     }
+    ElMessage.success('保存成功')
+    expandDialog.visible = false
   }
-  expandDialog.visible = false
+  catch (e: unknown) {
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '保存失败')
+  }
 }
 
-const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
-  const cols: BaseTableColumnConfig<GroupedRow>[] = []
+function rowClassName(params: Parameters<RowClassNameGetter<GroupedRow>>[0]): string {
+  return params.rowData.keyId === dragKeyId.value ? 'drag-source' : ''
+}
+
+const translationColumns = computed<Column<GroupedRow>[]>(() => {
+  const isScrolling = scrolling.value
+  const cols: Column<GroupedRow>[] = []
 
   if (dragOrderable.value && perm.canReorderRows.value) {
     cols.push({
-      width: 44,
-      fixed: 'left',
-      cell: () => <span class="drag-handle">⋮⋮</span>,
+      key: 'drag',
+      width: 46,
+      fixed: TableV2FixedDir.LEFT,
+      cellRenderer: ({ rowData, rowIndex }) => (
+        <span class="drag-handle" onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
+      ),
     })
   }
 
   cols.push({
+    key: 'rowIndex',
     title: '#',
-    width: 62,
+    width: 60,
     align: 'center',
-    cell: row => <span style={{ whiteSpace: 'nowrap' }}>{String(row.rowIndex)}</span>,
+    fixed: TableV2FixedDir.LEFT,
+    cellRenderer: ({ rowData, rowIndex }) => <span style={{ whiteSpace: 'nowrap' }}>{String(hasFilter.value ? rowData.rowIndex : rowIndex + 1)}</span>,
   })
 
   cols.push({
+    key: 'translationKey',
     title: 'Key',
-    minWidth: 200,
-    cell: (row) => {
-      if (perm.canEditKeyColumn.value) {
+    width: 210,
+    fixed: TableV2FixedDir.LEFT,
+    cellRenderer: ({ rowData }) => {
+      if (perm.canEditKeyColumn.value && !isScrolling) {
         return (
           <div class="expand-cell">
-            <BaseInput modelValue={editKey.value.get(row.keyId) ?? row.translationKey} onUpdate:modelValue={(v: string) => editKey.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onKeySave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
-            <span class="expand-btn" onClick={() => openExpand('key', row)}><BaseIcon><Edit /></BaseIcon></span>
+            <BaseInput
+              class="inline-input"
+              modelValue={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey}
+              onUpdate:modelValue={(v: string) => editCache[`key|${rowData.keyId}`] = v}
+              onCompositionstart={onCompositionStart}
+              onCompositionend={onCompositionEnd}
+              onBlur={() => handleBlurSave(() => onKeySave(rowData))}
+              type="textarea"
+              autosize={{ minRows: 1, maxRows: 1 }}
+              size="small"
+            />
+            <span class="expand-btn" onClick={() => openExpand('key', rowData)}><BaseIcon><Edit /></BaseIcon></span>
           </div>
         )
       }
-      return <span class="pre-wrap">{row.translationKey}</span>
+      return <span class="cell-text" title={rowData.translationKey}>{rowData.translationKey}</span>
     },
   })
 
   cols.push({
+    key: 'sourceText',
     title: '原文',
-    minWidth: 200,
-    cell: (row) => {
-      if (perm.canEditSourceColumn.value) {
+    width: 210,
+    fixed: TableV2FixedDir.LEFT,
+    cellRenderer: ({ rowData }) => {
+      if (perm.canEditSourceColumn.value && !isScrolling) {
         return (
           <div class="expand-cell">
-            <BaseInput modelValue={editSource.value.get(row.keyId) ?? row.sourceText} onUpdate:modelValue={(v: string) => editSource.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onSourceSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" class="inline-input" />
-            <span class="expand-btn" onClick={() => openExpand('source', row)}><BaseIcon><Edit /></BaseIcon></span>
+            <BaseInput
+              class="inline-input"
+              modelValue={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText}
+              onUpdate:modelValue={(v: string) => editCache[`source|${rowData.keyId}`] = v}
+              onCompositionstart={onCompositionStart}
+              onCompositionend={onCompositionEnd}
+              onBlur={() => handleBlurSave(() => onSourceSave(rowData))}
+              type="textarea"
+              autosize={{ minRows: 1, maxRows: 1 }}
+              size="small"
+            />
+            <span class="expand-btn" onClick={() => openExpand('source', rowData)}><BaseIcon><Edit /></BaseIcon></span>
           </div>
         )
       }
-      return <span class="pre-wrap">{row.sourceText}</span>
+      return <span class="cell-text" title={rowData.sourceText}>{rowData.sourceText}</span>
     },
   })
 
   cols.push({
+    key: 'lang',
     title: '语言',
-    width: 130,
-    cell: (_row, _val, index) => <BaseSelect modelValue={rowLangs.value[index]} style={{ width: '100px' }} onChange={(v: unknown) => onRowLangChange(index, v as string)}>{(editableLangs.value || []).map(l => <el-option label={l.alias || l.languageCode} value={l.languageCode} />)}</BaseSelect>,
+    width: 140,
+    cellRenderer: ({ rowIndex }) => {
+      if (isScrolling) {
+        const l = (editableLangs.value || []).find(x => x.languageCode === rowLangs.value[rowIndex])
+        return <span class="cell-text">{l ? (l.alias || l.languageCode) : ''}</span>
+      }
+      return (
+        <BaseSelect size="small" modelValue={rowLangs.value[rowIndex]} style={{ width: '100px' }} onChange={(v: unknown) => onRowLangChange(rowIndex, v as string)}>
+          {(editableLangs.value || []).map(l => <ElOption label={l.alias || l.languageCode} value={l.languageCode} />)}
+        </BaseSelect>
+      )
+    },
   })
 
   cols.push({
+    key: 'translation',
     title: '译文',
-    minWidth: 260,
-    cell: (row, _val, index) => (
-      <div class="expand-cell">
-        <BaseInput modelValue={transCache[`${row.keyId}|${rowLangs.value[index]}`]} onUpdate:modelValue={(v: string) => transCache[`${row.keyId}|${rowLangs.value[index]}`] = v} onBlur={() => onSave(row, rowLangs.value[index])} type="textarea" autosize={{ minRows: 1, maxRows: 6 }} size="small" placeholder="输入译文..." />
-        <span class="expand-btn" onClick={() => openExpand('translation', row, rowLangs.value[index])}><BaseIcon><Edit /></BaseIcon></span>
-      </div>
-    ),
+    width: 280,
+    cellRenderer: ({ rowData, rowIndex }) => {
+      const lang = rowLangs.value[rowIndex]
+      const text = rowData.translations[lang]?.translatedText ?? ''
+      if (isScrolling) {
+        return <span class="cell-text" title={text}>{text || ''}</span>
+      }
+      const ck = `translation|${rowData.keyId}|${lang}`
+      return (
+        <div class="expand-cell">
+          <BaseInput
+            class="inline-input"
+            modelValue={editCache[ck] ?? text}
+            onUpdate:modelValue={(v: string) => editCache[ck] = v}
+            onCompositionstart={onCompositionStart}
+            onCompositionend={onCompositionEnd}
+            onBlur={() => handleBlurSave(() => onTranslationSave(rowData, lang))}
+            type="textarea"
+            autosize={{ minRows: 1, maxRows: 1 }}
+            size="small"
+            placeholder="输入译文..."
+          />
+          {lang && <span class="expand-btn" onClick={() => openExpand('translation', rowData, lang)}><BaseIcon><Edit /></BaseIcon></span>}
+        </div>
+      )
+    },
   })
 
   cols.push({
+    key: 'tags',
     title: '标签',
-    width: 260,
-    cell: (row) => {
-      if (perm.canEditTagsColumn.value) {
+    width: 200,
+    cellRenderer: ({ rowData }) => {
+      if (perm.canEditTagsColumn.value && !isScrolling) {
         return (
           <BaseTagInput
             size="small"
             options={allTags.value}
-            modelValue={row.tags}
-            onUpdate:modelValue={(v?: string[]) => { row.tags = v ?? row.tags }}
-            onChange={() => onTagsChange(row)}
+            modelValue={rowData.tags}
+            onUpdate:modelValue={(v?: string[]) => { rowData.tags = v ?? rowData.tags }}
+            onChange={() => onTagsChange(rowData)}
+            style={{ width: '100%' }}
           />
         )
       }
-      return <span style={{ fontSize: '13px' }}>{row.tags.length ? row.tags.join(', ') : '-'}</span>
+      return <span class="cell-text" title={rowData.tags.join(', ')}>{rowData.tags.length ? rowData.tags.join(', ') : '-'}</span>
     },
   })
 
   cols.push({
+    key: 'context',
     title: '备注',
-    minWidth: 200,
-    cell: (row) => {
-      if (perm.canEditContextColumn.value) {
+    width: 200,
+    cellRenderer: ({ rowData }) => {
+      if (perm.canEditContextColumn.value && !isScrolling) {
         return (
           <div class="expand-cell">
-            <BaseInput modelValue={editContext.value.get(row.keyId) ?? row.context} onUpdate:modelValue={(v: string) => editContext.value.set(row.keyId, v)} onCompositionstart={onCompositionStart} onCompositionend={onCompositionEnd} onBlur={() => handleBlurSave(() => onCtxSave(row))} type="textarea" autosize={{ minRows: 1, maxRows: 4 }} size="small" placeholder="备注..." />
-            <span class="expand-btn" onClick={() => openExpand('context', row)}><BaseIcon><Edit /></BaseIcon></span>
+            <BaseInput
+              class="inline-input"
+              modelValue={editCache[`context|${rowData.keyId}`] ?? rowData.context}
+              onUpdate:modelValue={(v: string) => editCache[`context|${rowData.keyId}`] = v}
+              onCompositionstart={onCompositionStart}
+              onCompositionend={onCompositionEnd}
+              onBlur={() => handleBlurSave(() => onContextSave(rowData))}
+              type="textarea"
+              autosize={{ minRows: 1, maxRows: 1 }}
+              size="small"
+              placeholder="备注..."
+            />
+            <span class="expand-btn" onClick={() => openExpand('context', rowData)}><BaseIcon><Edit /></BaseIcon></span>
           </div>
         )
       }
-      return <span style={{ fontSize: '13px' }} class="pre-wrap">{row.context || '-'}</span>
+      return <span class="cell-text" title={rowData.context}>{rowData.context || '-'}</span>
     },
   })
 
   if (perm.canManageKeys.value) {
     cols.push({
+      key: 'actions',
       title: '操作',
       width: 80,
-      cell: row => <BaseButton link type="danger" size="small" onClick={() => handleDelete(row)}>删除</BaseButton>,
+      fixed: TableV2FixedDir.RIGHT,
+      cellRenderer: ({ rowData }) => <BaseButton link type="danger" size="small" onClick={() => handleDelete(rowData)}>删除</BaseButton>,
     })
   }
 
@@ -609,12 +679,12 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
       </BaseFormItem>
       <BaseFormItem label="全局语言">
         <BaseSelect v-model="globalLang" placeholder="选择语言" style="width:160px" @change="onGlobalLangChange">
-          <el-option v-for="l in editableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
+          <ElOption v-for="l in editableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
         </BaseSelect>
       </BaseFormItem>
       <BaseFormItem label="标签筛选">
         <BaseSelect v-model="filterTags" multiple filterable clearable :reserve-keyword="false" placeholder="全部标签" style="width:200px">
-          <el-option v-for="t in allTags" :key="t" class="base-option" :label="t" :value="t" />
+          <ElOption v-for="t in allTags" :key="t" class="base-option" :label="t" :value="t" />
         </BaseSelect>
       </BaseFormItem>
       <BaseFormItem label="搜索">
@@ -633,19 +703,41 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
         </BaseButton>
       </BaseFormItem>
     </BaseForm>
-    <BaseTable :key="tableKey" v-loading="loading" v-el-table-infinite-scroll="loadMore" :data="rows" :columns="translationColumns" stripe row-key="translationKey" height="100%" class="trans-table">
-      <template #append>
-        <div v-if="loadingMore" class="load-more-tip">
-          <el-icon class="is-loading">
-            <Loading />
-          </el-icon>
-          正在加载更多...
+    <div ref="tableWrapEl" class="trans-table-wrap">
+      <ElAutoResizer @resize="onResize">
+        <template #default="{ height, width }">
+          <ElTableV2
+            v-loading="loading"
+            class="trans-table"
+            :columns="translationColumns"
+            :data="rows"
+            :width="width"
+            :height="height"
+            :row-height="ROW_HEIGHT"
+            :header-height="44"
+            row-key="keyId"
+            fixed
+            :row-class="rowClassName"
+            :on-scroll="onTableScroll"
+          >
+            <template #empty>
+              暂无数据
+            </template>
+          </ElTableV2>
+        </template>
+      </ElAutoResizer>
+    </div>
+    <Teleport to="body">
+      <div v-if="dragGhost" class="drag-ghost" :style="{ left: `${dragPos.x + 12}px`, top: `${dragPos.y + 12}px` }">
+        <div class="drag-ghost-key">
+          {{ dragGhost.key }}
         </div>
-        <div v-else-if="!loading && rows.length >= total" class="load-more-tip">
-          已全部加载
+        <div v-if="dragGhost.source" class="drag-ghost-source">
+          {{ dragGhost.source }}
         </div>
-      </template>
-    </BaseTable>
+      </div>
+      <div v-if="dragKeyId" class="drag-line" :style="{ top: `${dragLine.top}px`, left: `${dragLine.left}px`, width: `${dragLine.width}px` }" />
+    </Teleport>
     <BaseDialog v-model="showCreateDialog" title="新增 Key" width="500px">
       <BaseForm label-width="60px" class="dialog-form">
         <BaseFormItem label="Key">
@@ -701,16 +793,26 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 
 <style lang="scss" scoped>
 .trans-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-.trans-page .el-table { flex: 1; }
 .total-count { color: #909399; font-size: 14px; font-weight: normal; }
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
-.pagination-wrap { display: flex; justify-content: center; margin-top: 16px; }
-.trans-table :deep(.expand-cell) { display: flex; align-items: flex-start; gap: 6px; }
-.trans-table :deep(.expand-cell .inline-input) { flex: 1; min-width: 0; }
-.trans-table :deep(.expand-btn) { flex-shrink: 0; display: inline-flex; align-items: center; margin-top: 4px; font-size: 16px; color: #909399; cursor: pointer; }
+.trans-table-wrap { flex: 1; min-height: 0; }
+.trans-table :deep(.el-table-v2__row-cell) { padding: 0 8px; display: flex; align-items: center; overflow: hidden; }
+.trans-table :deep(.el-table-v2__header-cell) { padding: 0 8px; }
+.trans-table :deep(.expand-cell) { display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%; }
+.trans-table :deep(.cell-text) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #606266; }
+.trans-table :deep(.expand-btn) { flex-shrink: 0; display: inline-flex; align-items: center; font-size: 16px; color: #909399; cursor: pointer; }
 .trans-table :deep(.expand-btn:hover) { color: #409eff; }
-.trans-table :deep(.inline-input .el-textarea__inner) { padding: 2px 6px; font-size: 13px; }
+.trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; }
+.trans-table :deep(.drag-handle:hover) { color: #409eff; }
+.trans-table :deep(.drag-source) { background-color: #ecf5ff !important; }
+.drag-ghost { position: fixed; z-index: 3000; max-width: 280px; padding: 6px 10px; background: #fff; border: 1px solid #409eff; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); pointer-events: none; }
+.drag-line { position: fixed; height: 2px; background: #409eff; z-index: 3001; pointer-events: none; }
+.drag-ghost-key { font-size: 13px; font-weight: 600; color: #303133; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drag-ghost-source { margin-top: 2px; font-size: 12px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trans-table :deep(.inline-input) { flex: 1; min-width: 0; }
+.trans-table :deep(.inline-input .el-textarea__inner) { padding: 2px 6px; font-size: 13px; line-height: 20px; overflow-y: auto; }
+.trans-page :deep(textarea) { resize: none; }
 .expand-meta { display: grid; grid-template-columns: 48px 1fr; row-gap: 2px; column-gap: 12px; padding: 6px 10px; margin-bottom: 8px; background: #f5f7fa; border-radius: 6px; }
 .expand-meta-label { font-size: 13px; color: #909399; line-height: 1.5; white-space: nowrap; }
 .expand-meta-value { font-size: 13px; color: #303133; line-height: 1.5; word-break: break-all; }
@@ -719,8 +821,4 @@ const translationColumns = computed<BaseTableColumnConfig<GroupedRow>[]>(() => {
 .expand-subtitle { margin-bottom: 4px; font-size: 13px; color: #909399; }
 .expand-orig-text { max-height: 420px; overflow: auto; padding: 6px 10px; background: #fafafa; border: 1px solid #e4e7ed; border-radius: 6px; font-size: 13px; color: #606266; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .pre-wrap { white-space: pre-wrap; word-break: break-word; }
-.trans-table :deep(.el-table__body .el-table__cell) { vertical-align: top; }
-.trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; padding: 8px 0; }
-.trans-table :deep(.drag-handle:hover) { color: #409eff; }
-.load-more-tip { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 0; color: #606266; font-size: 14px; background: #f5f7fa; border-top: 1px solid #e4e7ed; }
 </style>

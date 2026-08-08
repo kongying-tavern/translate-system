@@ -123,7 +123,7 @@ export class TranslationsController extends Controller {
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param page 页码
-   * @param pageSize 每页条数
+   * @param pageSize 每页条数，传 -1 返回全部数据
    * @param languageCode 语言代码
    * @param search 搜索关键词
    * @param tags 标签列表
@@ -144,7 +144,9 @@ export class TranslationsController extends Controller {
   ): Promise<ApiOk<ApiPage<GroupedRow>>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
     const p = Math.max(1, parseInt(page || '1'))
-    const size = Math.min(100, parseInt(pageSize || '20'))
+    const raw = parseInt(pageSize || '20')
+    const all = raw === -1
+    const size = all ? 1e9 : Math.min(100, raw)
     const result = await transService.listGrouped(access.projectId, {
       languageCode,
       search,
@@ -153,7 +155,7 @@ export class TranslationsController extends Controller {
       page: p,
       pageSize: size,
     })
-    return okPage(result.list as GroupedRow[], result.total, p, size)
+    return okPage(result.list as GroupedRow[], result.total, p, all ? result.total : size)
   }
 
   /**

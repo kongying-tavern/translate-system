@@ -264,29 +264,28 @@ GET    /languages|/languages/search    — 基础语言
 - 解析后校验：**0 条** → 「未从数据中解析到任何条目」；**空 key** → 「第 N 条缺少翻译键（key/name）」，均拒绝导入
 - JSON/YAML 顶层非键值映射对象（数组/标量）直接拒绝；嵌套结构判定用 `looksLikeLang` 启发式（外层键都像语言代码才按「语言→Key→译文」解析），否则拒绝并定位问题条目，避免字段名充当 key 的脏数据
 - CSV 表头**严格匹配**（大小写与写法完全一致、不支持别名）：仅 `key`、`sourceText`、`tags`、`context` 被识别，其余列一律按语言代码处理；无 key 列、无表头或 header-only 均报错。导出 CSV 表头为 `key,<语言...>`（不含 sourceText），与导入严格表头对应
-- **原文（sourceText）去冗余**：`translation_keys` 已删除 `source_text` 列，原文统一由源语言语言值（源语言 value 的 `translatedText`）承载。条目导入（`importKeys`）**支持 `sourceText` 或源语言列**，二者等价于源语言的翻译更新（`sourceText` 字段或 `lang === 源语言` 的语言列值 → upsert 源语言 value）；译文导入（`applyTranslations`）**不支持 `sourceText` 的导入**（忽略该字段），但源语言列作为普通语言列正常导入。`createTranslation` / `updateKeyAndSource` / `batchUpsert` 的 `sourceText` 同样写入源语言 value；旧环境升级由 `20260808020000_remove_source_text` 迁移内置回填完成，无需单独脚本
+- **原文（sourceText）去冗余**：`translation_keys` 无 `source_text` 列，原文统一由源语言语言值（源语言 value 的 `translatedText`）承载。条目导入（`importKeys`）**支持 `sourceText` 或源语言列**，二者等价于源语言的翻译更新（`sourceText` 字段或 `lang === 源语言` 的语言列值 → upsert 源语言 value）；译文导入（`applyTranslations`）**不支持 `sourceText` 的导入**（忽略该字段），但源语言列作为普通语言列正常导入。`createTranslation` / `updateKeyAndSource` / `batchUpsert` 的 `sourceText` 同样写入源语言 value；旧环境升级由 `20260808020000_remove_source_text` 迁移内置回填完成，无需单独脚本
 - XML：缺 `<resources>` 根节点、`<string>` 缺 `name`、`<language>` 缺 `code` 均报错并定位索引
 - 译文导入（`applyTranslations`）遇**项目未配置的语言代码**（`languageCode` 参数或数据内语言，兼容 `alias`）不拒绝、不自动建语言，而是**跳过该条并累计 `skippedLanguages`** 返回，前端 ImportTemplateView 成功提示中列出；`importKeys` 无语言属性，恒返回 `skippedLanguages: []`
 
 ### 翻译页面关键逻辑
 
-- 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText（= 源语言 value）+ context + tags + translations{}`；原文列内联编辑保存即更新源语言 value
-- 译文用 `transCache` (keyId+lang → text) 缓存
+- 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText（= 源语言 value）+ context + tags + translations{}`；原文列弹窗编辑保存即更新源语言 value
+- 弹窗编辑保存后通过 `saveTranslation` / `updateKey` API 更新，并同步到本地 rows（无 transCache 行内缓存）
 - context 和 tags 是 key 级属性，不按语言缓存
+- **列表渲染**：`TranslationListView.vue` 一次加载全量（`pageSize: -1`，后端 `TranslationsController` 对 -1 用 `1e9`），用 **el-table-v2 虚拟滚动**（`ElAutoResizer` 包裹测尺寸 + `ElTableV2`，`ROW_HEIGHT=44` 固定行高）渲染。el-table-v2 行是 `position:absolute` 虚拟渲染，行内 textarea autosize 会破坏固定行高，故所有编辑用**弹窗编辑**（单元格截断文本 + Edit 图标 → `expandDialog` 720px BaseDialog，Key/原文/译文/标签/备注均可编辑，原文框 `max-height:420px; overflow:auto`）
 - 编辑类保存全部走 keyId 定位：译文列 `PUT .../translations/{keyId}/{langCode}`（任意成员，仅传 translatedText），Key/原文/标签/备注走 `PUT .../translations/{keyId}`（Maintainer+）；Key 改名不影响缓存键（keyId 稳定）
-- Key/原文/备注三列内联编辑均**失焦保存**（本地缓存 Map + `onBlur`），备注列曾误用 `onUpdate:modelValue` 每敲键发请求；三者共用 `composing` ref + `onCompositionstart/end` 做 IME 组合守卫，blur 时正在输入法组合则跳过保存（`handleBlurSave`），避免把未确认拼音串存库
-- 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在
-- Key/原文/备注文本域用 `BaseInput autosize={{ minRows: 1, maxRows: 4 }}`（译文列 maxRows 6）实现「加载后自适应高度、最小 1 行、最多 4 行」
+- 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在；`#行号`（支持 `#3` 与 `#3-8` 区间）与 `/正则/` 搜索在前端对全量 rows 过滤（`#行号` 时后端不传 search，按全局 rowIndex 匹配）
 - 筛选条件（标签 / 搜索 / 仅未翻译）同时启用时以 **AND** 组合，全部满足才显示；多标签之间为 OR（命中任一即通过）
-- **行排序机制**：key 级 `sortOrder` 默认从 0 开始，后端 `listGrouped` 按 `sortOrder asc, key asc` 排序。新增 key（普通创建/批量/导入/`import-json.ts` 脚本）均分配 `maxSo + 100` 递增步长，为拖拽折半插入留空位。前端拖拽保存 `so = Math.round((prevSo + nxtSo) / 2)`，间距耗尽无空位时从相邻最小值开始整页重排（`base + (i+1)*10`）。存量数据由 `20260808030000_backfill_key_sort_order` 迁移重排（按当前顺序 0/100/200...）——**该迁移随部署自动应用，勿手动用 `db:push` 绕过**，否则存量 key 全 0 时排序不生效
+- **行排序机制**：key 级 `sortOrder` 默认从 0 开始，后端 `listGrouped` 按 `sortOrder asc, key asc` 排序，`rowIndex` 为过滤前的全局序号（`#行号` 搜索依赖它保持稳定）。新增 key（普通创建/批量/导入/`import-json.ts` 脚本）均分配 `maxSo + 100` 递增步长，为拖拽折半插入留空位。拖拽用**数据驱动 pointer 实现**（非 Sortablejs，vue-draggable-plus 无法用于 el-table-v2）：pointerdown 记录起点，pointermove 按 `dy/ROW_HEIGHT` 折合目标行、实时 splice 重排 `rows` 并重写 `rowIndex`，配合 `scrollTop/tableHeight` 计算可视行区间做**同屏拖拽 + 禁跨区**；pointerup 保存 `so = Math.round((prevSo + nxtSo) / 2)`，间距耗尽无空位时从相邻最小值开始整页重排（`base + (i+1)*10`）。存量数据由 `20260808030000_backfill_key_sort_order` 迁移重排（按当前顺序 0/100/200...）——**该迁移随部署自动应用，勿手动用 `db:push` 绕过**，否则存量 key 全 0 时排序不生效
 
 **翻译管理页测试要点（keyid 化回归）**
 
 1. **特殊字符 Key**：含 `/`、空格、中文等字符的 Key，改名/原文/标签/备注/译文保存均正常，改名后同行其余列仍可编辑
 2. **权限**：member 仅可编辑译文列（Key/原文/标签/备注列不可编辑、无操作列）；maintainer/admin 全列可编辑；member 越权调用（改源语言、改非项目语言）后端拒绝并返回中文提示
-3. **新增 Key**：对话框无原文输入框，创建后原文列为空，可在原文列内联编辑
+3. **新增 Key**：对话框无原文输入框，创建后原文列为空，可在原文列弹窗编辑
 4. **原文保护**：译文保存不影响源语言原文；源语言不在翻译目标语言中
-5. **列表交互**：全局语言切换仅改显示不刷新；「仅未翻译」开启时切换才刷新；滚动到底显示「已全部加载」不再一直 loading
+5. **列表交互**：全局语言切换仅改显示不刷新；「仅未翻译」开启时切换才刷新；虚拟滚动滚动流畅、固定行高无跳动；拖拽只限同屏可视区、禁跨区
 
 ### API Key 鉴权
 
