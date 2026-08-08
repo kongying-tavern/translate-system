@@ -243,7 +243,9 @@ async function loadMore() {
 
 function onGlobalLangChange(lang: string) {
   rowLangs.value = rows.value.map(() => lang)
-  load()
+  // 仅未翻译按当前语言判断，切换语言需刷新列表；普通显示切换不刷新
+  if (untransOnly.value)
+    load()
 }
 function onRowLangChange(index: number, lang: string) {
   rowLangs.value[index] = lang
