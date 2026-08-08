@@ -217,6 +217,10 @@ async function loadMore() {
   const isSingleRow = appliedSearch.value.startsWith('#') && !appliedSearch.value.includes('-')
   if (loading.value || loadingMore.value || resetting || isSingleRow)
     return
+  // 已全部加载则不再请求（行号范围搜索的 rows 是过滤结果，跳过此判断）
+  const isRangeSearch = appliedSearch.value.startsWith('#') && appliedSearch.value.includes('-')
+  if (!isRangeSearch && rows.value.length >= total.value)
+    return
   page.value++
   loadingMore.value = true
   try {
