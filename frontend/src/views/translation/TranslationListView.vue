@@ -1,5 +1,6 @@
 <script setup lang="tsx">
 import type { Column, RowClassNameGetter } from 'element-plus'
+import type { VNode } from 'vue'
 import type { GroupedRow } from '@/api/translation'
 import { Edit } from '@element-plus/icons-vue'
 import { ElAutoResizer, ElMessage, ElMessageBox, ElOption, ElTableV2, TableV2FixedDir } from 'element-plus'
@@ -16,7 +17,74 @@ import { useProjectStore } from '@/stores/project'
 import { useTranslationStore } from '@/stores/translation'
 import { decPathParam, encPathParam } from '@/utils/path'
 
-const ROW_HEIGHT = 44
+const ROW_LINE_HEIGHT = 20
+const ROW_TEXTAREA_PADDING = 4
+const ROW_BASE_PADDING = 20
+const ROW_HEIGHT_PRESETS = [
+  { value: 1, label: '低' },
+  { value: 2, label: '默认' },
+  { value: 4, label: '高' },
+  { value: 6, label: '超高' },
+] as const
+const ROW_HEIGHT_OPTION = 'trans-row-height'
+const rowHeightMult = ref<number>(Number(localStorage.getItem(ROW_HEIGHT_OPTION)) || 2)
+watch(rowHeightMult, (v) => {
+  localStorage.setItem(ROW_HEIGHT_OPTION, String(v))
+})
+const rowHeight = computed(() => rowHeightMult.value * ROW_LINE_HEIGHT + ROW_TEXTAREA_PADDING + ROW_BASE_PADDING)
+
+function RowHeightIcon({ lines }: { lines: number }) {
+  const left = (
+    <>
+      <path d="M8 4v16" />
+      <path d="M4 8 8 4l4 4" />
+      <path d="M4 16 8 20l4-4" />
+    </>
+  )
+  let right: VNode
+  switch (lines) {
+    case 1:
+      right = (
+        <>
+          <path d="M14 17h8" />
+          <path d="M18 4v12" />
+          <path d="M15 13l3 3 3-3" />
+        </>
+      )
+      break
+    case 4:
+      right = (
+        <>
+          <rect x="14" y="5" width="8" height="8" rx="1" />
+          <path d="M14 18h8" />
+        </>
+      )
+      break
+    case 6:
+      right = (
+        <>
+          <path d="M14 17h8" />
+          <path d="M18 13V4" />
+          <path d="M15 7l3-3 3 3" />
+        </>
+      )
+      break
+    default:
+      right = (
+        <>
+          <path d="M14 7h8" />
+          <path d="M14 12h8" />
+          <path d="M14 17h8" />
+        </>
+      )
+  }
+  return (
+    <svg class="row-height-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      {left}
+      {right}
+    </svg>
+  )
+}
 
 const perm = useProjectPermission()
 const loadingStore = useLoadingStore()
@@ -188,17 +256,17 @@ function dragStep() {
   const ds = dragStart
   if (!ds)
     return
-  const firstVisible = Math.floor(scrollTopRef.value / ROW_HEIGHT)
-  const lastVisible = firstVisible + Math.max(1, Math.ceil(tableHeight.value / ROW_HEIGHT) - 1)
+  const firstVisible = Math.floor(scrollTopRef.value / rowHeight.value)
+  const lastVisible = firstVisible + Math.max(1, Math.ceil(tableHeight.value / rowHeight.value) - 1)
   const dy = dragClientY - ds.y
-  let target = ds.index + Math.round(dy / ROW_HEIGHT)
+  let target = ds.index + Math.round(dy / rowHeight.value)
   target = Math.max(firstVisible, Math.min(lastVisible, target))
   target = Math.max(0, Math.min(rows.value.length - 1, target))
   dragTargetIndex.value = target
   const wrap = tableWrapEl.value
   if (wrap) {
     const rect = wrap.getBoundingClientRect()
-    dragLine.top = rect.top + 44 + (target - firstVisible) * ROW_HEIGHT
+    dragLine.top = rect.top + 44 + (target - firstVisible) * rowHeight.value
     dragLine.left = rect.left
     dragLine.width = rect.width
   }
@@ -507,6 +575,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         return (
           <div class="expand-cell">
             <BaseInput
+              key={`rh${rowHeightMult.value}`}
               class="inline-input"
               modelValue={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey}
               onUpdate:modelValue={(v: string) => editCache[`key|${rowData.keyId}`] = v}
@@ -514,7 +583,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               onCompositionend={onCompositionEnd}
               onBlur={() => handleBlurSave(() => onKeySave(rowData))}
               type="textarea"
-              autosize={{ minRows: 1, maxRows: 1 }}
+              autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
               size="small"
             />
             <span class="expand-btn" onClick={() => openExpand('key', rowData)}><BaseIcon><Edit /></BaseIcon></span>
@@ -535,6 +604,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         return (
           <div class="expand-cell">
             <BaseInput
+              key={`rh${rowHeightMult.value}`}
               class="inline-input"
               modelValue={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText}
               onUpdate:modelValue={(v: string) => editCache[`source|${rowData.keyId}`] = v}
@@ -542,7 +612,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               onCompositionend={onCompositionEnd}
               onBlur={() => handleBlurSave(() => onSourceSave(rowData))}
               type="textarea"
-              autosize={{ minRows: 1, maxRows: 1 }}
+              autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
               size="small"
             />
             <span class="expand-btn" onClick={() => openExpand('source', rowData)}><BaseIcon><Edit /></BaseIcon></span>
@@ -584,6 +654,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       return (
         <div class="expand-cell">
           <BaseInput
+            key={`rh${rowHeightMult.value}`}
             class="inline-input"
             modelValue={editCache[ck] ?? text}
             onUpdate:modelValue={(v: string) => editCache[ck] = v}
@@ -591,7 +662,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
             onCompositionend={onCompositionEnd}
             onBlur={() => handleBlurSave(() => onTranslationSave(rowData, lang))}
             type="textarea"
-            autosize={{ minRows: 1, maxRows: 1 }}
+            autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
             size="small"
             placeholder="输入译文..."
           />
@@ -631,6 +702,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         return (
           <div class="expand-cell">
             <BaseInput
+              key={`rh${rowHeightMult.value}`}
               class="inline-input"
               modelValue={editCache[`context|${rowData.keyId}`] ?? rowData.context}
               onUpdate:modelValue={(v: string) => editCache[`context|${rowData.keyId}`] = v}
@@ -638,7 +710,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               onCompositionend={onCompositionEnd}
               onBlur={() => handleBlurSave(() => onContextSave(rowData))}
               type="textarea"
-              autosize={{ minRows: 1, maxRows: 1 }}
+              autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
               size="small"
               placeholder="备注..."
             />
@@ -682,6 +754,16 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           <ElOption v-for="l in editableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
         </BaseSelect>
       </BaseFormItem>
+      <BaseFormItem label="行高">
+        <BaseSelect v-model="rowHeightMult" style="width:120px">
+          <ElOption v-for="p in ROW_HEIGHT_PRESETS" :key="p.value" :label="p.label" :value="p.value">
+            <span class="row-height-opt">
+              <RowHeightIcon :lines="p.value" />
+              {{ p.label }}
+            </span>
+          </ElOption>
+        </BaseSelect>
+      </BaseFormItem>
       <BaseFormItem label="标签筛选">
         <BaseSelect v-model="filterTags" multiple filterable clearable :reserve-keyword="false" placeholder="全部标签" style="width:200px">
           <ElOption v-for="t in allTags" :key="t" class="base-option" :label="t" :value="t" />
@@ -708,12 +790,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         <template #default="{ height, width }">
           <ElTableV2
             v-loading="loading"
-            class="trans-table"
+            :class="rowHeightMult > 1 ? 'trans-table row-top' : 'trans-table'"
             :columns="translationColumns"
             :data="rows"
             :width="width"
             :height="height"
-            :row-height="ROW_HEIGHT"
+            :row-height="rowHeight"
             :header-height="44"
             row-key="keyId"
             fixed
@@ -798,6 +880,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .filter-bar .el-form-item { margin-bottom: 0; }
 .trans-table-wrap { flex: 1; min-height: 0; }
 .trans-table :deep(.el-table-v2__row-cell) { padding: 0 8px; display: flex; align-items: center; overflow: hidden; }
+.trans-table.row-top :deep(.el-table-v2__row-cell) { align-items: flex-start; padding: 10px 8px; }
+.trans-table.row-top :deep(.expand-cell) { align-items: flex-start; }
 .trans-table :deep(.el-table-v2__header-cell) { padding: 0 8px; }
 .trans-table :deep(.expand-cell) { display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%; }
 .trans-table :deep(.cell-text) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #606266; }
@@ -821,4 +905,6 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .expand-subtitle { margin-bottom: 4px; font-size: 13px; color: #909399; }
 .expand-orig-text { max-height: 420px; overflow: auto; padding: 6px 10px; background: #fafafa; border: 1px solid #e4e7ed; border-radius: 6px; font-size: 13px; color: #606266; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .pre-wrap { white-space: pre-wrap; word-break: break-word; }
+.row-height-opt { display: inline-flex; align-items: center; gap: 6px; }
+.row-height-icon { width: 18px; height: 18px; flex-shrink: 0; }
 </style>
