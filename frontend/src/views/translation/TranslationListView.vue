@@ -123,7 +123,12 @@ function bindSortable() {
       const orders = (so <= prevSo || (nxt && so >= nxtSo))
         ? rows.value.map((r, i) => ({ keyId: r.keyId, sortOrder: base + (i + 1) * 10 }))
         : [{ keyId: moved.keyId, sortOrder: so }]
-      client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders }).catch(() => {})
+      client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders })
+        .then(() => ElMessage.success('排序已更新'))
+        .catch(() => {
+          ElMessage.error('排序更新失败')
+          load()
+        })
     },
   })
 }
