@@ -2,14 +2,14 @@
 import type { Column, RowClassNameGetter } from 'element-plus'
 import type { VNode } from 'vue'
 import type { GroupedRow } from '@/api/translation'
-import { Edit } from '@element-plus/icons-vue'
-import { ElAutoResizer, ElMessage, ElMessageBox, ElOption, ElTableV2, TableV2FixedDir } from 'element-plus'
+import { Edit, RefreshRight } from '@element-plus/icons-vue'
+import { ElAutoResizer, ElMessage, ElMessageBox, ElOption, TableV2FixedDir } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTagInput } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTableVirtualized, BaseTagInput } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -129,7 +129,7 @@ const tableWrapEl = ref<HTMLElement | null>(null)
 const tableHeight = ref(0)
 const scrollTopRef = ref(0)
 const scrolling = ref(false)
-let scrollingTimer: ReturnType<typeof setTimeout> | undefined
+let scrollTimer: ReturnType<typeof setTimeout> | undefined
 
 async function loadTags() {
   try {
@@ -213,11 +213,11 @@ function onResize({ height }: { height: number }) {
 function onTableScroll({ scrollTop }: { scrollTop: number }) {
   scrollTopRef.value = scrollTop
   scrolling.value = true
-  if (scrollingTimer)
-    clearTimeout(scrollingTimer)
-  scrollingTimer = setTimeout(() => {
+  if (scrollTimer)
+    clearTimeout(scrollTimer)
+  scrollTimer = setTimeout(() => {
     scrolling.value = false
-  }, 300)
+  }, 600)
 }
 
 let dragStart: { index: number, keyId: string, y: number } | null = null
@@ -542,7 +542,6 @@ function rowClassName(params: Parameters<RowClassNameGetter<GroupedRow>>[0]): st
 }
 
 const translationColumns = computed<Column<GroupedRow>[]>(() => {
-  const isScrolling = scrolling.value
   const cols: Column<GroupedRow>[] = []
 
   if (dragOrderable.value && perm.canReorderRows.value) {
@@ -551,7 +550,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       width: 46,
       fixed: TableV2FixedDir.LEFT,
       cellRenderer: ({ rowData, rowIndex }) => (
-        <span class="drag-handle" onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
+        <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
       ),
     })
   }
@@ -562,7 +561,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: 60,
     align: 'center',
     fixed: TableV2FixedDir.LEFT,
-    cellRenderer: ({ rowData, rowIndex }) => <span style={{ whiteSpace: 'nowrap' }}>{String(hasFilter.value ? rowData.rowIndex : rowIndex + 1)}</span>,
+    cellRenderer: ({ rowData, rowIndex }) => <span style={{ whiteSpace: 'nowrap', userSelect: 'none' }}>{String(hasFilter.value ? rowData.rowIndex : rowIndex + 1)}</span>,
   })
 
   cols.push({
@@ -571,11 +570,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: 210,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditKeyColumn.value && !isScrolling) {
+      if (scrolling.value)
+        return <span class="cell-scroll-text" style={{ WebkitLineClamp: rowHeightMult.value }} title={rowData.translationKey}>{rowData.translationKey}</span>
+      if (perm.canEditKeyColumn.value) {
         return (
           <div class="expand-cell">
             <BaseInput
-              key={`rh${rowHeightMult.value}`}
               class="inline-input"
               modelValue={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey}
               onUpdate:modelValue={(v: string) => editCache[`key|${rowData.keyId}`] = v}
@@ -583,7 +583,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               onCompositionend={onCompositionEnd}
               onBlur={() => handleBlurSave(() => onKeySave(rowData))}
               type="textarea"
-              autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
+              rows={rowHeightMult.value}
               size="small"
             />
             <span class="expand-btn" onClick={() => openExpand('key', rowData)}><BaseIcon><Edit /></BaseIcon></span>
@@ -600,11 +600,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: 210,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditSourceColumn.value && !isScrolling) {
+      if (scrolling.value)
+        return <span class="cell-scroll-text" style={{ WebkitLineClamp: rowHeightMult.value }} title={rowData.sourceText}>{rowData.sourceText}</span>
+      if (perm.canEditSourceColumn.value) {
         return (
           <div class="expand-cell">
             <BaseInput
-              key={`rh${rowHeightMult.value}`}
               class="inline-input"
               modelValue={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText}
               onUpdate:modelValue={(v: string) => editCache[`source|${rowData.keyId}`] = v}
@@ -612,7 +613,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               onCompositionend={onCompositionEnd}
               onBlur={() => handleBlurSave(() => onSourceSave(rowData))}
               type="textarea"
-              autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
+              rows={rowHeightMult.value}
               size="small"
             />
             <span class="expand-btn" onClick={() => openExpand('source', rowData)}><BaseIcon><Edit /></BaseIcon></span>
@@ -628,10 +629,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '语言',
     width: 140,
     cellRenderer: ({ rowIndex }) => {
-      if (isScrolling) {
-        const l = (editableLangs.value || []).find(x => x.languageCode === rowLangs.value[rowIndex])
-        return <span class="cell-text">{l ? (l.alias || l.languageCode) : ''}</span>
-      }
+      if (scrolling.value)
+        return <span class="cell-ph" />
       return (
         <BaseSelect size="small" modelValue={rowLangs.value[rowIndex]} style={{ width: '100px' }} onChange={(v: unknown) => onRowLangChange(rowIndex, v as string)}>
           {(editableLangs.value || []).map(l => <ElOption label={l.alias || l.languageCode} value={l.languageCode} />)}
@@ -647,14 +646,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     cellRenderer: ({ rowData, rowIndex }) => {
       const lang = rowLangs.value[rowIndex]
       const text = rowData.translations[lang]?.translatedText ?? ''
-      if (isScrolling) {
-        return <span class="cell-text" title={text}>{text || ''}</span>
-      }
+      if (scrolling.value)
+        return <span class="cell-ph" />
       const ck = `translation|${rowData.keyId}|${lang}`
       return (
         <div class="expand-cell">
           <BaseInput
-            key={`rh${rowHeightMult.value}`}
             class="inline-input"
             modelValue={editCache[ck] ?? text}
             onUpdate:modelValue={(v: string) => editCache[ck] = v}
@@ -662,7 +659,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
             onCompositionend={onCompositionEnd}
             onBlur={() => handleBlurSave(() => onTranslationSave(rowData, lang))}
             type="textarea"
-            autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
+            rows={rowHeightMult.value}
             size="small"
             placeholder="输入译文..."
           />
@@ -677,7 +674,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '标签',
     width: 200,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditTagsColumn.value && !isScrolling) {
+      if (scrolling.value)
+        return <span class="cell-ph" />
+      if (perm.canEditTagsColumn.value) {
         return (
           <BaseTagInput
             size="small"
@@ -698,11 +697,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '备注',
     width: 200,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditContextColumn.value && !isScrolling) {
+      if (scrolling.value)
+        return <span class="cell-ph" />
+      if (perm.canEditContextColumn.value) {
         return (
           <div class="expand-cell">
             <BaseInput
-              key={`rh${rowHeightMult.value}`}
               class="inline-input"
               modelValue={editCache[`context|${rowData.keyId}`] ?? rowData.context}
               onUpdate:modelValue={(v: string) => editCache[`context|${rowData.keyId}`] = v}
@@ -710,7 +710,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               onCompositionend={onCompositionEnd}
               onBlur={() => handleBlurSave(() => onContextSave(rowData))}
               type="textarea"
-              autosize={{ minRows: rowHeightMult.value, maxRows: rowHeightMult.value }}
+              rows={rowHeightMult.value}
               size="small"
               placeholder="备注..."
             />
@@ -728,7 +728,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       title: '操作',
       width: 80,
       fixed: TableV2FixedDir.RIGHT,
-      cellRenderer: ({ rowData }) => <BaseButton link type="danger" size="small" onClick={() => handleDelete(rowData)}>删除</BaseButton>,
+      cellRenderer: ({ rowData }) => scrolling.value ? <span class="cell-ph" /> : <BaseButton link type="danger" size="small" onClick={() => handleDelete(rowData)}>删除</BaseButton>,
     })
   }
 
@@ -786,10 +786,18 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       </BaseFormItem>
     </BaseForm>
     <div ref="tableWrapEl" class="trans-table-wrap">
+      <Transition name="scroll-hint">
+        <div v-show="scrolling" class="scroll-hint">
+          <BaseIcon class="scroll-hint-icon">
+            <RefreshRight />
+          </BaseIcon>
+          <span>滚动中，停止滚动恢复显示</span>
+        </div>
+      </Transition>
       <ElAutoResizer @resize="onResize">
         <template #default="{ height, width }">
-          <ElTableV2
-            v-loading="loading"
+          <BaseTableVirtualized
+            :loading="loading"
             :class="rowHeightMult > 1 ? 'trans-table row-top' : 'trans-table'"
             :columns="translationColumns"
             :data="rows"
@@ -797,15 +805,18 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
             :height="height"
             :row-height="rowHeight"
             :header-height="44"
+            :cache="8"
+            :vertical-scrollbar-size="10"
+            scrollbar-always-on
             row-key="keyId"
             fixed
             :row-class="rowClassName"
-            :on-scroll="onTableScroll"
+            @scroll="onTableScroll"
           >
             <template #empty>
               暂无数据
             </template>
-          </ElTableV2>
+          </BaseTableVirtualized>
         </template>
       </ElAutoResizer>
     </div>
@@ -878,13 +889,21 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .total-count { color: #909399; font-size: 14px; font-weight: normal; }
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
-.trans-table-wrap { flex: 1; min-height: 0; }
+.trans-table-wrap { flex: 1; min-height: 0; position: relative; }
+.trans-table-wrap :deep(.scroll-hint) { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); z-index: 30; display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; letter-spacing: 1px; color: #fff; background: rgba(64, 158, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 4px 16px rgba(64, 158, 255, 0.5); pointer-events: none; white-space: nowrap; }
+.trans-table-wrap :deep(.scroll-hint-icon) { font-size: 15px; animation: scroll-hint-spin 1s linear infinite; }
+@keyframes scroll-hint-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.scroll-hint-enter-active,
+.scroll-hint-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
+.scroll-hint-enter-from,
+.scroll-hint-leave-to { opacity: 0; transform: translateX(-50%) translateY(-6px); }
 .trans-table :deep(.el-table-v2__row-cell) { padding: 0 8px; display: flex; align-items: center; overflow: hidden; }
 .trans-table.row-top :deep(.el-table-v2__row-cell) { align-items: flex-start; padding: 10px 8px; }
 .trans-table.row-top :deep(.expand-cell) { align-items: flex-start; }
 .trans-table :deep(.el-table-v2__header-cell) { padding: 0 8px; }
 .trans-table :deep(.expand-cell) { display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%; }
 .trans-table :deep(.cell-text) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #606266; }
+.trans-table :deep(.cell-scroll-text) { flex: 1; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-break: break-all; font-size: 13px; line-height: 20px; color: #606266; user-select: none; }
 .trans-table :deep(.expand-btn) { flex-shrink: 0; display: inline-flex; align-items: center; font-size: 16px; color: #909399; cursor: pointer; }
 .trans-table :deep(.expand-btn:hover) { color: #409eff; }
 .trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; }
@@ -895,6 +914,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .drag-ghost-key { font-size: 13px; font-weight: 600; color: #303133; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .drag-ghost-source { margin-top: 2px; font-size: 12px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trans-table :deep(.inline-input) { flex: 1; min-width: 0; }
+.trans-table.row-top :deep(.inline-input) { height: 100%; }
+.trans-table.row-top :deep(.inline-input .el-textarea) { height: 100%; }
+.trans-table.row-top :deep(.inline-input .el-textarea__inner) { height: 100%; }
 .trans-table :deep(.inline-input .el-textarea__inner) { padding: 2px 6px; font-size: 13px; line-height: 20px; overflow-y: auto; }
 .trans-page :deep(textarea) { resize: none; }
 .expand-meta { display: grid; grid-template-columns: 48px 1fr; row-gap: 2px; column-gap: 12px; padding: 6px 10px; margin-bottom: 8px; background: #f5f7fa; border-radius: 6px; }
