@@ -7,7 +7,7 @@ withDefaults(defineProps<{
   href?: string
   icon?: string | object
 }>(), {
-  type: 'primary',
+  type: 'default',
   size: 'default',
   underline: true,
   disabled: false,

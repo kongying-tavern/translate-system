@@ -1,12 +1,12 @@
 <script setup lang="ts">
 withDefaults(defineProps<{
-  type?: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  type?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | ''
   size?: 'large' | 'default' | 'small'
   truncated?: boolean
   lineClamp?: number | string
   tag?: string
 }>(), {
-  type: 'primary',
+  type: '',
   size: 'default',
   truncated: false,
 })
