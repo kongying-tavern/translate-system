@@ -8,7 +8,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseDialog, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseButton, BaseDialog, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseSelect, BaseTable, BaseTag } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useProjectStore } from '@/stores/project'
@@ -135,10 +135,10 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
     cell: (_row, _val, index) => (
       <div>
         {perm.canManageContent.value
-          ? <BaseButton link size="small" disabled={index === 0} onClick={() => moveUp(index)}><BaseIcon><ArrowUp /></BaseIcon></BaseButton>
+          ? <BaseLink size="small" underline={false} disabled={index === 0} onClick={() => moveUp(index)}><BaseIcon><ArrowUp /></BaseIcon></BaseLink>
           : null}
         {perm.canManageContent.value
-          ? <BaseButton link size="small" disabled={index === (projectLanguages.value || []).length - 1} onClick={() => moveDown(index)}><BaseIcon><ArrowDown /></BaseIcon></BaseButton>
+          ? <BaseLink size="small" underline={false} disabled={index === (projectLanguages.value || []).length - 1} onClick={() => moveDown(index)}><BaseIcon><ArrowDown /></BaseIcon></BaseLink>
           : null}
       </div>
     ),
@@ -149,7 +149,7 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
     cell: row => (
       <div class="lang-name-cell">
         <span>{row.languageCode}</span>
-        {row.languageCode === sourceLanguage.value ? <el-tag size="small" type="primary" class="source-tag">源语言</el-tag> : null}
+        {row.languageCode === sourceLanguage.value ? <BaseTag size="small" type="primary" class="source-tag">源语言</BaseTag> : null}
       </div>
     ),
   },
@@ -183,9 +183,9 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
       ? (
           <div class="op-cell">
             {row.languageCode !== sourceLanguage.value
-              ? <BaseButton link type="primary" size="small" onClick={() => handleSetSource(row.languageCode)}>设为源语言</BaseButton>
+              ? <BaseLink type="primary" size="small" underline={false} onClick={() => handleSetSource(row.languageCode)}>设为源语言</BaseLink>
               : null}
-            <BaseButton type="danger" link disabled={row.languageCode === sourceLanguage.value} onClick={() => handleRemove(row.languageCode)}>删除</BaseButton>
+            <BaseLink type="danger" size="small" underline={false} disabled={row.languageCode === sourceLanguage.value} onClick={() => handleRemove(row.languageCode)}>删除</BaseLink>
           </div>
         )
       : null,

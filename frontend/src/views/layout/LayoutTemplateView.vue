@@ -5,7 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { deleteConfig, deleteTemplate, getConfigs, getTemplates } from '@/api/layout'
-import { BaseButton, BasePageHeader, BaseTable, BaseTabs } from '@/components/ui'
+import { BaseButton, BaseLink, BasePageHeader, BaseTable, BaseTabs } from '@/components/ui'
 import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
@@ -59,8 +59,8 @@ const templateColumns: BaseTableColumnConfig<LayoutTemplate>[] = [
     width: 160,
     cell: row => (
       <div>
-        <BaseButton link type="primary" onClick={() => router.push(`/projects/${encPathParam(projectSlug.value)}/layouts/templates/${row.id}/edit`)}>编辑</BaseButton>
-        <BaseButton link type="danger" onClick={() => handleDeleteTemplate(row.id)}>删除</BaseButton>
+        <BaseLink type="primary" underline={false} onClick={() => router.push(`/projects/${encPathParam(projectSlug.value)}/layouts/templates/${row.id}/edit`)}>编辑</BaseLink>
+        <BaseLink type="danger" underline={false} onClick={() => handleDeleteTemplate(row.id)}>删除</BaseLink>
       </div>
     ),
   },
@@ -77,8 +77,8 @@ const configColumns: BaseTableColumnConfig<LayoutConfig>[] = [
     width: 160,
     cell: row => (
       <div>
-        <BaseButton link type="primary" onClick={() => router.push(`/projects/${encPathParam(projectSlug.value)}/layouts/configs/${row.id}/edit`)}>编辑</BaseButton>
-        <BaseButton link type="danger" onClick={() => handleDeleteConfig(row.id)}>删除</BaseButton>
+        <BaseLink type="primary" underline={false} onClick={() => router.push(`/projects/${encPathParam(projectSlug.value)}/layouts/configs/${row.id}/edit`)}>编辑</BaseLink>
+        <BaseLink type="danger" underline={false} onClick={() => handleDeleteConfig(row.id)}>删除</BaseLink>
       </div>
     ),
   },

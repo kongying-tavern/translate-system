@@ -8,7 +8,7 @@ import { getUsers } from '@/api/auth'
 import client from '@/api/client'
 import { addMember, getMembers, removeMember } from '@/api/project'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseForm, BaseFormItem, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseForm, BaseFormItem, BaseLink, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { decPathParam, encPathParam } from '@/utils/path'
@@ -118,7 +118,7 @@ const memberColumns: BaseTableColumnConfig<ProjectMember>[] = [
     width: 80,
     cell: row => perm.canManageProject.value
       ? (
-          <BaseButton link type="danger" size="small" onClick={() => handleRemove(row)}>移除</BaseButton>
+          <BaseLink type="danger" size="small" underline={false} onClick={() => handleRemove(row)}>移除</BaseLink>
         )
       : null,
   },

@@ -1,10 +1,10 @@
 <script setup lang="tsx">
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { User } from '@/types/models'
-import { ElMessage, ElMessageBox, ElTag } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import { changePassword, createUser, deleteUser, getUsers, updateUserRole } from '@/api/auth'
-import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable } from '@/components/ui'
+import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseInput, BaseLink, BasePageHeader, BaseSelect, BaseTable, BaseTag } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
 import { roleLabel, SystemRole } from '@/utils/roles'
@@ -118,7 +118,7 @@ const userColumns: BaseTableColumnConfig<User>[] = [
     width: 180,
     cell: (row) => {
       if (cannotEdit(row))
-        return <ElTag type="info">{roleLabel(row.role)}</ElTag>
+        return <BaseTag type="info">{roleLabel(row.role)}</BaseTag>
       return (
         <BaseSelect modelValue={row.role} size="small" style={{ width: '130px' }} onChange={(v: unknown) => onChangeRole(row, v as string)}>
           <el-option label="管理员" value="admin" />
@@ -137,8 +137,8 @@ const userColumns: BaseTableColumnConfig<User>[] = [
     width: 200,
     cell: row => (
       <div>
-        <BaseButton link type="primary" size="small" disabled={cannotEdit(row) && row.id !== auth.user?.id} onClick={() => openPwd(row)}>改密</BaseButton>
-        <BaseButton link type="danger" size="small" disabled={cannotEdit(row)} onClick={() => handleDelete(row)}>删除</BaseButton>
+        <BaseLink type="primary" size="small" underline={false} disabled={cannotEdit(row) && row.id !== auth.user?.id} onClick={() => openPwd(row)}>改密</BaseLink>
+        <BaseLink type="danger" size="small" underline={false} disabled={cannotEdit(row)} onClick={() => handleDelete(row)}>删除</BaseLink>
       </div>
     ),
   },

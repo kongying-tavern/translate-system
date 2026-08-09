@@ -367,6 +367,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseFormItem | 透传 | el-form-item |
 | BaseIcon | 透传 | el-icon，hover 动画 |
 | BaseInput | 透传 | el-input，支持 autosize；透传 compositionstart/compositionend（IME 组合守卫用） |
+| BaseLink | 透传 | el-link，文本链接（表格操作列用）：`type`/`size`/`underline`（默认 true）/`disabled`/`href`/`icon`，点击 emit `click`；无按钮阴影，操作列默认 `:underline="false"` 保持 link-button 视觉；样式：font-size 13px，相邻 margin-left 12px |
 | BasePageHeader | 透传 | 页面标题栏 |
 | BaseRadioGroup | **配置式** | el-radio-group，options 驱动，泛型值，支持 button 模式 |
 | BaseJsonSchemaViewer | 透传 | 基于 `cf-json-schema-viz`（React）经 `veaury` `applyPureReactInVue` 桥接的 JSON Schema 树形查看器；`schema` 必传，支持 `defaultExpandedDepth`/`expanded`（默认全展开）/`disableCrumbs`/`renderRootTreeLines`/`emptyText`；容器高度经 ResizeObserver 测量后透传 `max-height`；样式变量映射到 Element Plus CSS 变量实现换肤。依赖 react/react-dom/veaury/cf-json-schema-viz，已在 `vite.config.mts` `optimizeDeps.include` 预构建。注意：`@stoplight/json-schema-tree` 只相对传入的根 schema 解析 `$ref`，传入孤立 schema 时嵌套引用无法展开，调用方需先用 `dereferenceSchema` 深解引用 |
@@ -376,6 +377,8 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseTabs | **配置式** | tabs 配置驱动，泛型 tab key，内容通过 `#tab-{key}` 具名插槽 |
 | BaseTabButton | 透传 | 标签页按钮（AppTabs 用）：`label`/`active`/`closable` props，点击 emit `click`，关闭图标常显（closable 时）点击 emit `close`；激活态主色实心，关闭图标 hover 变红 |
 | BaseTabularViewer | **配置式** | 通用类表格文本查看器（CSV/Properties 等），`format` prop 决定表格解析方式（`csv` RFC 4180、`properties` 按 `=`/`:` 拆键值对并跳过 `#`/`!` 注释行，列头固定为 键/值）；顶部工具栏（BaseRadioGroup button 模式）切换 表格/原文 视图，含「自动换行」开关（BaseCheckbox，`v-model:wrap`）和「复制」按钮（navigator.clipboard）；视图模式 `v-model:mode`；深色 sticky 表头 + 斑马纹 + 列间竖线（`showGridLines`），外层统一边框白底，与 BaseTable 样式区分 |
+| BaseTag | 透传 | el-tag 标签：`type`/`size`/`effect`/`round`/`closable`/`disableTransitions`，可点击，`closable` 时 emit `close`（状态/源语言等只读标签用） |
+| BaseText | 透传 | el-text 文本：`type`/`size`/`truncated`/`lineClamp`/`tag`，统一文本样式入口 |
 | BaseTagInput | **配置式** | 标签输入器：基于 BaseSelect 封装（`multiple`+`filterable`+`allow-create`+`default-first-option`），`options: string[]` 提供已有标签备选（**已选标签仍保留在候选中可搜索、可取消**），输入新标签可创建；**支持逗号/分号（中英文）、回车、Tab 作为新增标签的确认键**（回车由 el-select allow-create 原生完成，逗号/分号/Tab 由组件在 `keydown` 中拦截：补入 `v-model` 并清空输入框）；`v-model: string[]`，值按 key 天然去重；透传 `placeholder`/`size`/`clearable`/`disabled`/`collapseTags`/`reserveKeyword`（默认 true），`change` 事件在值变化时触发。**重名语义**：点击/回车对已选标签为「切换」（会移除该标签），逗号/分号/Tab 为「仅新增」（重名时跳过加入、仅清空输入框）。BaseSelect 已新增 `allowCreate`/`defaultFirstOption`/`reserveKeyword` 透传属性及 `keydown` 透传事件 |
 
 其中 BaseTable、BaseSelect、BaseRadioGroup、BaseTabs 为**配置式封装**，不同于简单透传：

@@ -1,0 +1,7 @@
+.base-link {
+  font-size: 13px;
+
+  & + .base-link {
+    margin-left: 12px;
+  }
+}

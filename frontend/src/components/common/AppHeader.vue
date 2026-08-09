@@ -2,11 +2,11 @@
 import type { BaseTableColumnConfig } from '@/components/ui/BaseTable/types'
 import type { ApiKey, Project } from '@/types/models'
 import { ArrowDown, Edit } from '@element-plus/icons-vue'
-import { ElLink, ElMessage, ElMessageBox, ElTag } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseTable } from '@/components/ui'
+import { BaseButton, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BaseTable, BaseTag } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -130,7 +130,7 @@ const apikeyColumns: BaseTableColumnConfig<ApiKey>[] = [
   {
     title: '状态',
     width: 80,
-    cell: row => <ElTag type={row.enabled ? 'success' : 'danger'} size="small">{row.enabled ? '启用' : '禁用'}</ElTag>,
+    cell: row => <BaseTag type={row.enabled ? 'success' : 'danger'} size="small">{row.enabled ? '启用' : '禁用'}</BaseTag>,
   },
   {
     title: '最后使用',
@@ -142,8 +142,8 @@ const apikeyColumns: BaseTableColumnConfig<ApiKey>[] = [
     width: 140,
     cell: row => (
       <div>
-        <BaseButton link size="small" onClick={() => toggleApiKey(row)}>{row.enabled ? '禁用' : '启用'}</BaseButton>
-        <BaseButton link type="danger" size="small" onClick={() => deleteApiKey(row)}>删除</BaseButton>
+        <BaseLink size="small" underline={false} onClick={() => toggleApiKey(row)}>{row.enabled ? '禁用' : '启用'}</BaseLink>
+        <BaseLink type="danger" size="small" underline={false} onClick={() => deleteApiKey(row)}>删除</BaseLink>
       </div>
     ),
   },
@@ -201,11 +201,11 @@ async function deleteApiKey(row: ApiKey) {
           <ArrowDown />
         </BaseIcon>
       </div>
-      <BaseButton v-if="perm.canEditProject.value && !isEditRoute" link style="margin-left:8px;padding:2px" title="编辑" @click="goEditProject">
+      <BaseLink v-if="perm.canEditProject.value && !isEditRoute" :underline="false" style="margin-left:8px;padding:2px" title="编辑" @click="goEditProject">
         <BaseIcon size="18">
           <Edit />
         </BaseIcon>
-      </BaseButton>
+      </BaseLink>
     </template>
   </div>
   <div class="header-right">
@@ -261,9 +261,9 @@ async function deleteApiKey(row: ApiKey) {
     </div>
     <div style="margin-top:12px;font-size:13px;color:#909399;display:flex;align-items:center;justify-content:space-between">
       <span>使用方式：请求头 <code>x-api-key</code> 和 <code>x-api-secret</code></span>
-      <ElLink type="primary" style="font-size:13px" @click="goApiDoc">
+      <BaseLink type="primary" :underline="false" style="font-size:13px" @click="goApiDoc">
         查看使用文档
-      </ElLink>
+      </BaseLink>
     </div>
   </BaseDialog>
 

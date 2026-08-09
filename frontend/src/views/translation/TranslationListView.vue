@@ -9,7 +9,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BasePageHeader, BaseSelect, BaseTableVirtualized, BaseTagInput } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseSelect, BaseTableVirtualized, BaseTag, BaseTagInput } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -754,7 +754,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       title: '操作',
       width: FIXED_WIDTHS.actions,
       fixed: TableV2FixedDir.RIGHT,
-      cellRenderer: ({ rowData }) => scrolling.value ? <span class="cell-ph" /> : <BaseButton link type="danger" size="small" onClick={() => handleDelete(rowData)}>删除</BaseButton>,
+      cellRenderer: ({ rowData }) => scrolling.value ? <span class="cell-ph" /> : <BaseLink type="danger" size="small" underline={false} onClick={() => handleDelete(rowData)}>删除</BaseLink>,
     })
   }
 
@@ -771,9 +771,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     </BasePageHeader>
     <BaseForm :inline="true" :model="filters" class="filter-bar">
       <BaseFormItem label="源语言">
-        <el-tag v-if="sourceLanguage" size="small" type="primary" effect="plain">
+        <BaseTag v-if="sourceLanguage" size="small" type="primary" effect="plain">
           {{ sourceLanguage }}
-        </el-tag>
+        </BaseTag>
       </BaseFormItem>
       <BaseFormItem label="全局语言">
         <BaseSelect v-model="globalLang" placeholder="选择语言" style="width:160px" @change="onGlobalLangChange">

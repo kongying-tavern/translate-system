@@ -4,7 +4,7 @@ import { Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { BaseButton, BaseIcon } from '@/components/ui'
+import { BaseButton, BaseIcon, BaseLink } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
@@ -92,16 +92,16 @@ async function deleteProject(p: Project): Promise<void> {
             源语言：<code class="project-card__lang-code">{{ p.sourceLanguage }}</code>
           </span>
           <div v-if="perm.canEditProject.value" class="project-card__actions" @click.stop>
-            <BaseButton link size="small" class="project-card__action" title="编辑" @click.stop="editProject(p)">
+            <BaseLink class="project-card__action" :underline="false" title="编辑" @click.stop="editProject(p)">
               <BaseIcon size="16">
                 <Edit />
               </BaseIcon>
-            </BaseButton>
-            <BaseButton link type="danger" size="small" class="project-card__action" title="删除" @click.stop="deleteProject(p)">
+            </BaseLink>
+            <BaseLink type="danger" class="project-card__action" :underline="false" title="删除" @click.stop="deleteProject(p)">
               <BaseIcon size="16">
                 <Delete />
               </BaseIcon>
-            </BaseButton>
+            </BaseLink>
           </div>
         </div>
       </div>

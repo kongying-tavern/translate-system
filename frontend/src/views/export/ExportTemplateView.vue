@@ -8,7 +8,7 @@ import { deleteExportTemplate, generateExport, getExportTemplates } from '@/api/
 import { getProjectLanguages } from '@/api/language'
 import { getTags } from '@/api/translation'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect, BaseTable, BaseTabularViewer } from '@/components/ui'
+import { BaseButton, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BaseLink, BasePageHeader, BaseSelect, BaseTable, BaseTabularViewer } from '@/components/ui'
 import { ExportFormat, getFormatMeta } from '@/data/exportFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { decPathParam, encPathParam } from '@/utils/path'
@@ -134,8 +134,8 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
     width: 150,
     cell: row => (
       <div>
-        {perm.canManageExportTemplates.value ? <BaseButton link type="primary" onClick={() => router.push(`/projects/${encPathParam(projectSlug.value)}/exports/${row.id}/edit`)}>编辑</BaseButton> : null}
-        {perm.canManageExportTemplates.value ? <BaseButton link type="danger" onClick={() => handleDelete(row.id)}>删除</BaseButton> : null}
+        {perm.canManageExportTemplates.value ? <BaseLink type="primary" underline={false} onClick={() => router.push(`/projects/${encPathParam(projectSlug.value)}/exports/${row.id}/edit`)}>编辑</BaseLink> : null}
+        {perm.canManageExportTemplates.value ? <BaseLink type="danger" underline={false} onClick={() => handleDelete(row.id)}>删除</BaseLink> : null}
       </div>
     ),
   },
