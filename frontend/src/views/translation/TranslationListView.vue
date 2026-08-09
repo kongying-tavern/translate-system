@@ -9,7 +9,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseSelect, BaseTableVirtualized, BaseTag, BaseTagInput } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTableVirtualized, BaseTag, BaseTagInput } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -86,6 +86,17 @@ function RowHeightIcon({ lines }: { lines: number }) {
   )
 }
 
+function InsertIcon() {
+  return (
+    <svg class="insert-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M13 4h8" stroke-width="3" />
+      <path d="M13 20h8" stroke-width="3" />
+      <path d="M3 12h14" stroke-width="1.8" />
+      <path d="M9 8l6 4-6 4" stroke-width="1.8" />
+    </svg>
+  )
+}
+
 const perm = useProjectPermission()
 const loadingStore = useLoadingStore()
 const route = useRoute()
@@ -116,6 +127,13 @@ const expandDialog = reactive<{
 const expandText = ref('')
 const editCache = reactive<Record<string, string>>({})
 const composing = ref(false)
+const insertDialog = reactive<{
+  visible: boolean
+  row: GroupedRow | null
+  srcNo: number
+  targetNo: string
+  placement: 'before' | 'after'
+}>({ visible: false, row: null, srcNo: 0, targetNo: '', placement: 'after' })
 
 const appliedSearch = ref('')
 const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
@@ -313,6 +331,61 @@ function onDragEnd() {
     : [{ keyId, sortOrder: so }]
   client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders })
     .then(() => ElMessage.success('排序已更新'))
+    .catch(() => {
+      ElMessage.error('排序更新失败')
+      load()
+    })
+}
+
+function openInsertDialog(row: GroupedRow) {
+  const idx = rows.value.findIndex(r => r.keyId === row.keyId)
+  insertDialog.row = row
+  insertDialog.srcNo = idx + 1
+  insertDialog.targetNo = ''
+  insertDialog.placement = 'after'
+  insertDialog.visible = true
+}
+
+async function confirmInsert() {
+  const src = insertDialog.row
+  if (!src)
+    return
+  const target = parseInt(insertDialog.targetNo.trim(), 10)
+  const count = rows.value.length
+  if (isNaN(target) || target < 1 || target > count) {
+    ElMessage.warning(`行号需在 1 ~ ${count} 之间`)
+    return
+  }
+  const targetIndex = target - 1
+  const from = rows.value.findIndex(r => r.keyId === src.keyId)
+  if (from < 0) {
+    insertDialog.visible = false
+    load()
+    return
+  }
+  if (from === targetIndex) {
+    insertDialog.visible = false
+    return
+  }
+  const clone = [...rows.value]
+  const [moved] = clone.splice(from, 1)
+  const shift = from < targetIndex ? -1 : 0
+  let pos = insertDialog.placement === 'before' ? targetIndex + shift : targetIndex + shift + 1
+  pos = Math.max(0, Math.min(clone.length, pos))
+  clone.splice(pos, 0, moved)
+  rows.value = clone
+  const prev = pos > 0 ? clone[pos - 1] : null
+  const nxt = pos < clone.length - 1 ? clone[pos + 1] : null
+  const prevSo = prev?.sortOrder ?? 0
+  const nxtSo = nxt?.sortOrder ?? (prevSo + 1000)
+  const so = prev ? Math.round((prevSo + nxtSo) / 2) : Math.round(nxtSo / 2)
+  const base = prev ? prevSo : nxtSo
+  const orders = (so <= prevSo || (nxt && so >= nxtSo))
+    ? clone.map((r, i) => ({ keyId: r.keyId, sortOrder: base + (i + 1) * 10 }))
+    : [{ keyId: src.keyId, sortOrder: so }]
+  insertDialog.visible = false
+  client.put(`/projects/${encPathParam(projectSlug.value)}/translations/sortOrders`, { orders })
+    .then(() => ElMessage.success(`已插入到第 ${pos + 1} 行${insertDialog.placement === 'before' ? '之前' : '之后'}`))
     .catch(() => {
       ElMessage.error('排序更新失败')
       load()
@@ -544,7 +617,7 @@ function rowClassName(params: Parameters<RowClassNameGetter<GroupedRow>>[0]): st
 }
 
 const translationColumns = computed<Column<GroupedRow>[]>(() => {
-  const FIXED_WIDTHS = { drag: 46, rowIndex: 60, actions: 80 }
+  const FIXED_WIDTHS = { drag: 64, rowIndex: 60, actions: 80 }
   const SCROLLBAR = 10
   const FLEX_MINS: Record<string, number> = { translationKey: 150, sourceText: 150, lang: 110, translation: 170, tags: 130, context: 130 }
   const FLEX_WEIGHTS: Record<string, number> = { translationKey: 2.5, sourceText: 2.5, lang: 1.5, translation: 3, tags: 2, context: 2 }
@@ -576,7 +649,10 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       width: FIXED_WIDTHS.drag,
       fixed: TableV2FixedDir.LEFT,
       cellRenderer: ({ rowData, rowIndex }) => (
-        <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
+        <div class="drag-cell">
+          <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
+          <span class="drag-insert" title="插入到指定位置" onClick={() => openInsertDialog(rowData)}><InsertIcon /></span>
+        </div>
       ),
     })
   }
@@ -907,6 +983,27 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         </BaseButton>
       </template>
     </BaseDialog>
+    <BaseDialog v-model="insertDialog.visible" title="插入到…" width="460px">
+      <div v-if="insertDialog.row" class="insert-meta">
+        <span class="insert-meta-label">当前行</span>
+        <span class="insert-meta-value">#{{ insertDialog.srcNo }}</span>
+        <span class="insert-meta-label">Key</span>
+        <span class="insert-meta-value pre-wrap">{{ insertDialog.row.translationKey }}</span>
+        <span class="insert-meta-label">插入到</span>
+        <div class="insert-meta-control">
+          <span class="insert-pound">#</span>
+          <BaseInput v-model="insertDialog.targetNo" size="default" placeholder="行号" style="width:120px" @keyup.enter="confirmInsert" />
+          <BaseRadioGroup v-model="insertDialog.placement" button :options="[{ label: '之前', value: 'before' }, { label: '之后', value: 'after' }]" />
+        </div>
+      </div>
+      <template #footer>
+        <BaseButton @click="insertDialog.visible = false">
+          取消
+        </BaseButton><BaseButton type="primary" @click="confirmInsert">
+          确定
+        </BaseButton>
+      </template>
+    </BaseDialog>
   </div>
 </template>
 
@@ -932,8 +1029,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .trans-table :deep(.cell-scroll-text) { flex: 1; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-break: break-all; font-size: 13px; line-height: 20px; color: #606266; user-select: none; }
 .trans-table :deep(.expand-btn) { flex-shrink: 0; display: inline-flex; align-items: center; font-size: 16px; color: #909399; cursor: pointer; }
 .trans-table :deep(.expand-btn:hover) { color: #409eff; }
+.trans-table :deep(.drag-cell) { display: flex; align-items: center; justify-content: flex-start; gap: 16px; width: 100%; }
 .trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; }
 .trans-table :deep(.drag-handle:hover) { color: #409eff; }
+.trans-table :deep(.drag-insert) { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 2px; border-radius: 5px; background: #ecf5ff; border: 1px solid #b3d8ff; color: #409eff; cursor: pointer; margin: 2px 4px 2px 0; }
+.trans-table :deep(.drag-insert:hover) { background: #409eff; border-color: #409eff; color: #fff; }
+.trans-table :deep(.drag-insert .insert-icon) { width: 15px; height: 15px; flex-shrink: 0; }
 .trans-table :deep(.drag-source) { background-color: #ecf5ff !important; }
 .drag-ghost { position: fixed; z-index: 3000; max-width: 280px; padding: 6px 10px; background: #fff; border: 1px solid #409eff; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); pointer-events: none; }
 .drag-line { position: fixed; height: 2px; background: #409eff; z-index: 3001; pointer-events: none; }
@@ -953,6 +1054,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .expand-subtitle { margin-bottom: 4px; font-size: 13px; color: #909399; }
 .expand-orig-text { max-height: 420px; overflow: auto; padding: 6px 10px; background: #fafafa; border: 1px solid #e4e7ed; border-radius: 6px; font-size: 13px; color: #606266; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .pre-wrap { white-space: pre-wrap; word-break: break-word; }
+.insert-meta { display: grid; grid-template-columns: 48px 1fr; row-gap: 0; column-gap: 12px; padding: 0 10px; margin-bottom: 8px; background: #f5f7fa; border-radius: 6px; }
+.insert-meta > * { min-height: 38px; display: flex; align-items: center; }
+.insert-meta-label { font-size: 13px; color: #909399; line-height: 1.5; white-space: nowrap; }
+.insert-meta-value { font-size: 13px; color: #303133; line-height: 1.5; word-break: break-all; }
+.insert-meta-control { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.insert-pound { font-size: 13px; color: #303133; white-space: nowrap; }
 .row-height-opt { display: inline-flex; align-items: center; gap: 6px; }
 .row-height-icon { width: 18px; height: 18px; flex-shrink: 0; }
 </style>
