@@ -336,16 +336,19 @@ function onDragEnd() {
     load()
     return
   }
-  if (from === target)
+  // 向下拖动（from < target）时 splice(from,1) 已让目标位置前移一位，插入位置需 target-1；
+  // 向上拖动（from > target）不受影响，保持 target。与 confirmInsert 的 shift 逻辑一致
+  const pos = from < target ? target - 1 : target
+  if (pos === from)
     return
   const clone = [...rows.value]
   const [moved] = clone.splice(from, 1)
-  clone.splice(target, 0, moved)
+  clone.splice(pos, 0, moved)
   rows.value = clone
   // 折半插入 moved 行到相邻行 sortOrder 之间；相邻值相同/重叠（间距耗尽）时无空位，
   // 折半结果与邻居相等导致排序不生效，此时从相邻最小值开始整页重排以保留相对位置
-  const prev = target > 0 ? clone[target - 1] : null
-  const nxt = target < clone.length - 1 ? clone[target + 1] : null
+  const prev = pos > 0 ? clone[pos - 1] : null
+  const nxt = pos < clone.length - 1 ? clone[pos + 1] : null
   const prevSo = prev?.sortOrder ?? 0
   const nxtSo = nxt?.sortOrder ?? (prevSo + 1000)
   const so = prev ? Math.round((prevSo + nxtSo) / 2) : Math.round(nxtSo / 2)
