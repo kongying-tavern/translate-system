@@ -120,11 +120,12 @@ const saving = ref(false)
 const form = reactive({ translationKey: '', tags: [] as string[] })
 const expandDialog = reactive<{
   visible: boolean
-  field: 'key' | 'source' | 'translation' | 'context'
+  field: 'key' | 'source' | 'translation' | 'context' | 'tags'
   row: GroupedRow | null
   langCode?: string
 }>({ visible: false, field: 'key', row: null })
 const expandText = ref('')
+const expandTags = ref<string[]>([])
 const editCache = reactive<Record<string, string>>({})
 const composing = ref(false)
 const insertDialog = reactive<{
@@ -551,11 +552,11 @@ async function onTranslationSave(row: GroupedRow, lang: string) {
 }
 
 const expandTitle = computed(() => {
-  const names = { key: 'Key', source: '原文', translation: '译文', context: '备注' }
+  const names = { key: 'Key', source: '原文', translation: '译文', context: '备注', tags: '标签' }
   return `编辑${names[expandDialog.field]}`
 })
 
-function openExpand(field: 'key' | 'source' | 'translation' | 'context', row: GroupedRow, langCode?: string) {
+function openExpand(field: 'key' | 'source' | 'translation' | 'context' | 'tags', row: GroupedRow, langCode?: string) {
   expandDialog.field = field
   expandDialog.row = row
   expandDialog.langCode = langCode
@@ -568,6 +569,9 @@ function openExpand(field: 'key' | 'source' | 'translation' | 'context', row: Gr
       break
     case 'context':
       expandText.value = row.context
+      break
+    case 'tags':
+      expandTags.value = [...row.tags]
       break
     case 'translation':
       expandText.value = langCode ? (row.translations[langCode]?.translatedText ?? '') : ''
@@ -608,6 +612,13 @@ async function saveExpand() {
           row.translations[langCode].translatedText = text
         else
           row.translations[langCode] = { id: '', translatedText: text }
+        break
+      }
+      case 'tags': {
+        const tags = [...new Set(expandTags.value.map(t => t.trim()).filter(Boolean))]
+        await updateKey(projectSlug.value, row.keyId, { tags })
+        row.tags = tags
+        loadTags()
         break
       }
     }
@@ -789,14 +800,19 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         return <span class="cell-ph" />
       if (perm.canEditTagsColumn.value) {
         return (
-          <BaseTagInput
-            size="small"
-            options={allTags.value}
-            modelValue={rowData.tags}
-            onUpdate:modelValue={(v?: string[]) => { rowData.tags = v ?? rowData.tags }}
-            onChange={() => onTagsChange(rowData)}
-            style={{ width: '100%' }}
-          />
+          <div class="expand-cell">
+            <BaseTagInput
+              class="inline-input"
+              size="small"
+              options={allTags.value}
+              modelValue={rowData.tags}
+              onUpdate:modelValue={(v?: string[]) => { rowData.tags = v ?? rowData.tags }}
+              onChange={() => onTagsChange(rowData)}
+              collapseTags
+              style={{ width: '100%' }}
+            />
+            <span class="expand-btn" onClick={() => openExpand('tags', rowData)}><BaseIcon><Edit /></BaseIcon></span>
+          </div>
         )
       }
       return <span class="cell-text" title={rowData.tags.join(', ')}>{rowData.tags.length ? rowData.tags.join(', ') : '-'}</span>
@@ -983,6 +999,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           <BaseInput v-model="expandText" type="textarea" :autosize="{ minRows: 10, maxRows: 24 }" placeholder="在此输入内容..." />
         </div>
       </div>
+      <BaseTagInput v-else-if="expandDialog.field === 'tags'" v-model="expandTags" :options="allTags" size="default" />
       <BaseInput v-else v-model="expandText" type="textarea" :autosize="{ minRows: 10, maxRows: 24 }" placeholder="在此输入内容..." />
       <template #footer>
         <BaseButton @click="expandDialog.visible = false">
