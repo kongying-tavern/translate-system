@@ -648,12 +648,14 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       key: 'drag',
       width: FIXED_WIDTHS.drag,
       fixed: TableV2FixedDir.LEFT,
-      cellRenderer: ({ rowData, rowIndex }) => (
-        <div class="drag-cell">
-          <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
-          <span class="drag-insert" title="插入到指定位置" onClick={() => openInsertDialog(rowData)}><InsertIcon /></span>
-        </div>
-      ),
+      cellRenderer: ({ rowData, rowIndex }) => scrolling.value
+        ? <span class="cell-ph" />
+        : (
+            <div class="drag-cell">
+              <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
+              <span class="drag-insert" title="插入到指定位置" onClick={() => openInsertDialog(rowData)}><InsertIcon /></span>
+            </div>
+          ),
     })
   }
 
