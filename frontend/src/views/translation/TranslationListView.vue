@@ -3,7 +3,7 @@ import type { Column, RowClassNameGetter } from 'element-plus'
 import type { VNode } from 'vue'
 import type { ComponentExposed } from 'vue-component-type-helpers'
 import type { GroupedRow } from '@/api/translation'
-import { Edit, Position, RefreshRight } from '@element-plus/icons-vue'
+import { Edit, Position } from '@element-plus/icons-vue'
 import { ElAutoResizer, ElMessage, ElMessageBox, ElOption, TableV2FixedDir } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, reactive, ref, useTemplateRef, watch } from 'vue'
@@ -153,6 +153,19 @@ const tableWidth = ref(0)
 const scrollTopRef = ref(0)
 const scrolling = ref(false)
 let scrollTimer: ReturnType<typeof setTimeout> | undefined
+
+/** 滚动期间使用的静态文本单元格：仅渲染样式对齐的纯 div，不挂任何可交互组件 */
+function StaticTextCell({ text, rows }: { text: string, rows: number }) {
+  const lines = text.split('\n')
+  const padding = 2
+  const lineHeight = 20
+  const minHeight = rows * lineHeight + padding * 2
+  return (
+    <div class="base-textarea cell-static-text" style={{ minHeight: `${minHeight}px` }}>
+      {lines.map(line => <span class="cell-static-line">{line || '\u00A0'}</span>)}
+    </div>
+  )
+}
 
 function onWheelCapture(e: WheelEvent) {
   const target = e.target as HTMLElement | null
@@ -654,6 +667,7 @@ function rowClassName(params: Parameters<RowClassNameGetter<GroupedRow>>[0]): st
 }
 
 const translationColumns = computed<Column<GroupedRow>[]>(() => {
+  void scrolling.value
   const FIXED_WIDTHS = { drag: 64, rowIndex: 60, actions: 80 }
   const SCROLLBAR = 10
   const FLEX_MINS: Record<string, number> = { translationKey: 150, sourceText: 150, lang: 110, translation: 170, tags: 130, context: 130 }
@@ -685,14 +699,16 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       key: 'drag',
       width: FIXED_WIDTHS.drag,
       fixed: TableV2FixedDir.LEFT,
-      cellRenderer: ({ rowData, rowIndex }) => scrolling.value
-        ? <span class="cell-ph" />
-        : (
-            <div class="drag-cell">
-              <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
-              <span class="drag-insert" title="插入到指定位置" onClick={() => openInsertDialog(rowData)}><InsertIcon /></span>
-            </div>
-          ),
+      cellRenderer: ({ rowData, rowIndex }) => {
+        if (scrolling.value)
+          return <span />
+        return (
+          <div class="drag-cell">
+            <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
+            <span class="drag-insert" title="插入到指定位置" onClick={() => openInsertDialog(rowData)}><InsertIcon /></span>
+          </div>
+        )
+      },
     })
   }
 
@@ -711,9 +727,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: flexWidths.translationKey,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
-      if (scrolling.value)
-        return <span class="cell-scroll-text" style={{ WebkitLineClamp: rowHeightMult.value }} title={rowData.translationKey}>{rowData.translationKey}</span>
       if (perm.canEditKeyColumn.value) {
+        if (scrolling.value)
+          return <StaticTextCell text={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey} rows={rowHeightMult.value} />
         return (
           <div class="expand-cell">
             <BaseInput
@@ -727,7 +743,15 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               rows={rowHeightMult.value}
               size="small"
             />
-            <span class="expand-btn" onClick={() => openExpand('key', rowData)}><BaseIcon><Edit /></BaseIcon></span>
+            <span
+              class={['expand-btn', { 'is-disabled': scrolling.value }]}
+              onClick={() => {
+                if (!scrolling.value)
+                  openExpand('key', rowData)
+              }}
+            >
+              <BaseIcon><Edit /></BaseIcon>
+            </span>
           </div>
         )
       }
@@ -741,9 +765,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: flexWidths.sourceText,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
-      if (scrolling.value)
-        return <span class="cell-scroll-text" style={{ WebkitLineClamp: rowHeightMult.value }} title={rowData.sourceText}>{rowData.sourceText}</span>
       if (perm.canEditSourceColumn.value) {
+        if (scrolling.value)
+          return <StaticTextCell text={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText} rows={rowHeightMult.value} />
         return (
           <div class="expand-cell">
             <BaseInput
@@ -757,7 +781,15 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               rows={rowHeightMult.value}
               size="small"
             />
-            <span class="expand-btn" onClick={() => openExpand('source', rowData)}><BaseIcon><Edit /></BaseIcon></span>
+            <span
+              class={['expand-btn', { 'is-disabled': scrolling.value }]}
+              onClick={() => {
+                if (!scrolling.value)
+                  openExpand('source', rowData)
+              }}
+            >
+              <BaseIcon><Edit /></BaseIcon>
+            </span>
           </div>
         )
       }
@@ -770,8 +802,11 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '语言',
     width: flexWidths.lang,
     cellRenderer: ({ rowIndex }) => {
-      if (scrolling.value)
-        return <span class="cell-ph" />
+      if (scrolling.value) {
+        const lang = rowLangs.value[rowIndex]
+        const item = (editableLangs.value || []).find(l => l.languageCode === lang)
+        return <div class="cell-static-lang">{item?.alias || lang || '-'}</div>
+      }
       return (
         <BaseSelect size="small" modelValue={rowLangs.value[rowIndex]} style={{ width: '100%' }} onChange={(v: unknown) => onRowLangChange(rowIndex, v as string)}>
           {(editableLangs.value || []).map(l => <ElOption label={l.alias || l.languageCode} value={l.languageCode} />)}
@@ -787,9 +822,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     cellRenderer: ({ rowData, rowIndex }) => {
       const lang = rowLangs.value[rowIndex]
       const text = rowData.translations[lang]?.translatedText ?? ''
-      if (scrolling.value)
-        return <span class="cell-ph" />
       const ck = `translation|${rowData.keyId}|${lang}`
+      if (scrolling.value)
+        return <StaticTextCell text={editCache[ck] ?? text} rows={rowHeightMult.value} />
       return (
         <div class="expand-cell">
           <BaseInput
@@ -804,7 +839,17 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
             size="small"
             placeholder="输入译文..."
           />
-          {lang && <span class="expand-btn" onClick={() => openExpand('translation', rowData, lang)}><BaseIcon><Edit /></BaseIcon></span>}
+          {lang && (
+            <span
+              class={['expand-btn', { 'is-disabled': scrolling.value }]}
+              onClick={() => {
+                if (!scrolling.value)
+                  openExpand('translation', rowData, lang)
+              }}
+            >
+              <BaseIcon><Edit /></BaseIcon>
+            </span>
+          )}
         </div>
       )
     },
@@ -815,9 +860,22 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '标签',
     width: flexWidths.tags,
     cellRenderer: ({ rowData }) => {
-      if (scrolling.value)
-        return <span class="cell-ph" />
       if (perm.canEditTagsColumn.value) {
+        if (scrolling.value) {
+          const tags = rowData.tags || []
+          const rest = tags.length - 1
+          return (
+            <div class="base-select cell-tags">
+              {tags.length > 0 && <span class="cell-tag" key={tags[0]}>{tags[0]}</span>}
+              {rest > 0 && (
+                <span class="cell-tags-more">
+                  +
+                  {rest}
+                </span>
+              )}
+            </div>
+          )
+        }
         return (
           <div class="expand-cell">
             <BaseTagInput
@@ -843,9 +901,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '备注',
     width: flexWidths.context,
     cellRenderer: ({ rowData }) => {
-      if (scrolling.value)
-        return <span class="cell-ph" />
       if (perm.canEditContextColumn.value) {
+        if (scrolling.value)
+          return <StaticTextCell text={editCache[`context|${rowData.keyId}`] ?? rowData.context} rows={rowHeightMult.value} />
         return (
           <div class="expand-cell">
             <BaseInput
@@ -860,7 +918,15 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
               size="small"
               placeholder="备注..."
             />
-            <span class="expand-btn" onClick={() => openExpand('context', rowData)}><BaseIcon><Edit /></BaseIcon></span>
+            <span
+              class={['expand-btn', { 'is-disabled': scrolling.value }]}
+              onClick={() => {
+                if (!scrolling.value)
+                  openExpand('context', rowData)
+              }}
+            >
+              <BaseIcon><Edit /></BaseIcon>
+            </span>
           </div>
         )
       }
@@ -874,7 +940,11 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       title: '操作',
       width: FIXED_WIDTHS.actions,
       fixed: TableV2FixedDir.RIGHT,
-      cellRenderer: ({ rowData }) => scrolling.value ? <span class="cell-ph" /> : <BaseLink type="danger" size="small" underline={false} onClick={() => handleDelete(rowData)}>删除</BaseLink>,
+      cellRenderer: ({ rowData }) => {
+        if (scrolling.value)
+          return <span class="cell-delete-static">删除</span>
+        return <BaseLink type="danger" size="small" underline={false} onClick={() => handleDelete(rowData)}>删除</BaseLink>
+      },
     })
   }
 
@@ -934,20 +1004,13 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       </BaseFormItem>
     </BaseForm>
     <div ref="tableWrapEl" class="trans-table-wrap" @wheel.capture="onWheelCapture">
-      <Transition name="scroll-hint">
-        <div v-show="scrolling" class="scroll-hint">
-          <BaseIcon class="scroll-hint-icon">
-            <RefreshRight />
-          </BaseIcon>
-          <span>滚动中，停止滚动恢复显示</span>
-        </div>
-      </Transition>
       <ElAutoResizer @resize="onResize">
         <template #default="{ height, width }">
           <BaseTableVirtualized
             ref="tableRef"
             :loading="loading"
-            :class="rowHeightMult > 1 ? 'trans-table row-top' : 'trans-table'"
+            class="trans-table"
+            :class="{ 'row-top': rowHeightMult > 1, 'is-scrolling': scrolling }"
             :columns="translationColumns"
             :data="rows"
             :width="width"
@@ -959,6 +1022,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
             scrollbar-always-on
             row-key="keyId"
             fixed
+            :stripe="!scrolling"
             :row-class="rowClassName"
             @scroll="onTableScroll"
           >
@@ -1078,22 +1142,25 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
 .trans-table-wrap { flex: 1; min-height: 0; position: relative; }
-.trans-table-wrap :deep(.scroll-hint) { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); z-index: 30; display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; letter-spacing: 1px; color: #fff; background: rgba(64, 158, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 4px 16px rgba(64, 158, 255, 0.5); pointer-events: none; white-space: nowrap; }
-.trans-table-wrap :deep(.scroll-hint-icon) { font-size: 15px; animation: scroll-hint-spin 1s linear infinite; }
-@keyframes scroll-hint-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.scroll-hint-enter-active,
-.scroll-hint-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.scroll-hint-enter-from,
-.scroll-hint-leave-to { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+.trans-table.is-scrolling :deep(.el-table-v2__row) { user-select: none; transition: none !important; }
+.trans-table.is-scrolling :deep(.el-table-v2__row.is-hovered) { transition: none !important; }
 .trans-table :deep(.el-table-v2__row-cell) { padding: 0 8px; display: flex; align-items: center; overflow: hidden; }
 .trans-table.row-top :deep(.el-table-v2__row-cell) { align-items: flex-start; padding: 10px 8px; }
 .trans-table.row-top :deep(.expand-cell) { align-items: flex-start; }
 .trans-table :deep(.el-table-v2__header-cell) { padding: 0 8px; }
 .trans-table :deep(.expand-cell) { display: flex; align-items: center; gap: 6px; min-width: 0; width: 100%; }
 .trans-table :deep(.cell-text) { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: #606266; }
-.trans-table :deep(.cell-scroll-text) { flex: 1; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-break: break-all; font-size: 13px; line-height: 20px; color: #606266; user-select: none; }
 .trans-table :deep(.expand-btn) { flex-shrink: 0; display: inline-flex; align-items: center; font-size: 16px; color: #909399; cursor: pointer; }
 .trans-table :deep(.expand-btn:hover) { color: #409eff; }
+.trans-table :deep(.expand-btn.is-disabled) { color: #c0c4cc; cursor: not-allowed; }
+.trans-table :deep(.cell-tags) { flex: 1; min-width: 0; box-sizing: border-box; display: flex; align-items: center; gap: 4px; overflow: hidden; min-height: 24px; padding: 2px 8px; border-radius: 8px; background-color: var(--el-fill-color-blank); box-shadow: 0 0 0 1px var(--el-border-color) inset; }
+.trans-table :deep(.cell-tags-more) { flex-shrink: 0; display: inline-flex; align-items: center; height: 18px; padding: 0 6px; font-size: 12px; line-height: 1; color: var(--el-color-info); background-color: var(--el-color-info-light-9); border: 1px solid var(--el-color-info-light-8); border-radius: 4px; white-space: nowrap; }
+.trans-table :deep(.cell-tag) { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; font-size: 12px; line-height: 1; color: var(--el-color-info); background-color: var(--el-color-info-light-9); border: 1px solid var(--el-color-info-light-8); border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+.trans-table :deep(.cell-static-text) { flex: 1; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; padding: 2px 6px; border-radius: 8px; background-color: var(--el-fill-color-blank); box-shadow: 0 0 0 1px var(--el-border-color) inset; overflow: hidden; }
+.trans-table.row-top :deep(.cell-static-text) { justify-content: flex-start; }
+.trans-table :deep(.cell-static-line) { display: block; font-size: 13px; line-height: 20px; color: var(--el-text-color-regular); word-break: break-word; user-select: none; }
+.trans-table :deep(.cell-static-lang) { flex: 1; min-width: 0; display: flex; align-items: center; min-height: 24px; padding: 0 8px; font-size: 12px; color: var(--el-text-color-regular); background-color: var(--el-fill-color-blank); border-radius: 8px; box-shadow: 0 0 0 1px var(--el-border-color) inset; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; user-select: none; }
+.trans-table :deep(.cell-delete-static) { font-size: 13px; color: #c0c4cc; user-select: none; }
 .trans-table :deep(.drag-cell) { display: flex; align-items: center; justify-content: flex-start; gap: 16px; width: 100%; }
 .trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; }
 .trans-table :deep(.drag-handle:hover) { color: #409eff; }

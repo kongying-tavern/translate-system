@@ -33,6 +33,8 @@ const props = withDefaults(defineProps<{
   horizontalScrollbarSize?: number
   /** 是否开启滚动状态标记（cellRenderer 可收到 isScrolling） */
   useIsScrolling?: boolean
+  /** 斑马纹（隔行变色） */
+  stripe?: boolean
   /** 加载中遮罩 */
   loading?: boolean
 }>(), {
@@ -47,6 +49,7 @@ const props = withDefaults(defineProps<{
   verticalScrollbarSize: 6,
   horizontalScrollbarSize: 6,
   useIsScrolling: false,
+  stripe: false,
   loading: false,
 })
 
