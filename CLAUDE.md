@@ -273,7 +273,7 @@ GET    /languages|/languages/search    — 基础语言
 - 后端 `listGrouped` 按 key 聚合，返回 `translationKey + sourceText（= 源语言 value）+ context + tags + translations{}`；原文列弹窗编辑保存即更新源语言 value
 - 弹窗编辑保存后通过 `saveTranslation` / `updateKey` API 更新，并同步到本地 rows（无 transCache 行内缓存）
 - context 和 tags 是 key 级属性，不按语言缓存
-- **列表渲染**：`TranslationListView.vue` 一次加载全量（`pageSize: -1`，后端 `TranslationsController` 对 -1 用 `1e9`），用 **el-table-v2 虚拟滚动**（`ElAutoResizer` 包裹测尺寸 + **`BaseTableVirtualized`** 封装，`ROW_HEIGHT=44` 固定行高；行高档位 `rowHeightMult`×20+4+20 存 localStorage `trans-row-height`）渲染。el-table-v2 行是 `position:absolute` 虚拟渲染，行内 textarea autosize 会破坏固定行高，故所有编辑用**弹窗编辑**（单元格截断文本 + Edit 图标 → `expandDialog` 720px BaseDialog，Key/原文/译文/标签/备注均可编辑，原文框 `max-height:420px; overflow:auto`）。**滚动降级机制**：滚动时（`onTableScroll` 置 `scrolling=true`，停止 500ms 后重置）Key/原文列降级为 `cell-scroll-text` 纯文本（`-webkit-line-clamp` 多行截断 + `user-select:none`），其余列渲染空白占位 `cell-ph`，顶部提示横幅「滚动中，停止滚动恢复显示」；`scrolling` 在各 cellRenderer **闭包内读取**（columns computed 不依赖它，避免滚动导致 columns 数组重建整表重渲染）；未启用 `useIsScrolling`（源码实测其 isScrolling 每帧 nextTick 即重置，滚动中恒 false 且造成 cache 1↔8 抖动重渲染，降级完全由手写 debounce 承担）。**textarea 原生滚轮**：el-table-v2 在滚动容器上以冒泡阶段挂 wheel 监听（`build-grid.mjs` 的 `useEventListener(windowRef, "wheel", onWheel, { passive: false })`），`useGridWheel` 对非边缘滚动一律 `e.preventDefault()`，弹窗内 textarea 的多行滚轮会被吞掉；表格容器已加捕获阶段 `@wheel.capture="onWheelCapture"` 拦截——目标是可滚动 textarea（`scrollHeight > clientHeight`）时 `stopPropagation()` 恢复原生滚动，不可滚动时照常冒泡让表格滚动
+- **列表渲染**：`TranslationListView.vue` 一次加载全量（`pageSize: -1`，后端 `TranslationsController` 对 -1 用 `1e9`），用 **el-table-v2 虚拟滚动**（`ElAutoResizer` 包裹测尺寸 + **`BaseTableVirtualized`** 封装，`ROW_HEIGHT=44` 固定行高；行高档位 `rowHeightMult`×20+4+20 存 localStorage `trans-row-height`）渲染。el-table-v2 行是 `position:absolute` 虚拟渲染，行内 textarea autosize 会破坏固定行高，故所有编辑用**弹窗编辑**（单元格截断文本 + Edit 图标 → `expandDialog` 720px BaseDialog，Key/原文/译文/标签/备注均可编辑，原文框 `max-height:420px; overflow:auto`）。**滚动降级机制**：滚动时（`onTableScroll` 置 `scrolling=true`，停止 600ms 后重置）Key/原文列降级为 `cell-scroll-text` 纯文本（`-webkit-line-clamp` 多行截断 + `user-select:none`），其余列渲染空白占位 `cell-ph`，顶部提示横幅「滚动中，停止滚动恢复显示」；`scrolling` 在各 cellRenderer **闭包内读取**（columns computed 不依赖它，避免滚动导致 columns 数组重建整表重渲染）；未启用 `useIsScrolling`（源码实测其 isScrolling 每帧 nextTick 即重置，滚动中恒 false 且造成 cache 1↔8 抖动重渲染，降级完全由手写 debounce 承担）。**textarea 原生滚轮**：el-table-v2 在滚动容器上以冒泡阶段挂 wheel 监听（`build-grid.mjs` 的 `useEventListener(windowRef, "wheel", onWheel, { passive: false })`），`useGridWheel` 对非边缘滚动一律 `e.preventDefault()`，弹窗内 textarea 的多行滚轮会被吞掉；表格容器已加捕获阶段 `@wheel.capture="onWheelCapture"` 拦截——目标是可滚动 textarea（`scrollHeight > clientHeight`）时 `stopPropagation()` 恢复原生滚动，不可滚动时照常冒泡让表格滚动。**标签列**：行内 `BaseTagInput` 开 `collapseTags` 折叠为「+N」防溢出固定行高，Edit 图标打开标签弹窗（`expandDialog` 新增 tags 分支，`BaseTagInput` 全量编辑，保存时去重/trim/过滤空值后走 `PUT .../translations/{keyId}` 并刷新标签候选项）
 - 编辑类保存全部走 keyId 定位：译文列 `PUT .../translations/{keyId}/{langCode}`（任意成员，仅传 translatedText），Key/原文/标签/备注走 `PUT .../translations/{keyId}`（Maintainer+）；Key 改名不影响缓存键（keyId 稳定）
 - 仅未翻译：后端过滤 `k.values` 中该语言 `translatedText` 为空或不存在；`#行号`（支持 `#3` 与 `#3-8` 区间）与 `/正则/` 搜索在前端对全量 rows 过滤（`#行号` 时后端不传 search，按全局 rowIndex 匹配）
 - 筛选条件（标签 / 搜索 / 仅未翻译）同时启用时以 **AND** 组合，全部满足才显示；多标签之间为 OR（命中任一即通过）
@@ -282,10 +282,13 @@ GET    /languages|/languages/search    — 基础语言
 **翻译管理页测试要点（keyid 化回归）**
 
 1. **特殊字符 Key**：含 `/`、空格、中文等字符的 Key，改名/原文/标签/备注/译文保存均正常，改名后同行其余列仍可编辑
-2. **权限**：member 仅可编辑译文列（Key/原文/标签/备注列不可编辑、无操作列）；maintainer/admin 全列可编辑；member 越权调用（改源语言、改非项目语言）后端拒绝并返回中文提示
+2. **权限**：member 仅可编辑译文列（Key/原文/标签/备注列不可编辑、无操作列、无拖拽/插入图标）；maintainer/admin 全列可编辑；member 越权调用（改源语言、改非项目语言）后端拒绝并返回中文提示
 3. **新增 Key**：对话框无原文输入框，创建后原文列为空，可在原文列弹窗编辑
 4. **原文保护**：译文保存不影响源语言原文；源语言不在翻译目标语言中
-5. **列表交互**：全局语言切换仅改显示不刷新；「仅未翻译」开启时切换才刷新；虚拟滚动滚动流畅、固定行高无跳动；拖拽只限同屏可视区、禁跨区
+5. **列表交互**：全局语言切换仅改显示不刷新；「仅未翻译」开启时切换才刷新；虚拟滚动滚动流畅、固定行高无跳动；拖拽只限同屏可视区、禁跨区；滚动降级横幅停止 600ms 后恢复；行高 4 档（低/默认/高/超高）切换即时生效并持久化（localStorage `trans-row-height`），高/超高档单元格顶对齐、内边距变大
+6. **跨屏插入**：仅无筛选时拖动句柄旁显示定位图标 → 弹窗输入目标行号 + 之前/之后；行号越界弹警告；目标=当前行直接关闭；member 无图标；插入后刷新顺序保持
+7. **textarea 滚轮**：弹窗内多行 textarea 滚轮只在框内滚动，不被表格吞掉；未超长 textarea 滚轮仍滚动表格
+8. **标签折叠与弹窗**：行内标签 `collapseTags` 折叠为「+N」不溢出行高；Edit 图标打开标签弹窗全量编辑，保存后行内/候选标签刷新；标签列可编辑权限下才有图标
 
 ### API Key 鉴权
 
@@ -300,7 +303,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
   -d '{"templateSlug":"...","languageCodes":["zh-Hans"]}'
 ```
 
-- **白名单**：配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组，每条声明「方法 + 路径正则」；新增开放接口在此追加一条即生效，无需改守卫（`index.ts` 守卫与 `services/docs.ts` 抽取共用）
+- **白名单**：配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组，每条声明「方法 + 路径正则」；新增开放接口在此追加一条即生效，无需改守卫（`index.ts` 守卫与 `services/docs.ts` 抽取共用）。当前已开放翻译 Key 的**增删改**：`POST .../translations`（新增 Key）、`PUT .../translations/{keyId}`（改 Key 级属性，`(?!sortOrders)` 负向前瞻排除排序接口）、`DELETE .../translations/{translationId}`（删除 Key），均为 Maintainer+
 - **OpenAPI 文档**：白名单接口在 Swagger UI 顶部下拉「API Key 开放接口」（`GET /api-docs/apikey.json`，`buildApiKeyOpenApiSpec` 派生）；前端「开放接口说明」页（`/api-doc`）经 JWT 接口 `GET /api/v1/openapi-doc` 同逻辑派生展示（登录可见，不依赖 `/openapi/*` 代理）
 - **管理接口**：`GET|POST|PUT|DELETE /api/v1/me/keys`（`ApiKeysController` 为 `@Route('me')`，前端**不要**用 `/apikey/` 前缀调用）；代理上 tsoa 自动镜像的 `/apikey/me/keys` 被 `apiKeyAuth`（缺头 401）与白名单（403）双重拦截，外部 API Key 客户端无法管理
 
@@ -367,7 +370,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseFormItem | 透传 | el-form-item |
 | BaseIcon | 透传 | el-icon，hover 动画 |
 | BaseInput | 透传 | el-input，支持 autosize；透传 compositionstart/compositionend（IME 组合守卫用） |
-| BaseLink | 透传 | el-link，文本链接（表格操作列用）：`type`/`size`/`underline`（默认 true）/`disabled`/`href`/`icon`，点击 emit `click`；无按钮阴影，操作列默认 `:underline="false"` 保持 link-button 视觉；样式：font-size 13px，相邻 margin-left 12px |
+| BaseLink | 透传 | el-link，文本链接（表格操作列用）：`type`（默认 `'default'` 灰色，与原生一致）/`size`/`underline`（默认 true）/`disabled`/`href`/`icon`，点击 emit `click`；无按钮阴影，操作列默认 `:underline="false"` 保持 link-button 视觉；样式：font-size 13px，相邻 margin-left 12px |
 | BasePageHeader | 透传 | 页面标题栏 |
 | BaseRadioGroup | **配置式** | el-radio-group，options 驱动，泛型值，支持 button 模式 |
 | BaseJsonSchemaViewer | 透传 | 基于 `cf-json-schema-viz`（React）经 `veaury` `applyPureReactInVue` 桥接的 JSON Schema 树形查看器；`schema` 必传，支持 `defaultExpandedDepth`/`expanded`（默认全展开）/`disableCrumbs`/`renderRootTreeLines`/`emptyText`；容器高度经 ResizeObserver 测量后透传 `max-height`；样式变量映射到 Element Plus CSS 变量实现换肤。依赖 react/react-dom/veaury/cf-json-schema-viz，已在 `vite.config.mts` `optimizeDeps.include` 预构建。注意：`@stoplight/json-schema-tree` 只相对传入的根 schema 解析 `$ref`，传入孤立 schema 时嵌套引用无法展开，调用方需先用 `dereferenceSchema` 深解引用 |
@@ -378,7 +381,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 | BaseTabButton | 透传 | 标签页按钮（AppTabs 用）：`label`/`active`/`closable` props，点击 emit `click`，关闭图标常显（closable 时）点击 emit `close`；激活态主色实心，关闭图标 hover 变红 |
 | BaseTabularViewer | **配置式** | 通用类表格文本查看器（CSV/Properties 等），`format` prop 决定表格解析方式（`csv` RFC 4180、`properties` 按 `=`/`:` 拆键值对并跳过 `#`/`!` 注释行，列头固定为 键/值）；顶部工具栏（BaseRadioGroup button 模式）切换 表格/原文 视图，含「自动换行」开关（BaseCheckbox，`v-model:wrap`）和「复制」按钮（navigator.clipboard）；视图模式 `v-model:mode`；深色 sticky 表头 + 斑马纹 + 列间竖线（`showGridLines`），外层统一边框白底，与 BaseTable 样式区分 |
 | BaseTag | 透传 | el-tag 标签：`type`/`size`/`effect`/`round`/`closable`/`disableTransitions`，可点击，`closable` 时 emit `close`（状态/源语言等只读标签用） |
-| BaseText | 透传 | el-text 文本：`type`/`size`/`truncated`/`lineClamp`/`tag`，统一文本样式入口 |
+| BaseText | 透传 | el-text 文本：`type`（默认 `''` 无色，与原生一致，注意 el-text 无 `'default'` 值）/`size`/`truncated`/`lineClamp`/`tag`，统一文本样式入口 |
 | BaseTagInput | **配置式** | 标签输入器：基于 BaseSelect 封装（`multiple`+`filterable`+`allow-create`+`default-first-option`），`options: string[]` 提供已有标签备选（**已选标签仍保留在候选中可搜索、可取消**），输入新标签可创建；**支持逗号/分号（中英文）、回车、Tab 作为新增标签的确认键**（回车由 el-select allow-create 原生完成，逗号/分号/Tab 由组件在 `keydown` 中拦截：补入 `v-model` 并清空输入框）；`v-model: string[]`，值按 key 天然去重；透传 `placeholder`/`size`/`clearable`/`disabled`/`collapseTags`/`reserveKeyword`（默认 true），`change` 事件在值变化时触发。**重名语义**：点击/回车对已选标签为「切换」（会移除该标签），逗号/分号/Tab 为「仅新增」（重名时跳过加入、仅清空输入框）。BaseSelect 已新增 `allowCreate`/`defaultFirstOption`/`reserveKeyword` 透传属性及 `keydown` 透传事件 |
 
 其中 BaseTable、BaseSelect、BaseRadioGroup、BaseTabs 为**配置式封装**，不同于简单透传：
