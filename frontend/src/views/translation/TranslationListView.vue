@@ -150,6 +150,13 @@ const scrollTopRef = ref(0)
 const scrolling = ref(false)
 let scrollTimer: ReturnType<typeof setTimeout> | undefined
 
+function onWheelCapture(e: WheelEvent) {
+  const target = e.target as HTMLElement | null
+  const textarea = target?.closest('textarea') as HTMLTextAreaElement | null
+  if (textarea && textarea.scrollHeight > textarea.clientHeight)
+    e.stopPropagation()
+}
+
 async function loadTags() {
   try {
     const { data: res } = await getTags(projectSlug.value)
@@ -889,7 +896,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         </BaseButton>
       </BaseFormItem>
     </BaseForm>
-    <div ref="tableWrapEl" class="trans-table-wrap">
+    <div ref="tableWrapEl" class="trans-table-wrap" @wheel.capture="onWheelCapture">
       <Transition name="scroll-hint">
         <div v-show="scrolling" class="scroll-hint">
           <BaseIcon class="scroll-hint-icon">
