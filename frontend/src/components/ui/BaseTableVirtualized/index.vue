@@ -1,6 +1,6 @@
 <script setup lang="ts" generic="T extends object">
 import type { Column, RowClassNameGetter } from 'element-plus'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = withDefaults(defineProps<{
   /** 列配置（element-plus ElTableV2 Column 数组） */
@@ -70,10 +70,18 @@ const scrollbarSizeProps = computed(() => ({
   'v-scrollbar-size': props.verticalScrollbarSize,
   'h-scrollbar-size': props.horizontalScrollbarSize,
 }))
+
+const tableRef = ref()
+
+function scrollToRow(row: number, strategy?: 'auto' | 'start' | 'center' | 'end') {
+  tableRef.value?.scrollToRow?.(row, strategy)
+}
+defineExpose({ scrollToRow })
 </script>
 
 <template>
   <ElTableV2
+    ref="tableRef"
     v-loading="loading"
     class="base-table-virtualized"
     :columns="columns" :data="data" :width="width" :height="height"

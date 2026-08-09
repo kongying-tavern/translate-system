@@ -1,11 +1,12 @@
 <script setup lang="tsx">
 import type { Column, RowClassNameGetter } from 'element-plus'
 import type { VNode } from 'vue'
+import type { ComponentExposed } from 'vue-component-type-helpers'
 import type { GroupedRow } from '@/api/translation'
-import { Edit, RefreshRight } from '@element-plus/icons-vue'
+import { Edit, Position, RefreshRight } from '@element-plus/icons-vue'
 import { ElAutoResizer, ElMessage, ElMessageBox, ElOption, TableV2FixedDir } from 'element-plus'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
@@ -135,6 +136,7 @@ const insertDialog = reactive<{
   targetNo: string
   placement: 'before' | 'after'
 }>({ visible: false, row: null, srcNo: 0, targetNo: '', placement: 'after' })
+const jumpDialog = reactive<{ visible: boolean, targetNo: string }>({ visible: false, targetNo: '' })
 
 const appliedSearch = ref('')
 const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
@@ -145,6 +147,7 @@ const dragGhost = ref<{ key: string, source: string } | null>(null)
 const dragPos = reactive({ x: 0, y: 0 })
 const dragLine = reactive({ top: 0, left: 0, width: 0 })
 const tableWrapEl = ref<HTMLElement | null>(null)
+const tableRef = useTemplateRef<ComponentExposed<typeof BaseTableVirtualized>>('tableRef')
 const tableHeight = ref(0)
 const tableWidth = ref(0)
 const scrollTopRef = ref(0)
@@ -398,6 +401,22 @@ async function confirmInsert() {
       ElMessage.error('排序更新失败')
       load()
     })
+}
+
+function confirmJump() {
+  const target = parseInt(jumpDialog.targetNo.replace('#', '').trim(), 10)
+  const count = rows.value.length
+  if (isNaN(target) || target < 1 || target > count) {
+    ElMessage.warning(`行号需在 1 ~ ${count} 之间`)
+    return
+  }
+  jumpDialog.visible = false
+  const row = rows.value[target - 1]
+  const keyId = row?.keyId
+  if (keyId)
+    tableRef.value?.scrollToRow(target - 1, 'start')
+  else
+    ElMessage.warning('未找到该行')
 }
 
 async function handleDelete(row: GroupedRow) {
@@ -907,6 +926,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       <BaseFormItem>
         <BaseButton type="primary" @click="doSearch">
           查询
+        </BaseButton><BaseButton @click="jumpDialog.visible = true">
+          <BaseIcon><Position /></BaseIcon><span style="margin-left:4px">跳转</span>
         </BaseButton><BaseButton v-if="perm.canManageKeys.value" @click="openCreate">
           新增 Key
         </BaseButton>
@@ -924,6 +945,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       <ElAutoResizer @resize="onResize">
         <template #default="{ height, width }">
           <BaseTableVirtualized
+            ref="tableRef"
             :loading="loading"
             :class="rowHeightMult > 1 ? 'trans-table row-top' : 'trans-table'"
             :columns="translationColumns"
@@ -1030,6 +1052,23 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         </BaseButton>
       </template>
     </BaseDialog>
+    <BaseDialog v-model="jumpDialog.visible" title="跳转到" width="420px">
+      <div class="jump-meta">
+        <div class="insert-meta-control">
+          <span class="insert-meta-label">行号</span>
+          <span class="insert-pound">#</span>
+          <BaseInput v-model="jumpDialog.targetNo" size="default" placeholder="输入行号，如 100" style="flex:1;min-width:0" @keyup.enter="confirmJump" />
+        </div>
+        <span class="jump-total">共 {{ total }} 行</span>
+      </div>
+      <template #footer>
+        <BaseButton @click="jumpDialog.visible = false">
+          取消
+        </BaseButton><BaseButton type="primary" @click="confirmJump">
+          跳转
+        </BaseButton>
+      </template>
+    </BaseDialog>
   </div>
 </template>
 
@@ -1086,6 +1125,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .insert-meta-value { font-size: 13px; color: #303133; line-height: 1.5; word-break: break-all; }
 .insert-meta-control { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .insert-pound { font-size: 13px; color: #303133; white-space: nowrap; }
+.jump-meta { display: flex; flex-direction: column; gap: 6px; padding: 10px; margin-bottom: 8px; background: #f5f7fa; border-radius: 6px; }
+.jump-total { font-size: 12px; color: #909399; white-space: nowrap; }
+.jump-meta .insert-meta-control { min-height: 32px; }
 .row-height-opt { display: inline-flex; align-items: center; gap: 6px; }
 .row-height-icon { width: 18px; height: 18px; flex-shrink: 0; }
 </style>
