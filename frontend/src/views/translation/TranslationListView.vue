@@ -127,6 +127,7 @@ const dragPos = reactive({ x: 0, y: 0 })
 const dragLine = reactive({ top: 0, left: 0, width: 0 })
 const tableWrapEl = ref<HTMLElement | null>(null)
 const tableHeight = ref(0)
+const tableWidth = ref(0)
 const scrollTopRef = ref(0)
 const scrolling = ref(false)
 let scrollTimer: ReturnType<typeof setTimeout> | undefined
@@ -207,8 +208,9 @@ function onRowLangChange(index: number, lang: string) {
   rowLangs.value[index] = lang
 }
 
-function onResize({ height }: { height: number }) {
+function onResize({ height, width }: { height: number, width: number }) {
   tableHeight.value = height
+  tableWidth.value = width
 }
 function onTableScroll({ scrollTop }: { scrollTop: number }) {
   scrollTopRef.value = scrollTop
@@ -542,12 +544,36 @@ function rowClassName(params: Parameters<RowClassNameGetter<GroupedRow>>[0]): st
 }
 
 const translationColumns = computed<Column<GroupedRow>[]>(() => {
+  const FIXED_WIDTHS = { drag: 46, rowIndex: 60, actions: 80 }
+  const SCROLLBAR = 10
+  const FLEX_MINS: Record<string, number> = { translationKey: 150, sourceText: 150, lang: 110, translation: 170, tags: 130, context: 130 }
+  const FLEX_WEIGHTS: Record<string, number> = { translationKey: 2.5, sourceText: 2.5, lang: 1.5, translation: 3, tags: 2, context: 2 }
+  const fixedTotal = FIXED_WIDTHS.drag + FIXED_WIDTHS.rowIndex + FIXED_WIDTHS.actions + SCROLLBAR
+  const flexKeys = Object.keys(FLEX_WEIGHTS)
+  const flexWidths: Record<string, number> = {}
+  const available = Math.max(0, tableWidth.value - fixedTotal)
+  const minTotal = flexKeys.reduce((s, k) => s + FLEX_MINS[k], 0)
+  if (available <= minTotal) {
+    flexKeys.forEach((k) => {
+      flexWidths[k] = FLEX_MINS[k]
+    })
+  }
+  else {
+    const weightTotal = flexKeys.reduce((s, k) => s + FLEX_WEIGHTS[k], 0)
+    const extra = available - minTotal
+    flexKeys.forEach((k) => {
+      flexWidths[k] = FLEX_MINS[k] + Math.floor(extra * FLEX_WEIGHTS[k] / weightTotal)
+    })
+    const diff = available - flexKeys.reduce((s, k) => s + flexWidths[k], 0)
+    if (diff > 0)
+      flexWidths.context += diff
+  }
   const cols: Column<GroupedRow>[] = []
 
   if (dragOrderable.value && perm.canReorderRows.value) {
     cols.push({
       key: 'drag',
-      width: 46,
+      width: FIXED_WIDTHS.drag,
       fixed: TableV2FixedDir.LEFT,
       cellRenderer: ({ rowData, rowIndex }) => (
         <span class="drag-handle" style={{ userSelect: 'none' }} onPointerdown={(e: PointerEvent) => onDragStart(e, rowIndex, rowData.keyId)}>⋮⋮</span>
@@ -558,7 +584,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   cols.push({
     key: 'rowIndex',
     title: '#',
-    width: 60,
+    width: FIXED_WIDTHS.rowIndex,
     align: 'center',
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData, rowIndex }) => <span style={{ whiteSpace: 'nowrap', userSelect: 'none' }}>{String(hasFilter.value ? rowData.rowIndex : rowIndex + 1)}</span>,
@@ -567,7 +593,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   cols.push({
     key: 'translationKey',
     title: 'Key',
-    width: 210,
+    width: flexWidths.translationKey,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
       if (scrolling.value)
@@ -597,7 +623,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   cols.push({
     key: 'sourceText',
     title: '原文',
-    width: 210,
+    width: flexWidths.sourceText,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
       if (scrolling.value)
@@ -627,12 +653,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   cols.push({
     key: 'lang',
     title: '语言',
-    width: 140,
+    width: flexWidths.lang,
     cellRenderer: ({ rowIndex }) => {
       if (scrolling.value)
         return <span class="cell-ph" />
       return (
-        <BaseSelect size="small" modelValue={rowLangs.value[rowIndex]} style={{ width: '100px' }} onChange={(v: unknown) => onRowLangChange(rowIndex, v as string)}>
+        <BaseSelect size="small" modelValue={rowLangs.value[rowIndex]} style={{ width: '100%' }} onChange={(v: unknown) => onRowLangChange(rowIndex, v as string)}>
           {(editableLangs.value || []).map(l => <ElOption label={l.alias || l.languageCode} value={l.languageCode} />)}
         </BaseSelect>
       )
@@ -642,7 +668,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   cols.push({
     key: 'translation',
     title: '译文',
-    width: 280,
+    width: flexWidths.translation,
     cellRenderer: ({ rowData, rowIndex }) => {
       const lang = rowLangs.value[rowIndex]
       const text = rowData.translations[lang]?.translatedText ?? ''
@@ -672,7 +698,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   cols.push({
     key: 'tags',
     title: '标签',
-    width: 200,
+    width: flexWidths.tags,
     cellRenderer: ({ rowData }) => {
       if (scrolling.value)
         return <span class="cell-ph" />
@@ -695,7 +721,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   cols.push({
     key: 'context',
     title: '备注',
-    width: 200,
+    width: flexWidths.context,
     cellRenderer: ({ rowData }) => {
       if (scrolling.value)
         return <span class="cell-ph" />
@@ -726,7 +752,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     cols.push({
       key: 'actions',
       title: '操作',
-      width: 80,
+      width: FIXED_WIDTHS.actions,
       fixed: TableV2FixedDir.RIGHT,
       cellRenderer: ({ rowData }) => scrolling.value ? <span class="cell-ph" /> : <BaseButton link type="danger" size="small" onClick={() => handleDelete(rowData)}>删除</BaseButton>,
     })
