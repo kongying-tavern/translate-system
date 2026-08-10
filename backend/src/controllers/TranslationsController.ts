@@ -55,20 +55,10 @@ export interface CreateTranslationBody {
    */
   translationKey: string
   /**
-   * 语言代码
-   * @example "zh-Hans"
-   */
-  languageCode: string
-  /**
    * 原文文本（可空，为空则新建后不写入源语言）
    * @example "登录"
    */
   sourceText?: string
-  /**
-   * 已翻译文本（可空）
-   * @example "Login"
-   */
-  translatedText?: string
   /**
    * 备注上下文（可空）
    * @example "登录页面标题"

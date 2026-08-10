@@ -109,6 +109,7 @@ const { rows, total, loading } = storeToRefs(transStore)
 const { projectLanguages } = storeToRefs(langStore)
 const sourceLanguage = computed(() => projectStore.getProject(projectSlug.value)?.sourceLanguage || '')
 const editableLangs = computed(() => (projectLanguages.value || []).filter(l => l.languageCode !== sourceLanguage.value))
+const hasTargetLang = computed(() => editableLangs.value.length > 0)
 
 const filters = reactive({ search: '' })
 const filterTags = ref<string[]>([])
@@ -463,13 +464,12 @@ async function handleCreate() {
     ElMessage.warning('请填写 Key')
     return
   }
-  if (!globalLang.value) {
-    ElMessage.warning('请先在语言管理中添加目标语言')
-    return
-  }
   saving.value = true
   try {
-    await transStore.create(projectSlug.value, { translationKey: form.translationKey.trim(), languageCode: globalLang.value, translatedText: '', tags: form.tags })
+    await transStore.create(projectSlug.value, {
+      translationKey: form.translationKey.trim(),
+      tags: form.tags,
+    })
     ElMessage.success('创建成功')
     showCreateDialog.value = false
     loadTags()
@@ -805,6 +805,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '语言',
     width: flexWidths.lang,
     cellRenderer: ({ rowIndex }) => {
+      if (!hasTargetLang.value)
+        return <div class="cell-static-lang cell-no-lang">未配置目标语言</div>
       if (scrolling.value) {
         const lang = rowLangs.value[rowIndex]
         const item = (editableLangs.value || []).find(l => l.languageCode === lang)
@@ -841,8 +843,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
             rows={rowHeightMult.value}
             size="small"
             placeholder="输入译文..."
+            disabled={!hasTargetLang.value}
           />
-          {lang && (
+          {lang && hasTargetLang.value && (
             <span
               class={['expand-btn', { 'is-disabled': scrolling.value }]}
               onClick={() => {
@@ -969,7 +972,13 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         </BaseTag>
       </BaseFormItem>
       <BaseFormItem label="全局语言">
-        <BaseSelect v-model="globalLang" placeholder="选择语言" style="width:160px" @change="onGlobalLangChange">
+        <BaseSelect
+          v-model="globalLang"
+          placeholder="选择语言"
+          style="width:160px"
+          :disabled="!hasTargetLang"
+          @change="onGlobalLangChange"
+        >
           <ElOption v-for="l in editableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
         </BaseSelect>
       </BaseFormItem>
@@ -1163,6 +1172,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .trans-table.row-top :deep(.cell-static-text) { justify-content: flex-start; }
 .trans-table :deep(.cell-static-line) { display: block; font-size: 13px; line-height: 20px; color: var(--el-text-color-regular); word-break: break-word; user-select: none; }
 .trans-table :deep(.cell-static-lang) { flex: 1; min-width: 0; display: flex; align-items: center; min-height: 24px; padding: 0 8px; font-size: 12px; color: var(--el-text-color-regular); background-color: var(--el-fill-color-blank); border-radius: 8px; box-shadow: 0 0 0 1px var(--el-border-color) inset; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; user-select: none; }
+.trans-table :deep(.cell-no-lang) { color: var(--el-text-color-placeholder); box-shadow: none; background-color: transparent; }
 .trans-table :deep(.cell-delete-static) { font-size: 13px; color: #c0c4cc; user-select: none; }
 .trans-table :deep(.drag-cell) { display: flex; align-items: center; justify-content: flex-start; gap: 16px; width: 100%; }
 .trans-table :deep(.drag-handle) { color: #c0c4cc; cursor: pointer; user-select: none; font-size: 18px; display: block; text-align: center; line-height: 1; }

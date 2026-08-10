@@ -1,5 +1,5 @@
 import type { ApiResponse, PageData } from '@/types/api'
-import type { TranslationKey, TranslationValue } from '@/types/models'
+import type { TranslationKey } from '@/types/models'
 import { encPathParam } from '@/utils/path'
 import client from './client'
 
@@ -16,9 +16,7 @@ export interface GroupedRow {
 
 export interface CreateTranslationData {
   translationKey: string
-  languageCode: string
   sourceText?: string
-  translatedText?: string
   context?: string
   tags?: string[]
 }
@@ -36,7 +34,7 @@ export function getTranslations(projectId: string, params: TranslationQuery) {
   return client.get<ApiResponse<PageData<GroupedRow>>>(`/projects/${encPathParam(projectId)}/translations`, { params })
 }
 export function createTranslation(projectId: string, data: CreateTranslationData) {
-  return client.post<ApiResponse<TranslationKey & { value: TranslationValue }>>(`/projects/${encPathParam(projectId)}/translations`, data)
+  return client.post<ApiResponse<TranslationKey>>(`/projects/${encPathParam(projectId)}/translations`, data)
 }
 export function saveTranslation(projectId: string, keyId: string, langCode: string, translatedText: string) {
   return client.put(`/projects/${encPathParam(projectId)}/translations/${encPathParam(keyId)}/${encPathParam(langCode)}`, { translatedText })

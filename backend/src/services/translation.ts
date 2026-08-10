@@ -112,11 +112,10 @@ export async function listGrouped(projectId: string, query: {
   return { list, total }
 }
 
+/** 新增 Key（仅创建 key + 可选原文/标签/备注；原文与译文编辑分别走 updateKeyByKeyId / saveValueForLang） */
 export async function createTranslation(projectId: string, data: {
   translationKey: string
-  languageCode: string
   sourceText?: string
-  translatedText?: string
   context?: string
   tags?: string[]
 }) {
@@ -135,12 +134,7 @@ export async function createTranslation(projectId: string, data: {
       create: { keyId: key.id, languageCode: sourceLang, translatedText: data.sourceText },
     })
   }
-  const val = await prisma.translationValue.upsert({
-    where: { keyId_languageCode: { keyId: key.id, languageCode: data.languageCode } },
-    update: { translatedText: data.translatedText || '' },
-    create: { keyId: key.id, languageCode: data.languageCode, translatedText: data.translatedText || '' },
-  })
-  return { ...key, value: val }
+  return key
 }
 
 /** 更新 key 级属性（keyId 定位）：Key 名 / 原文 / 标签 / 备注 */
