@@ -6,7 +6,7 @@ import type { GroupedRow } from '@/api/translation'
 import { Edit, Position } from '@element-plus/icons-vue'
 import { ElAutoResizer, ElMessage, ElMessageBox, ElOption, TableV2FixedDir } from 'element-plus'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, useTemplateRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
@@ -182,12 +182,46 @@ async function loadTags() {
   }
   catch {}
 }
+
+/** 标签候选定时轮询：后台标签页（document 隐藏）时停止，恢复可见立即刷新并重启轮询 */
+let tagsTimer: ReturnType<typeof setInterval> | undefined
+function startTagsPolling() {
+  stopTagsPolling()
+  tagsTimer = setInterval(() => {
+    if (document.visibilityState === 'visible')
+      loadTags()
+  }, 30_000)
+}
+function stopTagsPolling() {
+  if (tagsTimer) {
+    clearInterval(tagsTimer)
+    tagsTimer = undefined
+  }
+}
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    loadTags()
+    startTagsPolling()
+  }
+  else {
+    stopTagsPolling()
+  }
+}
+
 onMounted(() => {
   init()
+  document.addEventListener('visibilitychange', onVisibilityChange)
+  startTagsPolling()
+})
+onUnmounted(() => {
+  stopTagsPolling()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 watch(projectSlug, () => {
-  if (projectSlug.value)
+  if (projectSlug.value) {
     init()
+    startTagsPolling()
+  }
 })
 
 function doSearch() {
