@@ -614,9 +614,10 @@ async function onTranslationSave(row: GroupedRow, lang: string) {
     else
       row.translations[lang] = { id: '', translatedText: newText }
     delete editCache[ck]
+    ElMessage.success('译文已更新')
   }
   catch (e: unknown) {
-    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '译文保存失败')
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '更新译文失败')
   }
 }
 
@@ -691,11 +692,13 @@ async function saveExpand() {
         break
       }
     }
-    ElMessage.success('保存成功')
+    const successMsg = expandDialog.field === 'translation' ? '更新译文成功' : '保存成功'
+    ElMessage.success(successMsg)
     expandDialog.visible = false
   }
   catch (e: unknown) {
-    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || '保存失败')
+    const failMsg = expandDialog.field === 'translation' ? '更新译文失败' : '保存失败'
+    ElMessage.error((e as { response?: { data?: { message?: string } } }).response?.data?.message || failMsg)
   }
 }
 
