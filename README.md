@@ -39,6 +39,15 @@ docker compose up -d
 
 > 默认端口：前端 `20010`、后端 `20080`、数据库 `20432`，可在 `.env` 中修改。
 
+### 反向代理与上传大小
+
+后端已允许 **50MB** 请求体（`express.json({ limit: '50mb' })`）。若部署时前面有反向代理，需同步放行请求体上限（nginx 默认仅 1m，否则大文件导入会被 413 拒绝）：
+
+- **nginx**（含项目自带的 `frontend/nginx.conf` 容器内反代）：`server` 或 `location /api/` 级加 `client_max_body_size 50m;`
+- **Caddy**：`request_body { max_size 50MB }`
+- **Nginx Ingress (k8s)**：annotation `nginx.ingress.kubernetes.io/proxy-body-size: "50m"`
+- **云负载均衡 / 宝塔等面板**：查找并调大「请求体 / 上传大小」上限
+
 ### 本地开发
 
 #### 环境要求
