@@ -267,6 +267,7 @@ GET    /languages|/languages/search    — 基础语言
 - **原文（sourceText）去冗余**：`translation_keys` 无 `source_text` 列，原文统一由源语言语言值（源语言 value 的 `translatedText`）承载。条目导入（`importKeys`）**支持 `sourceText` 或源语言列**，二者等价于源语言的翻译更新（`sourceText` 字段或 `lang === 源语言` 的语言列值 → upsert 源语言 value）；译文导入（`applyTranslations`）**不支持 `sourceText` 的导入**（忽略该字段），但源语言列作为普通语言列正常导入。`createTranslation` / `updateKeyAndSource` / `batchUpsert` 的 `sourceText` 同样写入源语言 value；旧环境升级由 `20260808020000_remove_source_text` 迁移内置回填完成，无需单独脚本
 - XML：缺 `<resources>` 根节点、`<string>` 缺 `name`、`<language>` 缺 `code` 均报错并定位索引
 - 译文导入（`applyTranslations`）遇**项目未配置的语言代码**（`languageCode` 参数或数据内语言，兼容 `alias`）不拒绝、不自动建语言，而是**跳过该条并累计 `skippedLanguages`** 返回，前端 ImportTemplateView 成功提示中列出；`importKeys` 无语言属性，恒返回 `skippedLanguages: []`
+- 返回统计为**双维度**（所有格式通用）：`importedKeys`（去重键数）/`importedFields`（含多语言展开的条目总数），`created`/`skipped` 为条目维度、`createdKeys`/`skippedKeys` 为去重键维度（count 用累加、keys 用 Set 去重）。前端成功提示按导入类型取主计数：导入条目（entries）用 `importedKeys` 显示「个条目」，导入译文（translations）用 `importedFields` 显示「个字段」
 
 ### 翻译页面关键逻辑
 

@@ -18,12 +18,18 @@ import { yamlParse } from '../services/import/yaml'
 import { AppError } from '../utils/AppError'
 
 export interface ImportResult {
-  /** 导入总数 */
-  imported: number
-  /** 新建数量 */
+  /** 解析出的去重翻译键数量 */
+  importedKeys: number
+  /** 解析出的条目总数（含多语言格式展开） */
+  importedFields: number
+  /** 新建数量（条目维度） */
   created: number
-  /** 跳过数量 */
+  /** 新建的去重翻译键数量 */
+  createdKeys: number
+  /** 跳过数量（条目维度，含因项目未配置语言而跳过的） */
   skipped: number
+  /** 跳过的去重翻译键数量 */
+  skippedKeys: number
   /** 因项目未配置语言而被跳过的语言代码（去重） */
   skippedLanguages: string[]
 }
@@ -86,8 +92,14 @@ function sniffFormat(raw: string): ImportFormat {
   return ImportFormat.CSV
 }
 
-function parseImportData(raw: string, fmt: string): ImportEntry[] {
-  let entries: ImportEntry[]
+interface ParsedImport {
+  entries: Iterable<ImportEntry>
+  importedKeys: number
+  importedFields: number
+}
+
+function parseImportData(raw: string, fmt: string): ParsedImport {
+  let entries: Iterable<ImportEntry>
   try {
     switch (fmt) {
       case ImportFormat.JSON:
@@ -114,65 +126,163 @@ function parseImportData(raw: string, fmt: string): ImportEntry[] {
       throw e
     throw new AppError(ErrCode.InvalidParams, '数据解析失败，请检查文件格式是否正确')
   }
-  if (!entries.length)
+  const keys = new Set<string>()
+  let imported = 0
+  for (const entry of entries) {
+    imported++
+    if (entry.key?.trim())
+      keys.add(entry.key)
+    if (!entry.key || !entry.key.trim())
+      throw new AppError(ErrCode.InvalidParams, `第 ${imported} 条缺少翻译键（key/name），已拒绝导入`)
+  }
+  if (!imported)
     throw new AppError(ErrCode.InvalidParams, '未从数据中解析到任何条目，请检查文件格式与内容')
-  const bad = entries.findIndex(e => !e.key || !e.key.trim())
-  if (bad !== -1)
-    throw new AppError(ErrCode.InvalidParams, `第 ${bad + 1} 条缺少翻译键（key/name），已拒绝导入`)
-  return entries
+  return { entries, importedKeys: keys.size, importedFields: imported }
+}
+
+const IMPORT_BATCH = 1000
+
+/** 每批出现的新 key 用游标递增分配 sortOrder，避免逐条 aggregate；整个导入仅首次需查 maxSo */
+async function ensureSortCursor(projectId: string, cursor: { nextSo: number }): Promise<void> {
+  const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
+  cursor.nextSo = (maxSo._max.sortOrder || 0) + 100
 }
 
 async function importKeys(projectId: string, raw: string, fmt: ImportFormat, overwrite: boolean): Promise<ImportResult> {
-  const entries = parseImportData(raw, fmt)
+  const { entries, importedKeys, importedFields } = parseImportData(raw, fmt)
   const sourceLang = (await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }))?.sourceLanguage || ''
-  let imported = 0
   let created = 0
   let skipped = 0
-  for (const entry of entries) {
-    const { key, context, tags } = entry
-    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key } } })
-    const keyExisted = !!tk
-    if (keyExisted && !overwrite) {
-      skipped++
-    }
-    else {
-      if (!tk) {
-        const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
-        tk = await prisma.translationKey.create({ data: { projectId, key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+  const createdKeySet = new Set<string>()
+  const skippedKeySet = new Set<string>()
+  const cursor = { nextSo: 0 }
+  let inited = false
+
+  const flush = async (batch: ImportEntry[]): Promise<void> => {
+    // 1. 预加载本批已有 key，建 key→id 映射，消掉逐条 findUnique
+    const keys = [...new Set(batch.map(e => e.key))]
+    const existingKeys = await prisma.translationKey.findMany({
+      where: { projectId, key: { in: keys } },
+      select: { id: true, key: true },
+    })
+    const keyMap = new Map<string, string>(existingKeys.map(r => [r.key, r.id]))
+    const existedSet = new Set(existingKeys.map(r => r.key))
+
+    // 2. 排序游标：首次惰性初始化，后续沿用上次末值递增
+    const newKeysInOrder: string[] = []
+    const seenNew = new Set<string>()
+    for (const e of batch) {
+      if (!keyMap.has(e.key) && !seenNew.has(e.key)) {
+        seenNew.add(e.key)
+        newKeysInOrder.push(e.key)
       }
-      if (context !== undefined || tags?.length) {
+    }
+    if (newKeysInOrder.length && !inited) {
+      await ensureSortCursor(projectId, cursor)
+      inited = true
+    }
+
+    // 3. 新 key 一次 createMany 批量创建（按文件顺序分配 sortOrder），再按 key 拉回 id
+    if (newKeysInOrder.length) {
+      const firstOf = new Map<string, ImportEntry>()
+      for (const e of batch) {
+        if (!firstOf.has(e.key))
+          firstOf.set(e.key, e)
+      }
+      await prisma.translationKey.createMany({
+        data: newKeysInOrder.map((k, i) => {
+          const e = firstOf.get(k)!
+          return {
+            projectId,
+            key: k,
+            context: e.context || '',
+            tags: e.tags || [],
+            sortOrder: cursor.nextSo + i * 100,
+          }
+        }),
+      })
+      cursor.nextSo += newKeysInOrder.length * 100
+      const createdRows = await prisma.translationKey.findMany({ where: { projectId, key: { in: newKeysInOrder } }, select: { id: true, key: true } })
+      for (const r of createdRows)
+        keyMap.set(r.key, r.id)
+    }
+
+    // 4. 预加载本批已存在的源语言值，区分「新建 createMany」/「需更新 update」
+    let existingVals = new Map<string, string>()
+    if (sourceLang && keyMap.size) {
+      const vals = await prisma.translationValue.findMany({
+        where: { keyId: { in: [...keyMap.values()] }, languageCode: sourceLang },
+        select: { keyId: true, translatedText: true },
+      })
+      existingVals = new Map(vals.map(v => [v.keyId, v.translatedText]))
+    }
+
+    const toCreateVals: Prisma.TranslationValueCreateManyInput[] = []
+    const toUpdateVals: Prisma.TranslationValueUpdateArgs[] = []
+
+    for (const entry of batch) {
+      const { key, context, tags } = entry
+      const keyId = keyMap.get(key)
+      const keyExisted = existedSet.has(key)
+      if (keyExisted && !overwrite) {
+        skipped++
+        skippedKeySet.add(key)
+        continue
+      }
+      if (keyExisted && (context !== undefined || tags?.length)) {
         const updates: Prisma.TranslationKeyUpdateInput = {}
         if (context !== undefined)
           updates.context = context
         if (tags?.length)
           updates.tags = tags
         if (Object.keys(updates).length)
-          await prisma.translationKey.update({ where: { id: tk.id }, data: updates })
+          await prisma.translationKey.update({ where: { id: keyId! }, data: updates })
       }
       // 原文 = sourceText 或源语言列，等价于源语言的翻译更新
-      if (sourceLang) {
+      if (sourceLang && keyId) {
         let sourceVal: string | undefined
         if (entry.sourceText && entry.sourceText !== key)
           sourceVal = entry.sourceText
         if (sourceVal === undefined && entry.lang === sourceLang && entry.translatedText)
           sourceVal = entry.translatedText
         if (sourceVal !== undefined) {
-          await prisma.translationValue.upsert({
-            where: { keyId_languageCode: { keyId: tk.id, languageCode: sourceLang } },
-            update: { translatedText: sourceVal },
-            create: { keyId: tk.id, languageCode: sourceLang, translatedText: sourceVal },
-          })
+          const existingText = existingVals.get(keyId)
+          if (existingText === undefined) {
+            toCreateVals.push({ keyId, languageCode: sourceLang, translatedText: sourceVal })
+          }
+          else if (existingText !== sourceVal) {
+            toUpdateVals.push({
+              where: { keyId_languageCode: { keyId, languageCode: sourceLang } },
+              data: { translatedText: sourceVal },
+            })
+          }
         }
       }
       created++
+      createdKeySet.add(key)
     }
-    imported++
+
+    if (toCreateVals.length)
+      await prisma.translationValue.createMany({ data: toCreateVals })
+    if (toUpdateVals.length)
+      await prisma.$transaction(toUpdateVals.map(u => prisma.translationValue.update(u)))
   }
-  return { imported, created, skipped, skippedLanguages: [] }
+
+  let batch: ImportEntry[] = []
+  for (const entry of entries) {
+    batch.push(entry)
+    if (batch.length >= IMPORT_BATCH) {
+      await flush(batch)
+      batch = []
+    }
+  }
+  if (batch.length)
+    await flush(batch)
+  return { importedKeys, importedFields, created, createdKeys: createdKeySet.size, skipped, skippedKeys: skippedKeySet.size, skippedLanguages: [] }
 }
 
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean): Promise<ImportResult> {
-  const entries = parseImportData(raw, fmt)
+  const { entries, importedKeys, importedFields } = parseImportData(raw, fmt)
   const projectLangs = await prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } })
   const knownLangs = new Set<string>()
   for (const l of projectLangs) {
@@ -181,56 +291,148 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
       knownLangs.add(l.alias)
   }
   const unknownLangs = new Set<string>()
-  let imported = 0
   let created = 0
   let skipped = 0
-  for (const entry of entries) {
-    const { key, translatedText, context, tags, lang } = entry
-    const langCode = lang || languageCode
-    if (langCode && !knownLangs.has(langCode)) {
-      unknownLangs.add(langCode)
-      skipped++
-      imported++
-      continue
+  const createdKeySet = new Set<string>()
+  const skippedKeySet = new Set<string>()
+  const cursor = { nextSo: 0 }
+  let inited = false
+
+  const flush = async (batch: ImportEntry[]): Promise<void> => {
+    // 1. 预加载本批已有 key，建 key→id 映射，消掉逐条 findUnique
+    const keys = [...new Set(batch.map(e => e.key))]
+    const existingKeys = await prisma.translationKey.findMany({
+      where: { projectId, key: { in: keys } },
+      select: { id: true, key: true },
+    })
+    const keyMap = new Map<string, string>(existingKeys.map(r => [r.key, r.id]))
+    const existedSet = new Set(existingKeys.map(r => r.key))
+
+    // 2. 排序游标：首次惰性初始化，后续沿用上次末值递增
+    const newKeysInOrder: string[] = []
+    const seenNew = new Set<string>()
+    for (const e of batch) {
+      if (!keyMap.has(e.key) && !seenNew.has(e.key)) {
+        seenNew.add(e.key)
+        newKeysInOrder.push(e.key)
+      }
     }
-    let tk = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key } } })
-    if (!tk && autoCreate !== false) {
-      const maxSo = await prisma.translationKey.aggregate({ where: { projectId }, _max: { sortOrder: true } })
-      tk = await prisma.translationKey.create({ data: { projectId, key, context: context || '', tags: tags || [], sortOrder: (maxSo._max.sortOrder || 0) + 100 } })
+    if (newKeysInOrder.length && !inited) {
+      await ensureSortCursor(projectId, cursor)
+      inited = true
     }
-    if (tk) {
-      if (context !== undefined || tags?.length) {
+
+    // 3. 新 key 一次 createMany 批量创建（按文件顺序分配 sortOrder），再按 key 拉回 id
+    const toAutoCreate = autoCreate !== false ? newKeysInOrder : []
+    if (toAutoCreate.length) {
+      const firstOf = new Map<string, ImportEntry>()
+      for (const e of batch) {
+        if (!firstOf.has(e.key))
+          firstOf.set(e.key, e)
+      }
+      await prisma.translationKey.createMany({
+        data: toAutoCreate.map((k, i) => {
+          const e = firstOf.get(k)!
+          return {
+            projectId,
+            key: k,
+            context: e.context || '',
+            tags: e.tags || [],
+            sortOrder: cursor.nextSo + i * 100,
+          }
+        }),
+      })
+      cursor.nextSo += toAutoCreate.length * 100
+      const createdRows = await prisma.translationKey.findMany({ where: { projectId, key: { in: toAutoCreate } }, select: { id: true, key: true } })
+      for (const r of createdRows)
+        keyMap.set(r.key, r.id)
+    }
+
+    // 预加载本批涉及的译文值（keyId×language），区分「新建 createMany」/「需更新 update」/「已存在跳过」
+    const valueKeyIdSet = new Set<string>()
+    const valueLangSet = new Set<string>()
+    for (const entry of batch) {
+      const langCode = entry.lang || languageCode
+      const keyId = keyMap.get(entry.key)
+      if (!langCode || !knownLangs.has(langCode) || !keyId || entry.translatedText === undefined)
+        continue
+      valueKeyIdSet.add(keyId)
+      valueLangSet.add(langCode)
+    }
+    let existingValues = new Map<string, string>()
+    if (valueKeyIdSet.size) {
+      const vals = await prisma.translationValue.findMany({
+        where: { keyId: { in: [...valueKeyIdSet] }, languageCode: { in: [...valueLangSet] } },
+        select: { keyId: true, languageCode: true, translatedText: true },
+      })
+      existingValues = new Map(vals.map(v => [`${v.keyId}\u0000${v.languageCode}`, v.translatedText]))
+    }
+
+    const toCreateVals: Prisma.TranslationValueCreateManyInput[] = []
+    const toUpdateVals: Prisma.TranslationValueUpdateArgs[] = []
+
+    for (const entry of batch) {
+      const { key, translatedText, context, tags, lang } = entry
+      const langCode = lang || languageCode
+      if (langCode && !knownLangs.has(langCode)) {
+        unknownLangs.add(langCode)
+        skipped++
+        skippedKeySet.add(key)
+        continue
+      }
+      const keyId = keyMap.get(key)
+      if (keyId && existedSet.has(key) && (context !== undefined || tags?.length)) {
         const updates: Prisma.TranslationKeyUpdateInput = {}
         if (context !== undefined)
           updates.context = context
         if (tags?.length)
           updates.tags = tags
         if (Object.keys(updates).length)
-          await prisma.translationKey.update({ where: { id: tk.id }, data: updates })
+          await prisma.translationKey.update({ where: { id: keyId }, data: updates })
       }
-    }
-    if (tk && translatedText !== undefined && langCode) {
-      if (overwrite) {
-        await prisma.translationValue.upsert({ where: { keyId_languageCode: { keyId: tk.id, languageCode: langCode } }, update: { translatedText }, create: { keyId: tk.id, languageCode: langCode, translatedText } })
-        created++
-      }
-      else {
-        const existing = await prisma.translationValue.findUnique({ where: { keyId_languageCode: { keyId: tk.id, languageCode: langCode } } })
-        if (!existing || !existing.translatedText) {
-          if (existing)
-            await prisma.translationValue.update({ where: { id: existing.id }, data: { translatedText } })
-          else
-            await prisma.translationValue.create({ data: { keyId: tk.id, languageCode: langCode, translatedText } })
+      if (keyId && translatedText !== undefined && langCode) {
+        const vkey = `${keyId}\u0000${langCode}`
+        const existingText = existingValues.get(vkey)
+        const shouldWrite = overwrite
+          ? true
+          : (existingText === undefined || !existingText)
+        if (shouldWrite) {
+          if (existingText === undefined) {
+            toCreateVals.push({ keyId, languageCode: langCode, translatedText })
+          }
+          else if (existingText !== translatedText) {
+            toUpdateVals.push({
+              where: { keyId_languageCode: { keyId, languageCode: langCode } },
+              data: { translatedText },
+            })
+          }
           created++
+          createdKeySet.add(key)
         }
         else {
           skipped++
+          skippedKeySet.add(key)
         }
       }
     }
-    imported++
+
+    if (toCreateVals.length)
+      await prisma.translationValue.createMany({ data: toCreateVals })
+    if (toUpdateVals.length)
+      await prisma.$transaction(toUpdateVals.map(u => prisma.translationValue.update(u)))
   }
-  return { imported, created, skipped, skippedLanguages: [...unknownLangs] }
+
+  let batch: ImportEntry[] = []
+  for (const entry of entries) {
+    batch.push(entry)
+    if (batch.length >= IMPORT_BATCH) {
+      await flush(batch)
+      batch = []
+    }
+  }
+  if (batch.length)
+    await flush(batch)
+  return { importedKeys, importedFields, created, createdKeys: createdKeySet.size, skipped, skippedKeys: skippedKeySet.size, skippedLanguages: [...unknownLangs] }
 }
 
 @Route('projects')

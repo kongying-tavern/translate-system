@@ -117,14 +117,16 @@ function showImportError(e: unknown) {
     ElMessage.error('导入失败')
 }
 
-/** 组装导入成功提示：含新增/跳过统计与未配置语言列表 */
-function importSuccessMsg(d1: { imported: number, created: number, skipped: number, skippedLanguages?: string[] }) {
-  const parts = [`导入完成: ${d1.imported} 条`]
+/** 组装导入成功提示：导入条目用 keys（记录数），导入翻译用 fields（字段数）；created/skipped 的键维度为去重键数 */
+function importSuccessMsg(mode: 'entries' | 'translate', d1: { importedKeys: number, importedFields: number, created: number, createdKeys: number, skipped: number, skippedKeys: number, skippedLanguages?: string[] }) {
+  const total = mode === 'entries' ? d1.importedKeys : d1.importedFields
+  const unit = mode === 'entries' ? '个条目' : '个字段'
+  const parts = [`导入完成: ${total} ${unit}`]
   if (d1.created)
-    parts.push(`${d1.created} 新增`)
+    parts.push(`${d1.created} 条新增${d1.createdKeys ? `（${d1.createdKeys} 个键）` : ''}`)
   if (d1.skipped) {
     const langs = d1.skippedLanguages || []
-    parts.push(`${d1.skipped} 跳过${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+    parts.push(`${d1.skipped} 条跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个键）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
   }
   return parts.join('，')
 }
@@ -144,8 +146,8 @@ async function doTextImport() {
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: textInput.value, overwrite: overwrite.value }
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
-    ElMessage.success(importSuccessMsg(res.data))
+    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
+    ElMessage.success(importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
     textInput.value = ''
   }
   catch (e: unknown) { showImportError(e) }
@@ -168,8 +170,8 @@ async function doImport() {
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 300000 })
-    ElMessage.success(importSuccessMsg(res.data))
+    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
+    ElMessage.success(importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
     importFile.value = null
   }
   catch (e: unknown) { showImportError(e) }

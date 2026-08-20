@@ -39,16 +39,20 @@ docker compose up -d
 
 > 默认端口：前端 `20010`、后端 `20080`、数据库 `20432`，可在 `.env` 中修改。
 
-### 反向代理与上传大小
+### 大文件上传调优
 
-后端已允许 **200MB** 请求体（`express.json({ limit: '200mb' })`）。若部署时前面有反向代理，需同步放行请求体上限（nginx 默认仅 1m，否则大文件导入会被 413 拒绝）：
+后端已允许 **200MB** 请求体、**10 分钟**导入超时，各链路配置如下（nginx 默认请求体仅 1m、代理超时仅 60s，需同步放行否则报 413/504）：
 
-- **nginx**（含项目自带的 `frontend/nginx.conf` 容器内反代）：`server` 或 `location /api/` 级加 `client_max_body_size 200m;`
-- **Caddy**：`request_body { max_size 200MB }`
-- **Nginx Ingress (k8s)**：annotation `nginx.ingress.kubernetes.io/proxy-body-size: "200m"`
-- **云负载均衡 / 宝塔等面板**：查找并调大「请求体 / 上传大小」上限
+| 位置 | 请求体大小 | 超时 |
+|------|-----------|------|
+| **前端 axios** | — | 导入请求已设 `timeout: 600000` |
+| **后端 Express** | `express.json({ limit: '200mb' })`（已配置，无需改） | — |
+| **nginx**（含项目自带 `frontend/nginx.conf`） | `client_max_body_size 200m;` | `proxy_read_timeout 600s; proxy_send_timeout 600s;` |
+| **Caddy** | `request_body { max_size 200MB }` | — |
+| **Nginx Ingress (k8s)** | `nginx.ingress.kubernetes.io/proxy-body-size: "200m"` | 按需调大 `proxy-connect/read/send-timeout` |
+| **云负载均衡 / 宝塔等面板** | 调大「请求体 / 上传大小」上限 | 调大「代理超时」上限 |
 
-> 大文件导入（数十 MB ~ 200MB）解析会占用数 GB 堆内存。Docker 部署已在 `docker-compose.yml` 将根 `.env` 的 `NODE_MEMORY_MB`（默认 4096）拼进固定参数 `NODE_OPTIONS=--max-old-space-size=${NODE_MEMORY_MB}`（只读数字、不直接透传 NODE_OPTIONS，防注入）；本地开发若上传大文件 OOM，可先 `export NODE_OPTIONS=--max-old-space-size=4096` 再 `pnpm dev`。
+> **Node 堆内存**：大文件导入（数十 MB ~ 200MB）解析会占用数 GB 堆内存，V8 默认堆上限（~2GB）可能不够。Docker 部署已在 `docker-compose.yml` 将根 `.env` 的 `NODE_MEMORY_MB`（默认 4096）拼进固定参数 `NODE_OPTIONS=--max-old-space-size=${NODE_MEMORY_MB}`（只读数字、不直接透传 NODE_OPTIONS，防注入）；本地开发若上传大文件 OOM，可先 `export NODE_OPTIONS=--max-old-space-size=4096` 再 `pnpm dev`。
 
 ### 本地开发
 

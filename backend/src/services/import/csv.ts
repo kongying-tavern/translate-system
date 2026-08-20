@@ -24,13 +24,17 @@ function matchRole(h: string): ColumnDef['role'] | undefined {
   }
 }
 
-function csvSplit(data: string): string[][] {
-  const records: string[][] = []
+/**
+ * 逐行产出 CSV 记录（流式，不物化全量二维数组）。
+ * 支持 "" 转义、引号内逗号/换行；CRLF/LF/CR 均视为换行。末行无换行也产出。
+ */
+function* csvRows(data: string): Generator<string[]> {
   let fields: string[] = []
   let field = ''
   let quoted = false
   let i = 0
-  while (i < data.length) {
+  const n = data.length
+  while (i < n) {
     const ch = data[i]
     if (quoted) {
       if (ch === '"') {
@@ -41,41 +45,66 @@ function csvSplit(data: string): string[][] {
         }
         quoted = false
       }
+      else if (ch === '\r') {
+        // 引号内换行统一为 \n（对齐原实现 normalize 语义）
+        field += '\n'
+        if (data[i + 1] === '\n')
+          i++
+      }
       else {
         field += ch
       }
+      i++
+      continue
     }
-    else if (ch === '"') {
+    if (ch === '"') {
       quoted = true
+      i++
+      continue
     }
-    else if (ch === ',') {
+    if (ch === ',') {
       fields.push(field)
       field = ''
+      i++
+      continue
     }
-    else if (ch === '\n') {
+    if (ch === '\n') {
       fields.push(field)
       field = ''
-      records.push(fields)
+      const rec = fields
       fields = []
+      if (rec.some(f => f.trim()))
+        yield rec
+      i++
+      continue
     }
-    else {
-      field += ch
+    if (ch === '\r') {
+      fields.push(field)
+      field = ''
+      const rec = fields
+      fields = []
+      if (rec.some(f => f.trim()))
+        yield rec
+      if (data[i + 1] === '\n')
+        i++
+      i++
+      continue
     }
+    field += ch
     i++
   }
   fields.push(field)
   if (fields.some(f => f.trim()))
-    records.push(fields)
-  return records
+    yield fields
 }
 
-export function csvParse(data: string): ImportEntry[] {
-  const normalized = data.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-  const records = csvSplit(normalized)
-  if (records.length < 2)
+function* csvParseGen(data: string): Generator<ImportEntry> {
+  const rows = csvRows(data)
+  const first = rows.next()
+  if (first.done)
     throw new AppError(ErrCode.InvalidParams, 'CSV 需要表头行与至少一行数据，请检查内容')
 
-  const headerFields = records[0]
+  const headerFields = first.value
   let keyCol: ColumnDef | undefined
   let sourceCol: ColumnDef | undefined
   let tagsCol: ColumnDef | undefined
@@ -104,9 +133,8 @@ export function csvParse(data: string): ImportEntry[] {
 
   sourceCol = sourceCol ?? keyCol
   const hasLang = langCols.length > 0
-  const entries: ImportEntry[] = []
-  for (let i = 1; i < records.length; i++) {
-    const vals = records[i]
+
+  for (const vals of rows) {
     const get = (idx: number): string => (vals[idx] ?? '').trim()
     const key = get(keyCol.idx)
     if (!key)
@@ -120,12 +148,22 @@ export function csvParse(data: string): ImportEntry[] {
     }
 
     if (!hasLang) {
-      entries.push({ ...base, translatedText: '' })
+      yield { ...base, translatedText: '' }
       continue
     }
 
     for (const c of langCols)
-      entries.push({ ...base, translatedText: get(c.idx), lang: c.langCode! })
+      yield { ...base, translatedText: get(c.idx), lang: c.langCode! }
   }
-  return entries
+}
+
+/**
+ * CSV 流式解析（不物化全量数组，逐行产出）。
+ * 返回可重复迭代的 Iterable——每次迭代从 raw 重建新生成器，
+ * 供「校验遍历 → 写入遍历」两轮消费；校验抛错即全量拒绝。
+ */
+export function csvParse(data: string): Iterable<ImportEntry> {
+  return {
+    [Symbol.iterator]: () => csvParseGen(data),
+  }
 }
