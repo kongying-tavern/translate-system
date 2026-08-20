@@ -36,6 +36,9 @@ services:
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-900}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-604800}
       PORT: "8080"
+      # 大文件导入（200MB 级）解析会占用数 GB 堆内存，V8 默认堆上限（~2GB）不够。
+      # 只从外部读数字 NODE_MEMORY_MB，拼接到固定参数 --max-old-space-size，不直接透传 NODE_OPTIONS 防注入
+      NODE_OPTIONS: "--max-old-space-size=${NODE_MEMORY_MB:-4096}"
     depends_on:
       postgres:
         condition: service_healthy

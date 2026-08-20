@@ -48,6 +48,8 @@ docker compose up -d
 - **Nginx Ingress (k8s)**：annotation `nginx.ingress.kubernetes.io/proxy-body-size: "200m"`
 - **云负载均衡 / 宝塔等面板**：查找并调大「请求体 / 上传大小」上限
 
+> 大文件导入（数十 MB ~ 200MB）解析会占用数 GB 堆内存。Docker 部署已在 `docker-compose.yml` 将根 `.env` 的 `NODE_MEMORY_MB`（默认 4096）拼进固定参数 `NODE_OPTIONS=--max-old-space-size=${NODE_MEMORY_MB}`（只读数字、不直接透传 NODE_OPTIONS，防注入）；本地开发若上传大文件 OOM，可先 `export NODE_OPTIONS=--max-old-space-size=4096` 再 `pnpm dev`。
+
 ### 本地开发
 
 #### 环境要求
