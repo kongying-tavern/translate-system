@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { UploadFile } from 'element-plus'
 import type { ProjectLanguage } from '@/types/models'
-import { ElMessage } from 'element-plus'
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
@@ -20,12 +19,56 @@ const importLang = ref('')
 const overwrite = ref(false)
 const autoCreate = ref(true)
 const importing = ref(false)
+const aborting = ref(false)
 const importFile = ref<File | null>(null)
+const notice = ref<{ type: 'success' | 'warning' | 'error', text: string } | null>(null)
+const importLocked = ref(false)
+const importLocker = ref('')
+const importLockType = ref('')
+
+function setNotice(type: 'success' | 'warning' | 'error', text: string) {
+  notice.value = { type, text }
+}
+
+/** 拉取项目导入状态：被他人/其他标签页占用时禁用导入并提示（导入进行中为 10 分钟级，切页后仍可能在导） */
+async function loadImportStatus() {
+  try {
+    const { data: res } = await client.get(`/projects/${encPathParam(projectSlug.value)}/imports/status`)
+    importLocked.value = !!res.data?.locked
+    importLocker.value = res.data?.startUsername || ''
+    importLockType.value = res.data?.type || ''
+  }
+  catch {
+    importLocked.value = false
+    importLocker.value = ''
+    importLockType.value = ''
+  }
+}
+let statusTimer: ReturnType<typeof setInterval> | undefined
+watch(projectSlug, () => {
+  importLocked.value = false
+  loadImportStatus()
+  clearInterval(statusTimer)
+  statusTimer = setInterval(loadImportStatus, 30000)
+}, { immediate: true })
+onBeforeUnmount(() => clearInterval(statusTimer))
 const exampleTab = ref('json')
 const inputMode = ref('file')
 const textInput = ref('')
 
 const needLang = computed(() => mode.value === 'translate' && (fmt.value === ImportFormat.JSON || fmt.value === ImportFormat.Properties))
+/** 项目被他人/其他标签页占用导入（自己发起的导入不视为被锁） */
+const lockedElsewhere = computed(() => importLocked.value && !importing.value)
+const lockTypeName = computed(() => importLockType.value === 'translations' ? '翻译' : '条目')
+/** 锁定的导入类型与当前页模式一致时提示「正在导入」，否则提示发起人正在导入 */
+const lockTip = computed(() => {
+  if (!lockedElsewhere.value)
+    return ''
+  const sameType = importLockType.value === (mode.value === 'entries' ? 'entries' : 'translations')
+  return sameType
+    ? '该项目正在导入中，请稍候再试'
+    : (importLocker.value ? `${importLocker.value} 正在导入${lockTypeName.value}，请稍候再试` : '该项目正在被其他导入占用，请稍候再试')
+})
 const fileAccept = computed(() => {
   if (mode.value === 'entries')
     return '.json,.csv,.yaml,.yml,.xml'
@@ -104,17 +147,20 @@ function onFileChange(file: UploadFile) {
 function showImportError(e: unknown) {
   const err = e as { response?: { data?: { message?: string }, status?: number }, code?: string, message?: string }
   if (err.response?.data?.message) {
-    ElMessage.error(err.response.data.message)
+    if (err.response.data.message === '导入已中止')
+      setNotice('warning', '导入已中止，已写入的数据保留，后续批次停止处理')
+    else
+      setNotice('error', err.response.data.message)
     return
   }
   if (err.response?.status === 413) {
-    ElMessage.error('请求体过大：单次导入内容超出大小限制，请拆分文件后再试')
+    setNotice('error', '请求体过大：单次导入内容超出大小限制，请拆分文件后再试')
     return
   }
   if (err.code === 'ECONNABORTED' || /timeout/i.test(err.message || ''))
-    ElMessage.error('导入请求超时：请到翻译列表确认数据是否已写入，避免重复提交')
+    setNotice('error', '导入请求超时：请到翻译列表确认数据是否已写入，避免重复提交')
   else
-    ElMessage.error('导入失败')
+    setNotice('error', '导入失败')
 }
 
 /** 组装导入成功提示：导入条目用 keys（记录数），导入翻译用 fields（字段数）；created/skipped 的键维度为去重键数 */
@@ -133,11 +179,11 @@ function importSuccessMsg(mode: 'entries' | 'translate', d1: { importedKeys: num
 
 async function doTextImport() {
   if (!textInput.value.trim()) {
-    ElMessage.warning('请输入内容')
+    setNotice('warning', '请输入内容')
     return
   }
   if (mode.value === 'translate' && needLang.value && !importLang.value) {
-    ElMessage.warning('请选择语言')
+    setNotice('warning', '请选择语言')
     return
   }
   importing.value = true
@@ -147,20 +193,23 @@ async function doTextImport() {
       ? { data: textInput.value, overwrite: overwrite.value }
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
-    ElMessage.success(importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
+    setNotice('success', importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
     textInput.value = ''
   }
   catch (e: unknown) { showImportError(e) }
-  finally { importing.value = false }
+  finally {
+    importing.value = false
+    loadImportStatus()
+  }
 }
 
 async function doImport() {
   if (!importFile.value) {
-    ElMessage.warning('请选择文件')
+    setNotice('warning', '请选择文件')
     return
   }
   if (mode.value === 'translate' && needLang.value && !importLang.value) {
-    ElMessage.warning('请选择语言')
+    setNotice('warning', '请选择语言')
     return
   }
   importing.value = true
@@ -171,11 +220,29 @@ async function doImport() {
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
-    ElMessage.success(importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
+    setNotice('success', importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
     importFile.value = null
   }
   catch (e: unknown) { showImportError(e) }
-  finally { importing.value = false }
+  finally {
+    importing.value = false
+    loadImportStatus()
+  }
+}
+
+/** 中止当前正在进行的导入（服务端会在批次间检查并抛错，锁随之释放） */
+async function doAbort() {
+  if (aborting.value)
+    return
+  aborting.value = true
+  try {
+    await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/abort`)
+  }
+  catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } } }
+    setNotice('warning', err.response?.data?.message || '中止请求发送失败')
+  }
+  finally { aborting.value = false }
 }
 </script>
 
@@ -188,6 +255,9 @@ async function doImport() {
         <BaseRadioGroup v-model="mode" button :options="[{ label: '导入条目', value: 'entries' }, { label: '导入翻译', value: 'translate' }]" />
       </BaseFormItem>
     </BaseForm>
+
+    <el-alert v-if="notice" :type="notice.type" :closable="true" :title="notice.text" show-icon style="margin-bottom:16px" @close="notice = null" />
+    <el-alert v-else-if="lockedElsewhere" type="warning" :closable="false" show-icon :title="lockTip" style="margin-bottom:16px" />
 
     <BaseForm :inline="true" class="import-bar" style="margin-top:0">
       <template v-if="mode === 'translate'">
@@ -221,14 +291,17 @@ async function doImport() {
       </BaseFormItem>
       <BaseFormItem v-if="inputMode === 'file'">
         <el-upload :auto-upload="false" :show-file-list="false" :accept="fileAccept" @change="onFileChange">
-          <BaseButton type="primary" :disabled="!perm.canManageContent.value">
+          <BaseButton type="primary" :disabled="!perm.canManageContent.value || lockedElsewhere">
             选择文件
           </BaseButton>
         </el-upload>
       </BaseFormItem>
       <BaseFormItem v-if="importFile && inputMode === 'file'">
-        <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value" @click="doImport">
+        <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || lockedElsewhere" @click="doImport">
           开始导入
+        </BaseButton>
+        <BaseButton v-if="importing" type="warning" :loading="aborting" style="margin-left:12px" @click="doAbort">
+          中止导入
         </BaseButton>
       </BaseFormItem>
     </BaseForm>
@@ -237,8 +310,11 @@ async function doImport() {
     </div>
     <div v-if="inputMode === 'text'" style="margin-bottom:16px">
       <BaseInput v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value" style="font-family:monospace;font-size:13px" />
-      <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value" style="margin-top:8px" @click="doTextImport">
+      <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || lockedElsewhere" style="margin-top:8px" @click="doTextImport">
         开始导入
+      </BaseButton>
+      <BaseButton v-if="importing" type="warning" :loading="aborting" style="margin-top:8px;margin-left:12px" @click="doAbort">
+        中止导入
       </BaseButton>
     </div>
     <el-alert v-if="mode === 'entries'" type="info" :closable="false" style="margin-bottom:16px" title="导入条目不会更改现有条目的翻译内容" />

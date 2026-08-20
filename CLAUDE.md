@@ -238,7 +238,9 @@ PUT    /projects/:id/translations/{keyId}    — 更新 key 级属性 Key名/原
 PUT    /projects/:id/translations/{keyId}/{langCode} — 保存译文（任意项目成员，仅传 translatedText；service 层拒绝源语言与非项目语言，防 member 改原文）
 DELETE /projects/:id/translations/{translationId} — 删除 Key（Maintainer+）
 GET    /projects/:id/translations/count|tags/list — 需项目访问
-POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+）
+GET    /projects/:id/imports/status         — 查询项目导入状态（locked + 类型/发起人用户名/时间；Maintainer+）
+POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+，同项目互斥锁：导入中再导入返回 Conflict，跨项目并发不受限）
+POST   /projects/:id/imports/abort          — 中止当前项目导入（Maintainer+，无进行中导入时提示）
 GET|POST|PUT|DELETE /projects/:id/layouts/templates|configs — 布局模板/配置 CRUD（需项目访问）
 GET    /projects/:id/languages         — 需项目访问
 POST|DELETE /projects/:id/languages    — 增删语言（Maintainer+，源语言不可删除）
