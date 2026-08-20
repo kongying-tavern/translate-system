@@ -14,7 +14,7 @@ const app = express()
 const PORT = process.env.PORT || 8080
 
 app.use(cors())
-app.use(express.json({ limit: '50mb' }))
+app.use(express.json({ limit: '200mb' }))
 
 // OpenAPI 文档暴露策略：
 // - /api-docs/apikey.json 永远暴露（外部 API Key 调用方、前端「开放接口说明」页 /api-doc 与 Swagger UI「API Key 开放接口」标签依赖）

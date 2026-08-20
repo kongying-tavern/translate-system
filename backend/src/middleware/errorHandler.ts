@@ -29,7 +29,7 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
   // body-parser 错误（在路由之前抛出，不经过 tsoa）：返回统一 JSON 结构，前端可读取具体原因
   const bodyError = err as { type?: string }
   if (bodyError.type === 'entity.too.large')
-    return error(res, ErrCode.InvalidParams, '请求体过大：单次请求内容超出大小限制（50MB），请拆分后再试', 413)
+    return error(res, ErrCode.InvalidParams, '请求体过大：单次请求内容超出大小限制，请拆分后再试', 413)
   if (bodyError.type === 'entity.parse.failed')
     return error(res, ErrCode.InvalidParams, '请求体不是合法 JSON', 400)
   if (err instanceof AppError) {

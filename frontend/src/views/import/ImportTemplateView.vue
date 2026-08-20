@@ -108,7 +108,7 @@ function showImportError(e: unknown) {
     return
   }
   if (err.response?.status === 413) {
-    ElMessage.error('请求体过大：单次导入内容超出大小限制（50MB），请拆分文件后再试')
+    ElMessage.error('请求体过大：单次导入内容超出大小限制，请拆分文件后再试')
     return
   }
   if (err.code === 'ECONNABORTED' || /timeout/i.test(err.message || ''))
