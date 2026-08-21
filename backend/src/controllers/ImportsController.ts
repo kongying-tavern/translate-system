@@ -90,6 +90,30 @@ function deferEventLoop(): Promise<void> {
   return new Promise<void>(r => setImmediate(r))
 }
 
+/** 按 (keyId, languageCode) 去重新建值，避免同批内重复 key+语言触发唯一约束冲突 */
+function dedupeCreateVals(vals: Prisma.TranslationValueCreateManyInput[]): Prisma.TranslationValueCreateManyInput[] {
+  const seen = new Set<string>()
+  const out: Prisma.TranslationValueCreateManyInput[] = []
+  for (const v of vals) {
+    const k = `${v.keyId}\u0000${v.languageCode}`
+    if (!seen.has(k)) {
+      seen.add(k)
+      out.push(v)
+    }
+  }
+  return out
+}
+
+/** 按 (keyId, languageCode) 去重更新值（后者覆盖前者） */
+function dedupeUpdateVals(vals: Prisma.TranslationValueUpdateArgs[]): Prisma.TranslationValueUpdateArgs[] {
+  const map = new Map<string, Prisma.TranslationValueUpdateArgs>()
+  for (const v of vals) {
+    const w = v.where.keyId_languageCode!
+    map.set(`${w.keyId}\u0000${w.languageCode}`, v)
+  }
+  return [...map.values()]
+}
+
 async function parseImportData(raw: string, fmt: string, ctrl: ImportControl): Promise<ParsedImport> {
   let entries: Iterable<ImportEntry>
   try {
@@ -270,10 +294,16 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
       createdKeySet.add(key)
     }
 
-    if (toCreateVals.length)
-      await prisma.translationValue.createMany({ data: toCreateVals })
-    if (toUpdateVals.length)
-      await prisma.$transaction(toUpdateVals.map(u => prisma.translationValue.update(u)))
+    if (toCreateVals.length) {
+      const createVals = dedupeCreateVals(toCreateVals)
+      if (createVals.length)
+        await prisma.translationValue.createMany({ data: createVals })
+    }
+    if (toUpdateVals.length) {
+      const updateVals = dedupeUpdateVals(toUpdateVals)
+      if (updateVals.length)
+        await prisma.$transaction(updateVals.map(u => prisma.translationValue.update(u)))
+    }
     ctrl.progress.createdFields = createdFields
     ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size
@@ -435,10 +465,16 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
       }
     }
 
-    if (toCreateVals.length)
-      await prisma.translationValue.createMany({ data: toCreateVals })
-    if (toUpdateVals.length)
-      await prisma.$transaction(toUpdateVals.map(u => prisma.translationValue.update(u)))
+    if (toCreateVals.length) {
+      const createVals = dedupeCreateVals(toCreateVals)
+      if (createVals.length)
+        await prisma.translationValue.createMany({ data: createVals })
+    }
+    if (toUpdateVals.length) {
+      const updateVals = dedupeUpdateVals(toUpdateVals)
+      if (updateVals.length)
+        await prisma.$transaction(updateVals.map(u => prisma.translationValue.update(u)))
+    }
     ctrl.progress.createdFields = createdFields
     ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size

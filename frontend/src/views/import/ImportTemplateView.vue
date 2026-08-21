@@ -119,7 +119,7 @@ const lockTip = computed(() => {
     return `${prefix}，解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段），请稍候再试`
   if (p.phase === 'writing') {
     if (isTranslate)
-      return `${prefix}，写入中（${p.createdFields.toLocaleString()} 字段新增 / ${p.skippedFields.toLocaleString()} 字段跳过，共 ${p.totalFields.toLocaleString()} 字段），请稍候再试`
+      return `${prefix}，写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 键）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 键），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 键）），请稍候再试`
     return `${prefix}，写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目），请稍候再试`
   }
   return `${prefix}，写入完成，请稍候再试`
@@ -137,7 +137,7 @@ const myImportTip = computed(() => {
     return `正在导入${typeLabel}：解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段）`
   if (p.phase === 'writing') {
     if (isTranslate)
-      return `正在导入${typeLabel}：写入中（${p.createdFields.toLocaleString()} 字段新增 / ${p.skippedFields.toLocaleString()} 字段跳过，共 ${p.totalFields.toLocaleString()} 字段）`
+      return `正在导入${typeLabel}：写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 键）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 键），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 键））`
     return `正在导入${typeLabel}：写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目）`
   }
   return `正在导入${typeLabel}：写入完成`
@@ -145,7 +145,8 @@ const myImportTip = computed(() => {
 const fileAccept = computed(() => {
   if (mode.value === 'entries')
     return '.json,.csv,.yaml,.yml,.xml'
-  if (fmt.value === 'auto')
+  // 译文模式：文件导入按扩展名自动识别格式（properties 不自带语言、需手动选语言，仅文本模式支持），故放开其余类型；文本导入由用户手动选格式
+  if (inputMode.value === 'file')
     return '.json,.csv,.yaml,.yml,.xml'
   if (fmt.value === ImportFormat.CSV)
     return '.csv'
@@ -249,12 +250,12 @@ function importSuccessMsg(mode: 'entries' | 'translate', d1: ImportResult) {
     }
   }
   else {
-    parts.push(`导入完成: ${d1.importedFields} 个字段`)
+    parts.push(`导入完成: ${d1.importedFields} 个字段，涉及 ${d1.importedKeys} 个键`)
     if (d1.createdFields)
-      parts.push(`${d1.createdFields} 个新增`)
+      parts.push(`${d1.createdFields} 个新增${d1.createdKeys ? `（${d1.createdKeys} 个键）` : ''}`)
     if (d1.skippedFields) {
       const langs = d1.skippedLanguages || []
-      parts.push(`${d1.skippedFields} 个跳过${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+      parts.push(`${d1.skippedFields} 个跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个键）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
     }
   }
   return parts.join('，')
