@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import type { ApiOk } from '../lib/api'
-import type { ImportControl, ImportProgress } from '../lib/import-lock'
+import type { ImportControl, ImportProgress, ImportResult } from '../lib/import-lock'
 import type { AuthRequest } from '../middleware/auth'
 import type { ImportEntry } from '../services/import/types'
 import { Body, Controller, Get, Middlewares, Path, Post, Request, Route, Security, Tags } from '@tsoa/runtime'
@@ -9,7 +9,7 @@ import { assertProjectAccess } from '../lib/access'
 import { ok } from '../lib/api'
 import { ErrCode } from '../lib/errors'
 import { ImportFormat } from '../lib/formats'
-import { abortImport, getImportLock, releaseImportLock, tryAcquireImportLock } from '../lib/import-lock'
+import { abortImport, getImportLock, tryAcquireImportLock } from '../lib/import-lock'
 import { prisma } from '../lib/prisma'
 import { decodePathParams } from '../middleware/decodePathParams'
 import { csvParse } from '../services/import/csv'
@@ -18,23 +18,6 @@ import { propertiesParse } from '../services/import/properties'
 import { xmlParse } from '../services/import/xml'
 import { yamlParse } from '../services/import/yaml'
 import { AppError } from '../utils/AppError'
-
-export interface ImportResult {
-  /** 解析出的去重翻译键数量 */
-  importedKeys: number
-  /** 解析出的条目总数（含多语言格式展开） */
-  importedFields: number
-  /** 新建数量（条目维度） */
-  created: number
-  /** 新建的去重翻译键数量 */
-  createdKeys: number
-  /** 跳过数量（条目维度，含因项目未配置语言而跳过的） */
-  skipped: number
-  /** 跳过的去重翻译键数量 */
-  skippedKeys: number
-  /** 因项目未配置语言而被跳过的语言代码（去重） */
-  skippedLanguages: string[]
-}
 
 export interface ImportEntriesBody {
   /**
@@ -107,7 +90,7 @@ function deferEventLoop(): Promise<void> {
   return new Promise<void>(r => setImmediate(r))
 }
 
-async function parseImportData(raw: string, fmt: string, progress: ImportProgress): Promise<ParsedImport> {
+async function parseImportData(raw: string, fmt: string, ctrl: ImportControl): Promise<ParsedImport> {
   let entries: Iterable<ImportEntry>
   try {
     switch (fmt) {
@@ -138,26 +121,30 @@ async function parseImportData(raw: string, fmt: string, progress: ImportProgres
   const keys = new Set<string>()
   let imported = 0
   for (const entry of entries) {
+    if (ctrl.aborted)
+      throw new AppError(ErrCode.Conflict, '导入已中止')
     imported++
     if (entry.key?.trim()) {
       const prev = keys.size
       keys.add(entry.key)
       if (keys.size !== prev)
-        progress.parsedKeys = keys.size
+        ctrl.progress.parsedKeys = keys.size
     }
     if (!entry.key || !entry.key.trim())
       throw new AppError(ErrCode.InvalidParams, `第 ${imported} 条缺少翻译键（key/name），已拒绝导入`)
     if (imported % IMPORT_BATCH === 0) {
-      progress.parsedFields = imported
+      ctrl.progress.parsedFields = imported
       await deferEventLoop()
+      if (ctrl.aborted)
+        throw new AppError(ErrCode.Conflict, '导入已中止')
     }
   }
   if (!imported)
     throw new AppError(ErrCode.InvalidParams, '未从数据中解析到任何条目，请检查文件格式与内容')
-  progress.parsedFields = imported
-  progress.totalFields = imported
-  progress.totalKeys = keys.size
-  progress.phase = 'writing'
+  ctrl.progress.parsedFields = imported
+  ctrl.progress.totalFields = imported
+  ctrl.progress.totalKeys = keys.size
+  ctrl.progress.phase = 'writing'
   return { entries, importedKeys: keys.size, importedFields: imported }
 }
 
@@ -168,7 +155,7 @@ async function ensureSortCursor(projectId: string, cursor: { nextSo: number }): 
 }
 
 async function importKeys(projectId: string, raw: string, fmt: ImportFormat, overwrite: boolean, ctrl: ImportControl): Promise<ImportResult> {
-  const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl.progress)
+  const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl)
   const sourceLang = (await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }))?.sourceLanguage || ''
   let created = 0
   let skipped = 0
@@ -178,6 +165,8 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   let inited = false
 
   const flush = async (batch: ImportEntry[]): Promise<void> => {
+    if (ctrl.aborted)
+      throw new AppError(ErrCode.Conflict, '导入已中止')
     // 1. 预加载本批已有 key，建 key→id 映射，消掉逐条 findUnique
     const keys = [...new Set(batch.map(e => e.key))]
     const existingKeys = await prisma.translationKey.findMany({
@@ -310,7 +299,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
 }
 
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean, ctrl: ImportControl): Promise<ImportResult> {
-  const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl.progress)
+  const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl)
   const projectLangs = await prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } })
   const knownLangs = new Set<string>()
   for (const l of projectLangs) {
@@ -327,6 +316,8 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   let inited = false
 
   const flush = async (batch: ImportEntry[]): Promise<void> => {
+    if (ctrl.aborted)
+      throw new AppError(ErrCode.Conflict, '导入已中止')
     // 1. 预加载本批已有 key，建 key→id 映射，消掉逐条 findUnique
     const keys = [...new Set(batch.map(e => e.key))]
     const existingKeys = await prisma.translationKey.findMany({
@@ -472,6 +463,24 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   return { importedKeys, importedFields, created, createdKeys: createdKeySet.size, skipped, skippedKeys: skippedKeySet.size, skippedLanguages: [...unknownLangs] }
 }
 
+/**
+ * 后台执行导入：不阻塞 HTTP 响应，完成后把结果写入 ctrl 并标记 done。
+ * 失败/被中止时记录 error；控制对象保留（下次导入会覆盖），期间进度仍可通过 status 读取。
+ */
+function runImportInBackground(ctrl: ImportControl, task: () => Promise<ImportResult>): void {
+  void task()
+    .then((result) => {
+      ctrl.progress.phase = 'done'
+      ctrl.result = result
+      ctrl.done = true
+    })
+    .catch((e: unknown) => {
+      ctrl.progress.phase = 'done'
+      ctrl.error = e instanceof Error ? e.message : String(e)
+      ctrl.done = true
+    })
+}
+
 @Route('projects')
 @Tags('Imports')
 @Middlewares(decodePathParams)
@@ -488,15 +497,17 @@ export class ImportsController extends Controller {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
     const lock = getImportLock(access.projectId)
     if (!lock)
-      return ok({ locked: false, type: '', startUserId: '', startUsername: '', startTimestamp: 0, progress: null })
+      return ok({ locked: false, type: '', startUserId: '', startUsername: '', startTimestamp: 0, progress: null, result: null, error: null })
     const startUser = await prisma.user.findUnique({ where: { id: lock.userId }, select: { username: true } })
     return ok({
-      locked: true,
+      locked: !lock.done,
       type: lock.type,
       startUserId: lock.userId,
       startUsername: startUser?.username || '',
       startTimestamp: lock.startedAt,
       progress: { ...lock.progress },
+      result: lock.done ? (lock.result ?? null) : null,
+      error: lock.done ? (lock.error ?? null) : null,
     })
   }
 
@@ -509,18 +520,14 @@ export class ImportsController extends Controller {
    */
   @Post('{projectSlug}/imports/entries')
   @Security('auth')
-  public async importEntries(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: ImportEntriesBody): Promise<ApiOk<ImportResult>> {
+  public async importEntries(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: ImportEntriesBody): Promise<ApiOk<{ accepted: true }>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     const ctrl = tryAcquireImportLock(access.projectId, req.userId!, 'entries')
     if (!ctrl)
       throw new AppError(ErrCode.Conflict, '该项目正在导入中，请稍后再试')
-    try {
-      const raw = typeof body.data === 'string' ? body.data : JSON.stringify(body.data)
-      return ok(await importKeys(access.projectId, raw, sniffFormat(raw), body.overwrite ?? false, ctrl))
-    }
-    finally {
-      releaseImportLock(access.projectId)
-    }
+    const raw = typeof body.data === 'string' ? body.data : JSON.stringify(body.data)
+    runImportInBackground(ctrl, () => importKeys(access.projectId, raw, sniffFormat(raw), body.overwrite ?? false, ctrl))
+    return ok({ accepted: true })
   }
 
   /**
@@ -532,20 +539,16 @@ export class ImportsController extends Controller {
    */
   @Post('{projectSlug}/imports/translations')
   @Security('auth')
-  public async importTranslations(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: ImportTranslationsBody): Promise<ApiOk<ImportResult>> {
+  public async importTranslations(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Body() body: ImportTranslationsBody): Promise<ApiOk<{ accepted: true }>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     if (!body.formatType)
       throw new AppError(ErrCode.InvalidParams, 'formatType is required')
     const ctrl = tryAcquireImportLock(access.projectId, req.userId!, 'translations')
     if (!ctrl)
       throw new AppError(ErrCode.Conflict, '该项目正在导入中，请稍后再试')
-    try {
-      const raw = typeof body.data === 'string' ? body.data : JSON.stringify(body.data)
-      return ok(await applyTranslations(access.projectId, raw, body.formatType, body.languageCode ?? '', body.overwrite ?? false, body.autoCreate ?? true, ctrl))
-    }
-    finally {
-      releaseImportLock(access.projectId)
-    }
+    const raw = typeof body.data === 'string' ? body.data : JSON.stringify(body.data)
+    runImportInBackground(ctrl, () => applyTranslations(access.projectId, raw, body.formatType, body.languageCode ?? '', body.overwrite ?? false, body.autoCreate ?? true, ctrl))
+    return ok({ accepted: true })
   }
 
   /**
@@ -584,4 +587,8 @@ export interface ImportStatusRow {
   startTimestamp: number
   /** 导入进度（有导入时为对象，否则为 null） */
   progress: ImportProgress | null
+  /** 导入结果（导入已结束时为对象，否则为 null） */
+  result: ImportResult | null
+  /** 导入失败时的错误信息（导入已结束且 result 为 null 时存在） */
+  error: string | null
 }

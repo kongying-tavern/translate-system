@@ -29,6 +29,12 @@ const importLocker = ref('')
 const importLockerId = ref('')
 const importLockType = ref('')
 const importProgress = ref<ImportProgress | null>(null)
+/** 已消费（展示过成功/失败提示）的导入起始时间戳，避免轮询重复弹窗 */
+const consumedTs = ref<number>(0)
+/** 本次会话是否由我发起了后台导入（用于判定轮询带回的结果归属） */
+const wasImporting = ref(false)
+/** 本次导入的模式，决定结果提示用「条目」还是「字段」 */
+const importMode = ref<'entries' | 'translate'>('entries')
 
 function setNotice(type: 'success' | 'warning' | 'error', text: string) {
   notice.value = { type, text }
@@ -43,6 +49,17 @@ async function loadImportStatus() {
     importLockerId.value = res.data?.startUserId || ''
     importLockType.value = res.data?.type || ''
     importProgress.value = res.data?.progress || null
+    const startTs = (res.data?.startTimestamp as number) || 0
+    const result = (res.data?.result ?? null) as ImportResult | null
+    const error = (res.data?.error ?? null) as string | null
+    if (wasImporting.value && !importLocked.value && startTs && startTs !== consumedTs.value) {
+      if (error)
+        setNotice(error === '导入已中止' ? 'warning' : 'error', error)
+      else if (result)
+        setNotice('success', importSuccessMsg(importMode.value, result))
+      consumedTs.value = startTs
+      wasImporting.value = false
+    }
   }
   catch {
     importLocked.value = false
@@ -59,6 +76,12 @@ function startStatusTimer(intervalMs: number) {
 }
 watch(projectSlug, () => {
   importLocked.value = false
+  importLocker.value = ''
+  importLockerId.value = ''
+  importLockType.value = ''
+  importProgress.value = null
+  wasImporting.value = false
+  consumedTs.value = 0
   loadImportStatus()
   startStatusTimer(importLocked.value ? 2000 : 30000)
 }, { immediate: true })
@@ -240,12 +263,13 @@ async function doTextImport() {
   loadImportStatus()
   try {
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
+    importMode.value = mode.value === 'entries' ? 'entries' : 'translate'
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: textInput.value, overwrite: overwrite.value }
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     textInput.value = ''
-    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
-    setNotice('success', importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
+    await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
+    wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {
@@ -270,11 +294,12 @@ async function doImport() {
   try {
     const text = await file.text()
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
+    importMode.value = mode.value === 'entries' ? 'entries' : 'translate'
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
-    const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
-    setNotice('success', importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
+    await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
+    wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {

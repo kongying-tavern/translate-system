@@ -23,6 +23,23 @@ export interface ImportProgress {
   skippedKeys: number
 }
 
+export interface ImportResult {
+  /** 解析出的去重翻译键数量（条目维度） */
+  importedKeys: number
+  /** 解析出的条目总数（含多语言格式展开） */
+  importedFields: number
+  /** 新建数量（条目维度） */
+  created: number
+  /** 新建的去重翻译键数量 */
+  createdKeys: number
+  /** 跳过数量（条目维度，含因项目未配置语言而跳过的） */
+  skipped: number
+  /** 跳过的去重翻译键数量 */
+  skippedKeys: number
+  /** 因项目未配置语言而被跳过的语言代码（去重） */
+  skippedLanguages: string[]
+}
+
 export interface ImportControl {
   aborted: boolean
   /** 发起导入的用户 id */
@@ -33,13 +50,23 @@ export interface ImportControl {
   type: ImportLockType
   /** 导入进度（解析/写入阶段实时更新，status 接口可读） */
   progress: ImportProgress
+  /** 导入是否已结束（成功/失败/中止），结束后锁不再阻塞新导入，结果可读 */
+  done: boolean
+  /** 导入完成后的结果（done 后为非 null） */
+  result?: ImportResult
+  /** 导入失败时的错误信息（done 且 result 为 undefined 时存在） */
+  error?: string
 }
 
 const locks = new Map<string, ImportControl>()
 
-/** 尝试获取项目导入锁；同一项目已在导入时返回 null，跨项目互不影响 */
+/**
+ * 尝试获取项目导入锁；同一项目正在导入（未结束）时返回 null，跨项目互不影响。
+ * 若上一次导入已结束（done），则覆盖之，避免残留控制对象长期占用。
+ */
 export function tryAcquireImportLock(projectId: string, userId: string, type: ImportLockType): ImportControl | null {
-  if (locks.has(projectId))
+  const existing = locks.get(projectId)
+  if (existing && !existing.done)
     return null
   const ctrl: ImportControl = {
     aborted: false,
@@ -47,6 +74,7 @@ export function tryAcquireImportLock(projectId: string, userId: string, type: Im
     startedAt: Date.now(),
     type,
     progress: { phase: 'parsing', parsedFields: 0, parsedKeys: 0, totalFields: 0, totalKeys: 0, createdFields: 0, createdKeys: 0, skippedFields: 0, skippedKeys: 0 },
+    done: false,
   }
   locks.set(projectId, ctrl)
   return ctrl
@@ -56,15 +84,15 @@ export function releaseImportLock(projectId: string): void {
   locks.delete(projectId)
 }
 
-/** 查询项目当前是否正有导入在跑 */
+/** 查询项目当前导入控制对象（含已结束但未清理的），无则返回 undefined */
 export function getImportLock(projectId: string): ImportControl | undefined {
   return locks.get(projectId)
 }
 
-/** 请求中止该项目正在进行的导入；无进行中导入时返回 false */
+/** 请求中止该项目正在进行的导入；无进行中导入（或已结束）时返回 false */
 export function abortImport(projectId: string): boolean {
   const ctrl = locks.get(projectId)
-  if (!ctrl)
+  if (!ctrl || ctrl.done)
     return false
   ctrl.aborted = true
   return true

@@ -239,7 +239,7 @@ PUT    /projects/:id/translations/{keyId}/{langCode} — 保存译文（任意�
 DELETE /projects/:id/translations/{translationId} — 删除 Key（Maintainer+）
 GET    /projects/:id/translations/count|tags/list — 需项目访问
 GET    /projects/:id/imports/status         — 查询项目导入状态（locked + 类型/发起人 id+用户名/时间 + `progress`；Maintainer+，前端据此 2s 轮询展示进度，空闲 30s）
-POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+，同项目互斥锁：导入中再导入返回 Conflict，跨项目并发不受限）
+POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+，同项目互斥锁：导入中再导入返回 Conflict，跨项目并发不受限；**接口立即返回 `accepted`，实际导入在后台异步执行，进度/结果全部经 `GET /imports/status` 轮询读取**）
 POST   /projects/:id/imports/abort          — 中止当前项目导入（Maintainer+，且**仅发起人或 super_admin** 可中止；非本人/非超管返回 Forbidden，无进行中导入返回 Conflict）
 GET|POST|PUT|DELETE /projects/:id/layouts/templates|configs — 布局模板/配置 CRUD（需项目访问）
 GET    /projects/:id/languages         — 需项目访问
@@ -274,10 +274,11 @@ GET    /languages|/languages/search    — 基础语言
 ### 导入并发控制与进度
 
 - **同项目互斥锁**：`backend/src/lib/import-lock.ts` 进程内 `Map<projectId, ImportControl>`（单实例 Docker 部署），`tryAcquireImportLock` / `releaseImportLock` / `getImportLock` / `abortImport`。导入进行中再导入返回 `Conflict(1004)`；跨项目并发不受限。
+- **后台异步执行**：`importEntries` / `importTranslations` 仅做鉴权 + 抢锁，随即通过 `runImportInBackground` 把真正的解析/写入放到后台 Promise 执行，**接口立即返回 `{ accepted: true }`**（不再阻塞等待整次导入完成）。`ImportControl` 在导入结束后置 `done=true` 并保留结果（不删除，下次导入会覆盖），故即便请求已返回，仍可通过 `GET /imports/status` 持续读到进度，结束后还能读到最终 `result`（或 `error`）。
 - **进度 `ImportProgress`**（8 字段，按阶段分组）：解析阶段 `parsedFields`（已解析字段数）/`parsedKeys`（去重键数）；写入阶段 `totalFields`/`totalFields`→`createdFields`/`skippedFields`（字段维度）+ `totalKeys`/`createdKeys`/`skippedKeys`（去重键维度）；`phase` 为 `parsing`/`writing`/`done`。`parseImportData` 每解析 1000 条 `deferEventLoop()` 让出事件循环，避免大文件阻塞。
-- **状态查询** `GET /imports/status` 返回 `ImportStatusRow`：`locked`/`type`/`startUserId`/`startUsername`/`startTimestamp`/`progress`（含以上 8 字段）。前端导入页据此驱动 UI。
-- **中止** `POST /imports/abort`：`ImportControl.aborted = true`，运行中的导入在批次间检查并抛 `Conflict` 中止，锁随之释放；仅**发起人或 super_admin** 可中止（其余返回 `Forbidden(1002)`）。
-- **前端导入页行为**（`ImportTemplateView.vue`）：导入状态以**最近一次 status 轮询为准**（本地 `importing` 仅用于「开始导入」按钮 spinner）；轮询间隔「导入中 2 秒 / 空闲 30 秒」，提交后立刻再拉一次 status。导入中（status `locked`）用页内 `el-alert` 展示进度，并**禁用所有业务控件**（选择文件/开始导入/格式/语言/勾选/文本框），但「模式（导入条目/导入翻译）」「输入方式（文件/文本）」两个 radio-group 仍可切换；若当前用户是发起人（`startUserId === 当前用户`），alert 内显示「中止导入」按钮（跨标签页也有效）。
+- **状态查询** `GET /imports/status` 返回 `ImportStatusRow`：`locked`/`type`/`startUserId`/`startUsername`/`startTimestamp`/`progress`（含以上 8 字段）/ `result`（导入结束后的 `ImportResult`，否则 null）/ `error`（导入失败的错误信息，否则 null）。前端导入页据此驱动 UI。
+- **中止** `POST /imports/abort`：`ImportControl.aborted = true`，运行中的导入在**解析阶段（`parseImportData` 每 1000 条让出事件循环处）与每个写入批次（`flush` 开头）均会检查该标志**，命中即抛 `Conflict` 中止，控制对象置 `done` 并保留 `error: '导入已中止'`；仅**发起人或 super_admin** 可中止（其余返回 `Forbidden(1002)`，无进行中导入返回 `Conflict(1004)`）。
+- **前端导入页行为**（`ImportTemplateView.vue`）：导入状态以**最近一次 status 轮询为准**（本地 `importing` 仅用于「开始导入」按钮 spinner）；轮询间隔「导入中 2 秒 / 空闲 30 秒」，提交后立刻再拉一次 status。POST 仅返回 `accepted`，**真正的成功/失败提示在 status 轮询带回 `result`/`error` 时弹出**（按 `startTimestamp` 去重避免重复）；导入中（status `locked`）用页内 `el-alert` 展示进度，并**禁用所有业务控件**（选择文件/开始导入/格式/语言/勾选/文本框），但「模式（导入条目/导入翻译）」「输入方式（文件/文本）」两个 radio-group 仍可切换；若当前用户是发起人（`startUserId === 当前用户`），alert 内显示「中止导入」按钮（跨标签页也有效）。
 - **提示文案双维度**：进度解析阶段显示「X 条目 / Y 字段」（keys→条目，fields→字段）；写入阶段条目模式用 keys 计数、翻译模式用 fields 计数。成功提示导入条目用 `importedKeys`（个条目）、导入译文用 `importedFields`（个字段）。
 
 
