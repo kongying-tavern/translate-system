@@ -582,11 +582,19 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
 function runImportInBackground(ctrl: ImportControl, task: () => Promise<ImportResult>): void {
   emitImportStatus(ctrl.projectId)
   void task()
-    .then((result) => {
+    .then(async (result) => {
       ctrl.progress.phase = 'done'
       ctrl.result = result
       ctrl.done = true
       emitImportStatus(ctrl.projectId)
+      // 导入完成（大量写入后）刷新规划器统计，确保后续列表/导出查询稳定走索引；失败不影响导入结果
+      try {
+        await prisma.$executeRaw`ANALYZE "translation_keys"`
+        await prisma.$executeRaw`ANALYZE "translation_values"`
+      }
+      catch {
+        // 统计刷新失败不影响导入结果
+      }
     })
     .catch((e: unknown) => {
       ctrl.progress.phase = 'done'

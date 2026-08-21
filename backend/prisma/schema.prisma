@@ -86,7 +86,7 @@ model TranslationKey {
   values  TranslationValue[]
 
   @@unique([projectId, key])
-  @@index([key])
+  @@index([projectId, sortOrder, key])
   @@map("translation_keys")
 }
 
