@@ -25,9 +25,12 @@ function formatValidationError(fields: FieldErrors): string {
 }
 
 export function errorHandler(err: unknown, _req: Request, res: Response, _next: NextFunction) {
+  const bodyError = err as { type?: string }
+  // 客户端中途断开（如上传被中止/页面关闭）：连接已关闭，无需响应，也不计为服务端异常
+  if (bodyError.type === 'request.aborted')
+    return
   console.error(err)
   // body-parser 错误（在路由之前抛出，不经过 tsoa）：返回统一 JSON 结构，前端可读取具体原因
-  const bodyError = err as { type?: string }
   if (bodyError.type === 'entity.too.large')
     return error(res, ErrCode.InvalidParams, '请求体过大：单次请求内容超出大小限制，请拆分后再试', 413)
   if (bodyError.type === 'entity.parse.failed')

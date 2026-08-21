@@ -1,4 +1,3 @@
-import type { TsoaResponse } from '@tsoa/runtime'
 import type { Response } from 'express'
 import type { ApiOk } from '../lib/api'
 import type { ImportControl, ImportProgress, ImportResult } from '../lib/import-lock'
@@ -6,7 +5,7 @@ import type { AuthRequest } from '../middleware/auth'
 import type { ImportEntry } from '../services/import/types'
 import { randomUUID } from 'node:crypto'
 import { Prisma } from '@prisma/client'
-import { Body, Controller, Get, Middlewares, Path, Post, Request, Res, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Get, Middlewares, Path, Post, Request, Route, Security, Tags } from '@tsoa/runtime'
 import { ProjectRole, SystemRole } from '../constants/roles'
 import { assertProjectAccess } from '../lib/access'
 import { ok } from '../lib/api'
@@ -669,14 +668,17 @@ export class ImportsController extends Controller {
    */
   @Get('{projectSlug}/imports/status/stream')
   @Security('auth')
-  public async getImportStatusStream(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Res() res: TsoaResponse<200, void>): Promise<void> {
+  public async getImportStatusStream(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string): Promise<void> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
-    const response = res as unknown as Response
+    // @Res() 注入的是 TSOA 响应回调函数（无 status/setHeader 方法），SSE 需从 req.res 取真实 Express Response
+    const response = req.res as Response
     response.status(200)
-      .setHeader('Content-Type', 'text/event-stream')
-      .setHeader('Cache-Control', 'no-cache, no-transform')
-      .setHeader('Connection', 'keep-alive')
-      .setHeader('X-Accel-Buffering', 'no')
+    response.setHeader('Content-Type', 'text/event-stream')
+    response.setHeader('Cache-Control', 'no-cache, no-transform')
+    response.setHeader('Connection', 'keep-alive')
+    response.setHeader('X-Accel-Buffering', 'no')
+    // 立即冲刷响应头：headersSent 置真后，方法返回时 TSOA 的 returnHandler 不会再 end() 掉长连接
+    response.flushHeaders()
     const send = async () => {
       try {
         const row = await buildImportStatusRow(access.projectId)
