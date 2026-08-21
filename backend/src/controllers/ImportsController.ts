@@ -1,15 +1,17 @@
 import type { Prisma } from '@prisma/client'
+import type { TsoaResponse } from '@tsoa/runtime'
+import type { Response } from 'express'
 import type { ApiOk } from '../lib/api'
 import type { ImportControl, ImportProgress, ImportResult } from '../lib/import-lock'
 import type { AuthRequest } from '../middleware/auth'
 import type { ImportEntry } from '../services/import/types'
-import { Body, Controller, Get, Middlewares, Path, Post, Request, Route, Security, Tags } from '@tsoa/runtime'
+import { Body, Controller, Get, Middlewares, Path, Post, Request, Res, Route, Security, Tags } from '@tsoa/runtime'
 import { ProjectRole, SystemRole } from '../constants/roles'
 import { assertProjectAccess } from '../lib/access'
 import { ok } from '../lib/api'
 import { ErrCode } from '../lib/errors'
 import { ImportFormat } from '../lib/formats'
-import { abortImport, getImportLock, tryAcquireImportLock } from '../lib/import-lock'
+import { abortImport, emitImportStatus, getImportLock, subscribeImportStatus, tryAcquireImportLock } from '../lib/import-lock'
 import { prisma } from '../lib/prisma'
 import { decodePathParams } from '../middleware/decodePathParams'
 import { csvParse } from '../services/import/csv'
@@ -159,6 +161,7 @@ async function parseImportData(raw: string, fmt: string, ctrl: ImportControl): P
     if (imported % IMPORT_BATCH === 0) {
       ctrl.progress.parsedFields = imported
       await deferEventLoop()
+      emitImportStatus(ctrl.projectId)
       if (ctrl.aborted)
         throw new AppError(ErrCode.Conflict, '导入已中止')
     }
@@ -191,6 +194,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   const flush = async (batch: ImportEntry[]): Promise<void> => {
     if (ctrl.aborted)
       throw new AppError(ErrCode.Conflict, '导入已中止')
+    emitImportStatus(ctrl.projectId)
     // 1. 预加载本批已有 key，建 key→id 映射，消掉逐条 findUnique
     const keys = [...new Set(batch.map(e => e.key))]
     const existingKeys = await prisma.translationKey.findMany({
@@ -348,6 +352,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   const flush = async (batch: ImportEntry[]): Promise<void> => {
     if (ctrl.aborted)
       throw new AppError(ErrCode.Conflict, '导入已中止')
+    emitImportStatus(ctrl.projectId)
     // 1. 预加载本批已有 key，建 key→id 映射，消掉逐条 findUnique
     const keys = [...new Set(batch.map(e => e.key))]
     const existingKeys = await prisma.translationKey.findMany({
@@ -504,17 +509,49 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
  * 失败/被中止时记录 error；控制对象保留（下次导入会覆盖），期间进度仍可通过 status 读取。
  */
 function runImportInBackground(ctrl: ImportControl, task: () => Promise<ImportResult>): void {
+  emitImportStatus(ctrl.projectId)
   void task()
     .then((result) => {
       ctrl.progress.phase = 'done'
       ctrl.result = result
       ctrl.done = true
+      emitImportStatus(ctrl.projectId)
     })
     .catch((e: unknown) => {
       ctrl.progress.phase = 'done'
       ctrl.error = e instanceof Error ? e.message : String(e)
       ctrl.done = true
+      emitImportStatus(ctrl.projectId)
     })
+}
+
+/** userId → username 缓存，避免 SSE 每次推送都查库 */
+const usernameCache = new Map<string, string>()
+async function getUsername(userId: string): Promise<string> {
+  const cached = usernameCache.get(userId)
+  if (cached !== undefined)
+    return cached
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { username: true } })
+  const name = u?.username || ''
+  usernameCache.set(userId, name)
+  return name
+}
+
+/** 由内存控制对象构建对外状态 Row（供 status 快照与 SSE 推送共用） */
+async function buildImportStatusRow(projectId: string): Promise<ImportStatusRow> {
+  const lock = getImportLock(projectId)
+  if (!lock)
+    return { locked: false, type: '', startUserId: '', startUsername: '', startTimestamp: 0, progress: null, result: null, error: null }
+  return {
+    locked: !lock.done,
+    type: lock.type,
+    startUserId: lock.userId,
+    startUsername: await getUsername(lock.userId),
+    startTimestamp: lock.startedAt,
+    progress: { ...lock.progress },
+    result: lock.done ? (lock.result ?? null) : null,
+    error: lock.done ? (lock.error ?? null) : null,
+  }
 }
 
 @Route('projects')
@@ -531,19 +568,43 @@ export class ImportsController extends Controller {
   @Security('auth')
   public async getImportStatus(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string): Promise<ApiOk<ImportStatusRow>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
-    const lock = getImportLock(access.projectId)
-    if (!lock)
-      return ok({ locked: false, type: '', startUserId: '', startUsername: '', startTimestamp: 0, progress: null, result: null, error: null })
-    const startUser = await prisma.user.findUnique({ where: { id: lock.userId }, select: { username: true } })
-    return ok({
-      locked: !lock.done,
-      type: lock.type,
-      startUserId: lock.userId,
-      startUsername: startUser?.username || '',
-      startTimestamp: lock.startedAt,
-      progress: { ...lock.progress },
-      result: lock.done ? (lock.result ?? null) : null,
-      error: lock.done ? (lock.error ?? null) : null,
+    return ok(await buildImportStatusRow(access.projectId))
+  }
+
+  /**
+   * 导入状态 SSE 流：长连接持续推送该项目导入状态变更（进度/完成/中止），替代前端轮询。
+   * 鉴权同 status 接口（任意项目成员可订阅）；连接建立即推送当前快照，状态变更时增量推送。
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @summary 订阅导入状态流
+   */
+  @Get('{projectSlug}/imports/status/stream')
+  @Security('auth')
+  public async getImportStatusStream(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Res() res: TsoaResponse<200, void>): Promise<void> {
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
+    const response = res as unknown as Response
+    response.status(200)
+      .setHeader('Content-Type', 'text/event-stream')
+      .setHeader('Cache-Control', 'no-cache, no-transform')
+      .setHeader('Connection', 'keep-alive')
+      .setHeader('X-Accel-Buffering', 'no')
+    const send = async () => {
+      try {
+        const row = await buildImportStatusRow(access.projectId)
+        response.write(`data: ${JSON.stringify(row)}\n\n`)
+      }
+      catch {
+        // 单条推送失败不影响连接
+      }
+    }
+    await send()
+    const unsub = subscribeImportStatus(access.projectId, () => {
+      void send()
+    })
+    const ping = setInterval(() => response.write(': ping\n\n'), 25000)
+    req.on('close', () => {
+      clearInterval(ping)
+      unsub()
     })
   }
 

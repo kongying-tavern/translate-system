@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events'
+
 export type ImportLockType = 'entries' | 'translations'
 
 export type ImportPhase = 'parsing' | 'writing' | 'done'
@@ -42,6 +44,8 @@ export interface ImportResult {
 
 export interface ImportControl {
   aborted: boolean
+  /** 所属项目 id */
+  projectId: string
   /** 发起导入的用户 id */
   userId: string
   /** 发起导入的时间 */
@@ -70,6 +74,7 @@ export function tryAcquireImportLock(projectId: string, userId: string, type: Im
     return null
   const ctrl: ImportControl = {
     aborted: false,
+    projectId,
     userId,
     startedAt: Date.now(),
     type,
@@ -96,4 +101,23 @@ export function abortImport(projectId: string): boolean {
     return false
   ctrl.aborted = true
   return true
+}
+
+/**
+ * 导入状态变更事件：控制对象在解析/写入/结束/中止时通过 emitImportStatus 广播，
+ * SSE 接口据此向订阅该项目的客户端推送最新状态，替代前端轮询。
+ */
+const importEmitter = new EventEmitter()
+importEmitter.setMaxListeners(0)
+
+/** 广播某项目的导入状态已变更（由后端在进度更新/结束时调用） */
+export function emitImportStatus(projectId: string): void {
+  importEmitter.emit(`imp:${projectId}`)
+}
+
+/** 订阅某项目的导入状态变更，返回取消订阅函数 */
+export function subscribeImportStatus(projectId: string, cb: () => void): () => void {
+  const ev = `imp:${projectId}`
+  importEmitter.on(ev, cb)
+  return () => importEmitter.off(ev, cb)
 }

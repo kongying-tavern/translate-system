@@ -3,11 +3,13 @@ import type { ImportProgress, ImportStatusRow } from '@/types/models'
 import { computed, onBeforeUnmount, ref, toValue, watch } from 'vue'
 import client from '@/api/client'
 import { encPathParam } from '@/utils/path'
+import { getAccessToken } from '@/utils/token'
 
 /**
- * 共享导入锁状态：轮询 `GET /projects/{slug}/imports/status`，驱动导入页与翻译管理页的并发锁定。
+ * 共享导入锁状态：优先通过 SSE（`GET /projects/{slug}/imports/status/stream`）实时订阅状态变更，
+ * 连接失败/断开时自动回退到轮询 `GET /projects/{slug}/imports/status`。
  * - 任意项目成员可访问（仅 @Security('auth') + assertProjectAccess），锁状态跨角色/跨标签页实时生效。
- * - 轮询频率随锁状态切换：进行中 2 秒 / 空闲 30 秒；slug 变更自动重置；组件卸载自动停止。
+ * - slug 变更自动重置；组件卸载自动停止。
  */
 export function useImportStatus(projectSlug: MaybeRefOrGetter<string>) {
   const locked = ref(false)
@@ -17,52 +19,114 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>) {
   const progress = ref<ImportProgress | null>(null)
   const status = ref<ImportStatusRow | null>(null)
 
+  function applyRow(row: ImportStatusRow | null) {
+    locked.value = !!row?.locked
+    lockType.value = row?.type || ''
+    locker.value = row?.startUsername || ''
+    lockerId.value = row?.startUserId || ''
+    progress.value = row?.progress ?? null
+    status.value = row
+  }
+
   async function load() {
     const slug = toValue(projectSlug)
     if (!slug)
       return
     try {
       const { data: res } = await client.get(`/projects/${encPathParam(slug)}/imports/status`)
-      const row = (res.data ?? null) as ImportStatusRow | null
-      locked.value = !!row?.locked
-      lockType.value = row?.type || ''
-      locker.value = row?.startUsername || ''
-      lockerId.value = row?.startUserId || ''
-      progress.value = row?.progress ?? null
-      status.value = row
+      applyRow((res.data ?? null) as ImportStatusRow | null)
     }
     catch {
-      locked.value = false
-      lockType.value = ''
-      locker.value = ''
-      lockerId.value = ''
-      progress.value = null
-      status.value = null
+      applyRow(null)
     }
   }
 
-  let timer: ReturnType<typeof setInterval> | undefined
-  function start() {
-    clearInterval(timer)
-    void load()
-    timer = setInterval(() => void load(), locked.value ? 2000 : 30000)
+  // ---- SSE 订阅（优先）----
+  let sseAbort: AbortController | undefined
+  // ---- 轮询回退 ----
+  let pollTimer: ReturnType<typeof setInterval> | undefined
+
+  function stopPolling() {
+    clearInterval(pollTimer)
+    pollTimer = undefined
   }
-  function stop() {
-    clearInterval(timer)
-    timer = undefined
+  function startPolling() {
+    stopPolling()
+    void load()
+    pollTimer = setInterval(() => void load(), locked.value ? 2000 : 30000)
+  }
+  function stopSSE() {
+    sseAbort?.abort()
+    sseAbort = undefined
   }
 
+  async function startSSE() {
+    stopSSE()
+    const slug = toValue(projectSlug)
+    if (!slug)
+      return
+    const token = getAccessToken()
+    if (!token)
+      return
+    const ctrl = new AbortController()
+    sseAbort = ctrl
+    const url = `/api/v1/projects/${encPathParam(slug)}/imports/status/stream`
+    try {
+      const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal: ctrl.signal })
+      if (!resp.ok || !resp.body)
+        throw new Error('import sse unavailable')
+      const reader = resp.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      for (;;) {
+        const { value, done } = await reader.read()
+        if (done)
+          break
+        buf += decoder.decode(value, { stream: true })
+        let idx = buf.indexOf('\n\n')
+        while (idx >= 0) {
+          const frame = buf.slice(0, idx)
+          buf = buf.slice(idx + 2)
+          const dataLine = frame.split('\n').find(l => l.startsWith('data:'))
+          if (dataLine) {
+            const json = dataLine.slice(5).trim()
+            if (json) {
+              try {
+                applyRow(JSON.parse(json) as ImportStatusRow)
+              }
+              catch {
+                // 忽略单帧解析错误
+              }
+            }
+          }
+          idx = buf.indexOf('\n\n')
+        }
+      }
+    }
+    catch {
+      // 连接失败/被中止（非主动 stop）时回退轮询
+      if (!ctrl.signal.aborted)
+        startPolling()
+    }
+  }
+
+  function start() {
+    stopPolling()
+    stopSSE()
+    void startSSE()
+  }
+  function stop() {
+    stopPolling()
+    stopSSE()
+  }
+
+  // 轮询回退模式下，锁状态切换时调整频率（进行中 2s，空闲 30s）
   watch(locked, () => {
-    if (timer)
-      start()
+    if (pollTimer)
+      startPolling()
   })
   watch(() => toValue(projectSlug), () => {
-    locked.value = false
-    lockType.value = ''
-    locker.value = ''
-    lockerId.value = ''
-    progress.value = null
-    status.value = null
+    applyRow(null)
     start()
   }, { immediate: true })
 
@@ -82,10 +146,11 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>) {
     if (p.phase === 'writing') {
       const done = isTranslate ? p.createdFields + p.skippedFields : p.createdKeys + p.skippedKeys
       const total = isTranslate ? p.totalFields : p.totalKeys
+      const dim = isTranslate ? '字段' : '条目'
+      // 分母为 0（理论上不会发生，解析空数据已在 parseImportData 抛错）时跳过进度，避免 NaN%/Infinity%
       if (!total)
         return ''
-      const pct = Math.floor((done / total) * 100)
-      const dim = isTranslate ? '字段' : '条目'
+      const pct = Math.min(100, Math.max(0, Math.floor((done / total) * 100)))
       return `进度 ${done.toLocaleString()} / ${total.toLocaleString()} ${dim}（${pct}%）`
     }
     if (p.phase === 'done')
