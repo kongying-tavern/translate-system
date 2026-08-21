@@ -202,7 +202,7 @@ function stopTagsPolling() {
 
 /** 导入锁：复用共享 composable 轮询 status，导入进行中时翻译管理页整体锁定（禁止编辑/删除/排序等），避免并发写入冲突。
  *  status 接口对所有项目成员开放，锁状态跨角色/跨标签页实时生效。 */
-const { locked: importLocked, lockType: importLockType, locker: importLocker, progressText: importProgressText } = useImportStatus(projectSlug)
+const { isLocked: importLocked, bannerTitle: importLockBannerTitle } = useImportStatus(projectSlug)
 function onVisibilityChange() {
   if (document.visibilityState === 'visible') {
     loadTags()
@@ -1040,7 +1040,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       :closable="false"
       show-icon
       class="import-lock-alert"
-      :title="`正在导入${importLockType === 'translations' ? '翻译' : '条目'}${importLocker ? `（发起人：${importLocker}）` : ''}${importProgressText ? ` · ${importProgressText}` : ''}，本页已锁定，暂不可编辑，导入结束后自动恢复`"
+      :title="importLockBannerTitle"
     />
     <BaseForm :inline="true" :model="filters" class="filter-bar">
       <BaseFormItem label="源语言">

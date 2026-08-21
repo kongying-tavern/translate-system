@@ -9,20 +9,21 @@ import { ImportFormat } from '@/data/importFormats'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
+import { formatCount } from '@/utils/format'
 import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const perm = useProjectPermission()
 const auth = useAuthStore()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
-const { locked: importLocked, lockType: importLockType, locker: importLocker, lockerId: importLockerId, progress: importProgress, status: importStatus, load: loadImportStatus } = useImportStatus(projectSlug)
+const importing = ref(false)
+const { isLocked: importLocked, importerId: importLockerId, status: importStatus, load: loadImportStatus, statsLines: importStatsLines, importTitle } = useImportStatus(projectSlug, { importing })
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
 const fmt = ref<string>(ImportFormat.JSON)
 const importLang = ref('')
 const overwrite = ref(false)
 const autoCreate = ref(true)
-const importing = ref(false)
 const aborting = ref(false)
 const importFile = ref<File | null>(null)
 const notice = ref<{ type: 'success' | 'warning' | 'error', text: string } | null>(null)
@@ -70,46 +71,6 @@ const inImport = computed(() => importing.value || iAmImporter.value)
 const lockedElsewhere = computed(() => importLocked.value && !iAmImporter.value)
 /** 导入进行中（无论发起人是谁）时禁用全部表单控件 */
 const importDisabled = computed(() => importLocked.value)
-const lockTypeName = computed(() => importLockType.value === 'translations' ? '翻译' : '条目')
-/** 锁定的导入类型与当前页模式一致时提示「正在导入」，否则提示发起人正在导入 */
-const lockTip = computed(() => {
-  if (!lockedElsewhere.value)
-    return ''
-  const sameType = importLockType.value === (mode.value === 'entries' ? 'entries' : 'translations')
-  const prefix = sameType
-    ? '该项目正在导入中'
-    : (importLocker.value ? `${importLocker.value} 正在导入${lockTypeName.value}` : '该项目正在被其他导入占用')
-  const p = importProgress.value
-  if (!p)
-    return `${prefix}，请稍候再试`
-  const isTranslate = importLockType.value === 'translations'
-  if (p.phase === 'parsing')
-    return `${prefix}，解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段），请稍候再试`
-  if (p.phase === 'writing') {
-    if (isTranslate)
-      return `${prefix}，写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 条目）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 条目），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 条目）），请稍候再试`
-    return `${prefix}，写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目），请稍候再试`
-  }
-  return `${prefix}，写入完成，请稍候再试`
-})
-/** 当前导入进度提示（自己发起的导入，显示实时进度） */
-const myImportTip = computed(() => {
-  if (!inImport.value)
-    return ''
-  const p = importProgress.value
-  if (!p)
-    return '正在提交导入任务，请稍候…'
-  const isTranslate = importLockType.value === 'translations'
-  const typeLabel = isTranslate ? '翻译' : '条目'
-  if (p.phase === 'parsing')
-    return `正在导入${typeLabel}：解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段）`
-  if (p.phase === 'writing') {
-    if (isTranslate)
-      return `正在导入${typeLabel}：写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 条目）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 条目），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 条目））`
-    return `正在导入${typeLabel}：写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目）`
-  }
-  return `正在导入${typeLabel}：写入完成`
-})
 const fileAccept = computed(() => {
   if (mode.value === 'entries')
     return '.json,.csv,.yaml,.yml,.xml'
@@ -205,28 +166,16 @@ function showImportError(e: unknown) {
     setNotice('error', '导入失败')
 }
 
-/** 组装导入成功提示：导入条目（entries）用键维度计数，导入译文（translations）用字段维度计数，避免「条目/字段」混用 */
+/** 组装导入成功提示：导入译文用字段/条目双维度，导入条目仅用条目（键）维度，未配置语言单独成行 */
 function importSuccessMsg(mode: 'entries' | 'translate', d1: ImportResult) {
-  const parts: string[] = []
-  if (mode === 'entries') {
-    parts.push(`导入完成: ${d1.importedKeys} 个条目`)
-    if (d1.createdKeys)
-      parts.push(`${d1.createdKeys} 个新增`)
-    if (d1.skippedKeys) {
-      const langs = d1.skippedLanguages || []
-      parts.push(`${d1.skippedKeys} 个跳过${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
-    }
-  }
-  else {
-    parts.push(`导入完成: ${d1.importedFields} 个字段，涉及 ${d1.importedKeys} 个条目`)
-    if (d1.createdFields)
-      parts.push(`${d1.createdFields} 个新增${d1.createdKeys ? `（${d1.createdKeys} 个条目）` : ''}`)
-    if (d1.skippedFields) {
-      const langs = d1.skippedLanguages || []
-      parts.push(`${d1.skippedFields} 个跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个条目）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
-    }
-  }
-  return parts.join('，')
+  const lines: string[] = ['导入完成：']
+  if (mode === 'translate')
+    lines.push(`字段：总 ${formatCount(d1.importedFields)} 个，新增 ${formatCount(d1.createdFields)} 个，跳过 ${formatCount(d1.skippedFields)} 个`)
+  lines.push(`条目：总 ${formatCount(d1.importedKeys)} 条，新增 ${formatCount(d1.createdKeys)} 条，跳过 ${formatCount(d1.skippedKeys)} 条`)
+  const langs = d1.skippedLanguages || []
+  if (langs.length)
+    lines.push(`以下语言项目未配置，已跳过导入：${langs.join('、')}`)
+  return lines.join('\n')
 }
 
 async function doTextImport() {
@@ -314,16 +263,27 @@ async function doAbort() {
     </BaseForm>
 
     <el-alert v-if="notice" :type="notice.type" :closable="true" :title="notice.text" show-icon style="margin-bottom:16px" @close="notice = null" />
-    <el-alert v-else-if="lockedElsewhere" type="warning" :closable="false" show-icon :title="lockTip" style="margin-bottom:16px" />
-    <el-alert v-if="inImport && myImportTip" type="info" :closable="false" show-icon style="margin-bottom:16px">
-      <template #title>
-        <div style="display:flex;align-items:center;gap:12px">
-          <span>{{ myImportTip }}</span>
-          <BaseButton type="warning" :loading="aborting" @click="doAbort">
-            中止导入
-          </BaseButton>
+    <el-alert v-else-if="lockedElsewhere" type="warning" :closable="false" show-icon :title="importTitle" style="margin-bottom:16px">
+      <div class="import-stats">
+        <div v-for="(line, i) in importStatsLines" :key="i">
+          {{ line }}
         </div>
+      </div>
+    </el-alert>
+    <el-alert v-if="inImport && importTitle" type="info" :closable="false" show-icon style="margin-bottom:16px">
+      <template #title>
+        {{ importTitle }}
       </template>
+      <div class="import-alert-body">
+        <div class="import-stats">
+          <div v-for="(line, i) in importStatsLines" :key="i">
+            {{ line }}
+          </div>
+        </div>
+        <BaseButton type="warning" :loading="aborting" @click="doAbort">
+          中止导入
+        </BaseButton>
+      </div>
     </el-alert>
 
     <BaseForm :inline="true" class="import-bar" style="margin-top:0">
@@ -425,4 +385,8 @@ async function doAbort() {
 .import-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .import-bar .el-form-item { margin-bottom: 0; }
 .ex-pre { font-size:13px; white-space:pre-wrap; margin:0; }
+.import-stats { margin-top:4px; font-size:13px; line-height:20px; }
+.import-alert-body { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:4px; }
+.import-alert-body .import-stats { margin-top:0; }
+:deep(.el-alert__icon) { align-self: flex-start; margin-top: 2px; }
 </style>

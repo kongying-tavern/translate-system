@@ -2,6 +2,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import type { ImportProgress, ImportStatusRow } from '@/types/models'
 import { computed, onBeforeUnmount, ref, toValue, watch } from 'vue'
 import client from '@/api/client'
+import { formatCount } from '@/utils/format'
 import { encPathParam } from '@/utils/path'
 import { getAccessToken } from '@/utils/token'
 
@@ -11,23 +12,28 @@ import { getAccessToken } from '@/utils/token'
  * - 任意项目成员可访问（仅 @Security('auth') + assertProjectAccess），锁状态跨角色/跨标签页实时生效。
  * - slug 变更自动重置；组件卸载自动停止。
  */
-export function useImportStatus(projectSlug: MaybeRefOrGetter<string>) {
-  const locked = ref(false)
-  const lockType = ref('')
-  const locker = ref('')
-  const lockerId = ref('')
+export function useImportStatus(projectSlug: MaybeRefOrGetter<string>, options?: { importing?: MaybeRefOrGetter<boolean> }) {
+  // ---- 状态 ----
+  const isLocked = ref(false)
+  const importType = ref('')
+  const importerName = ref('')
+  const importerId = ref('')
   const progress = ref<ImportProgress | null>(null)
   const status = ref<ImportStatusRow | null>(null)
 
   function applyRow(row: ImportStatusRow | null) {
-    locked.value = !!row?.locked
-    lockType.value = row?.type || ''
-    locker.value = row?.startUsername || ''
-    lockerId.value = row?.startUserId || ''
+    isLocked.value = !!row?.locked
+    importType.value = row?.type || ''
+    importerName.value = row?.startUsername || ''
+    importerId.value = row?.startUserId || ''
     progress.value = row?.progress ?? null
     status.value = row
   }
+  function resetRow() {
+    applyRow(null)
+  }
 
+  // ---- 数据加载：轮询回退 + SSE 优先 ----
   async function load() {
     const slug = toValue(projectSlug)
     if (!slug)
@@ -41,10 +47,8 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>) {
     }
   }
 
-  // ---- SSE 订阅（优先）----
-  let sseAbort: AbortController | undefined
-  // ---- 轮询回退 ----
   let pollTimer: ReturnType<typeof setInterval> | undefined
+  let sseAbort: AbortController | undefined
 
   function stopPolling() {
     clearInterval(pollTimer)
@@ -53,13 +57,12 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>) {
   function startPolling() {
     stopPolling()
     void load()
-    pollTimer = setInterval(() => void load(), locked.value ? 2000 : 30000)
+    pollTimer = setInterval(() => void load(), isLocked.value ? 2000 : 30000)
   }
   function stopSSE() {
     sseAbort?.abort()
     sseAbort = undefined
   }
-
   async function startSSE() {
     stopSSE()
     const slug = toValue(projectSlug)
@@ -120,43 +123,92 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>) {
     stopSSE()
   }
 
+  // ---- 生命周期 ----
   // 轮询回退模式下，锁状态切换时调整频率（进行中 2s，空闲 30s）
-  watch(locked, () => {
+  watch(isLocked, () => {
     if (pollTimer)
       startPolling()
   })
   watch(() => toValue(projectSlug), () => {
-    applyRow(null)
+    resetRow()
     start()
   }, { immediate: true })
-
   onBeforeUnmount(stop)
 
+  // ---- 派生状态 ----
   /** 当前用户是否为该导入的发起人（跨标签页也能中止） */
-  const iAmImporter = computed(() => locked.value && !!lockerId.value && lockerId.value === (status.value?.startUserId || ''))
-  const lockTypeName = computed(() => lockType.value === 'translations' ? '翻译' : '条目')
-  /** 导入进度文案：解析阶段显示已解析量；写入阶段按维度显示「已处理 / 总数（百分比）」——条目模式用键维度、翻译模式用字段维度 */
-  const progressText = computed(() => {
-    const p = progress.value
-    if (!p)
-      return ''
-    const isTranslate = lockType.value === 'translations'
-    if (p.phase === 'parsing')
-      return `解析中 ${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段`
-    if (p.phase === 'writing') {
-      const done = isTranslate ? p.createdFields + p.skippedFields : p.createdKeys + p.skippedKeys
-      const total = isTranslate ? p.totalFields : p.totalKeys
-      const dim = isTranslate ? '字段' : '条目'
-      // 分母为 0（理论上不会发生，解析空数据已在 parseImportData 抛错）时跳过进度，避免 NaN%/Infinity%
-      if (!total)
-        return ''
-      const pct = Math.min(100, Math.max(0, Math.floor((done / total) * 100)))
-      return `进度 ${done.toLocaleString()} / ${total.toLocaleString()} ${dim}（${pct}%）`
-    }
-    if (p.phase === 'done')
+  const iAmImporter = computed(() => isLocked.value && !!importerId.value && importerId.value === (status.value?.startUserId || ''))
+  const isTranslate = computed(() => importType.value === 'translations')
+
+  /** 阶段文案：解析中 / 写入中 / 写入完成 */
+  const phaseText = computed(() => {
+    const ph = progress.value?.phase
+    if (ph === 'parsing')
+      return '解析中'
+    if (ph === 'writing')
+      return '写入中'
+    if (ph === 'done')
       return '写入完成'
     return ''
   })
+  /** 写入阶段进度百分比（解析/无总数时为 0） */
+  const progressPct = computed(() => {
+    const p = progress.value
+    if (!p)
+      return 0
+    const total = isTranslate.value ? p.totalFields : p.totalKeys
+    const done = isTranslate.value ? p.createdFields + p.skippedFields : p.createdKeys + p.skippedKeys
+    if (!total)
+      return 0
+    return Math.min(100, Math.max(0, Math.floor((done / total) * 100)))
+  })
+  /** 状态行：写入中（4%）/ 解析中 / 写入完成 */
+  const statusLine = computed(() => {
+    if (!phaseText.value)
+      return ''
+    if (progress.value?.phase === 'writing')
+      return `${phaseText.value}（${progressPct.value}%）`
+    return phaseText.value
+  })
+  /** 明细多行文案：解析阶段显示已解析量；写入/完成阶段分行显示「字段」「条目」总/新增/跳过 */
+  const statsLines = computed<string[]>(() => {
+    const p = progress.value
+    if (!p)
+      return []
+    if (p.phase === 'parsing')
+      return [`解析：${formatCount(p.parsedKeys)} 条 / ${formatCount(p.parsedFields)} 个字段`]
+    const lines: string[] = []
+    // 导入条目（entries）仅用「条目（键）」维度；导入译文（translations）同时展示字段/条目
+    if (isTranslate.value)
+      lines.push(`字段：总 ${formatCount(p.totalFields)} 个，新增 ${formatCount(p.createdFields)} 个，跳过 ${formatCount(p.skippedFields)} 个`)
+    lines.push(`条目：总 ${formatCount(p.totalKeys)} 条，新增 ${formatCount(p.createdKeys)} 条，跳过 ${formatCount(p.skippedKeys)} 条`)
+    return lines
+  })
+  /** 翻译管理页/语言管理页等被锁定页共用的 banner 标题（含发起人 + 阶段百分比） */
+  const bannerTitle = computed(() => {
+    const type = importType.value === 'translations' ? '翻译' : '条目'
+    const who = importerName.value ? `（发起人：${importerName.value}）` : ''
+    const pct = statusLine.value ? ` · ${statusLine.value}` : ''
+    return `正在导入${type}${who}${pct}，本页已锁定，暂不可编辑，导入结束后自动恢复`
+  })
+  /** 导入提示标题：自己发起（含本地提交中）或他人占用均统一产出文案；能否「中止」由调用方按是否本人决定 */
+  const importTitle = computed(() => {
+    const typeLabel = importType.value === 'translations' ? '翻译' : '条目'
+    const state = statusLine.value
+    const isSelf = (options?.importing ? toValue(options.importing) : false) || iAmImporter.value
+    if (isSelf) {
+      if (!progress.value)
+        return '正在提交导入任务，请稍候…'
+      return `正在导入${typeLabel}：${state}`
+    }
+    if (isLocked.value) {
+      const who = importerName.value || '他人'
+      if (!progress.value)
+        return `正在由${who}导入${typeLabel}，请稍候`
+      return `正在由${who}导入${typeLabel}：${state}`
+    }
+    return ''
+  })
 
-  return { locked, lockType, locker, lockerId, progress, status, load, start, stop, iAmImporter, lockTypeName, progressText }
+  return { isLocked, importType, importerName, importerId, progress, status, load, start, stop, iAmImporter, phaseText, progressPct, statusLine, statsLines, bannerTitle, importTitle }
 }

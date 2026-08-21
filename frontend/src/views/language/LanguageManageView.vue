@@ -42,7 +42,7 @@ watch(projectSlug, () => {
 const sortedBaseLanguages = computed(() => [...baseLanguages.value].sort((a, b) => a.englishName.localeCompare(b.englishName)))
 const perm = useProjectPermission()
 /** 导入锁：导入进行中时语言管理也锁定（增删/设源语言/别名/排序均不可操作），避免与导入并发写入冲突 */
-const { locked: importLocked, lockType: importLockType, locker: importLocker, progressText: importProgressText } = useImportStatus(projectSlug)
+const { isLocked: importLocked, bannerTitle: importLockBannerTitle } = useImportStatus(projectSlug)
 const tableLoading = ref(false)
 function loadLangs() {
   tableLoading.value = true
@@ -223,7 +223,7 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
       :closable="false"
       show-icon
       class="import-lock-alert"
-      :title="`正在导入${importLockType === 'translations' ? '翻译' : '条目'}${importLocker ? `（发起人：${importLocker}）` : ''}${importProgressText ? ` · ${importProgressText}` : ''}，本页已锁定，暂不可编辑，导入结束后自动恢复`"
+      :title="importLockBannerTitle"
     />
     <BaseTable v-loading="tableLoading" :data="projectLanguages || []" :columns="langColumns" stripe row-key="id" />
     <EmptyState v-if="!projectLanguages || !projectLanguages.length" description="暂无语言" />
