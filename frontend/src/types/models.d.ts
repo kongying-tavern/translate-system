@@ -156,14 +156,14 @@ export interface ImportProgress {
 export interface ImportResult {
   /** 解析出的去重翻译键数量（条目维度） */
   importedKeys: number
-  /** 解析出的条目总数（含多语言展开） */
+  /** 解析出的条目总数（含多语言格式展开） */
   importedFields: number
-  /** 新建数量（条目维度） */
-  created: number
+  /** 新建的字段（翻译值）数量 */
+  createdFields: number
   /** 新建的去重翻译键数量 */
   createdKeys: number
-  /** 跳过数量（条目维度，含因项目未配置语言而跳过的） */
-  skipped: number
+  /** 跳过的字段（翻译值）数量（含因项目未配置语言而跳过的） */
+  skippedFields: number
   /** 跳过的去重翻译键数量 */
   skippedKeys: number
   /** 因项目未配置语言而被跳过的语言代码（去重） */

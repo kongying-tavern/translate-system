@@ -157,8 +157,8 @@ async function ensureSortCursor(projectId: string, cursor: { nextSo: number }): 
 async function importKeys(projectId: string, raw: string, fmt: ImportFormat, overwrite: boolean, ctrl: ImportControl): Promise<ImportResult> {
   const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl)
   const sourceLang = (await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }))?.sourceLanguage || ''
-  let created = 0
-  let skipped = 0
+  let createdFields = 0
+  let skippedFields = 0
   const createdKeySet = new Set<string>()
   const skippedKeySet = new Set<string>()
   const cursor = { nextSo: 0 }
@@ -233,7 +233,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
       const keyId = keyMap.get(key)
       const keyExisted = existedSet.has(key)
       if (keyExisted && !overwrite) {
-        skipped++
+        skippedFields++
         skippedKeySet.add(key)
         continue
       }
@@ -266,7 +266,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
           }
         }
       }
-      created++
+      createdFields++
       createdKeySet.add(key)
     }
 
@@ -274,8 +274,8 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
       await prisma.translationValue.createMany({ data: toCreateVals })
     if (toUpdateVals.length)
       await prisma.$transaction(toUpdateVals.map(u => prisma.translationValue.update(u)))
-    ctrl.progress.createdFields = created
-    ctrl.progress.skippedFields = skipped
+    ctrl.progress.createdFields = createdFields
+    ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size
     ctrl.progress.skippedKeys = skippedKeySet.size
   }
@@ -295,7 +295,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   if (ctrl.aborted)
     throw new AppError(ErrCode.Conflict, '导入已中止')
   ctrl.progress.phase = 'done'
-  return { importedKeys, importedFields, created, createdKeys: createdKeySet.size, skipped, skippedKeys: skippedKeySet.size, skippedLanguages: [] }
+  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: skippedKeySet.size, skippedLanguages: [] }
 }
 
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean, ctrl: ImportControl): Promise<ImportResult> {
@@ -308,8 +308,8 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
       knownLangs.add(l.alias)
   }
   const unknownLangs = new Set<string>()
-  let created = 0
-  let skipped = 0
+  let createdFields = 0
+  let skippedFields = 0
   const createdKeySet = new Set<string>()
   const skippedKeySet = new Set<string>()
   const cursor = { nextSo: 0 }
@@ -395,7 +395,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
       const langCode = lang || languageCode
       if (langCode && !knownLangs.has(langCode)) {
         unknownLangs.add(langCode)
-        skipped++
+        skippedFields++
         skippedKeySet.add(key)
         continue
       }
@@ -425,11 +425,11 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
               data: { translatedText },
             })
           }
-          created++
+          createdFields++
           createdKeySet.add(key)
         }
         else {
-          skipped++
+          skippedFields++
           skippedKeySet.add(key)
         }
       }
@@ -439,8 +439,8 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
       await prisma.translationValue.createMany({ data: toCreateVals })
     if (toUpdateVals.length)
       await prisma.$transaction(toUpdateVals.map(u => prisma.translationValue.update(u)))
-    ctrl.progress.createdFields = created
-    ctrl.progress.skippedFields = skipped
+    ctrl.progress.createdFields = createdFields
+    ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size
     ctrl.progress.skippedKeys = skippedKeySet.size
   }
@@ -460,7 +460,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   if (ctrl.aborted)
     throw new AppError(ErrCode.Conflict, '导入已中止')
   ctrl.progress.phase = 'done'
-  return { importedKeys, importedFields, created, createdKeys: createdKeySet.size, skipped, skippedKeys: skippedKeySet.size, skippedLanguages: [...unknownLangs] }
+  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: skippedKeySet.size, skippedLanguages: [...unknownLangs] }
 }
 
 /**

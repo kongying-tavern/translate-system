@@ -236,16 +236,26 @@ function showImportError(e: unknown) {
     setNotice('error', '导入失败')
 }
 
-/** 组装导入成功提示：导入条目用 keys（记录数），导入翻译用 fields（字段数）；created/skipped 的键维度为去重键数 */
+/** 组装导入成功提示：导入条目（entries）用键维度计数，导入译文（translations）用字段维度计数，避免「条目/字段」混用 */
 function importSuccessMsg(mode: 'entries' | 'translate', d1: ImportResult) {
-  const total = mode === 'entries' ? d1.importedKeys : d1.importedFields
-  const unit = mode === 'entries' ? '条目' : '字段'
-  const parts = [`导入完成: ${total} 个${unit}`]
-  if (d1.created)
-    parts.push(`${d1.created} 个${unit}新增${d1.createdKeys ? `（${d1.createdKeys} 个键）` : ''}`)
-  if (d1.skipped) {
-    const langs = d1.skippedLanguages || []
-    parts.push(`${d1.skipped} 个${unit}跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个键）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+  const parts: string[] = []
+  if (mode === 'entries') {
+    parts.push(`导入完成: ${d1.importedKeys} 个条目`)
+    if (d1.createdKeys)
+      parts.push(`${d1.createdKeys} 个新增`)
+    if (d1.skippedKeys) {
+      const langs = d1.skippedLanguages || []
+      parts.push(`${d1.skippedKeys} 个跳过${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+    }
+  }
+  else {
+    parts.push(`导入完成: ${d1.importedFields} 个字段`)
+    if (d1.createdFields)
+      parts.push(`${d1.createdFields} 个新增`)
+    if (d1.skippedFields) {
+      const langs = d1.skippedLanguages || []
+      parts.push(`${d1.skippedFields} 个跳过${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+    }
   }
   return parts.join('，')
 }
