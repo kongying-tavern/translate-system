@@ -238,9 +238,9 @@ PUT    /projects/:id/translations/{keyId}    — 更新 key 级属性 Key名/原
 PUT    /projects/:id/translations/{keyId}/{langCode} — 保存译文（任意项目成员，仅传 translatedText；service 层拒绝源语言与非项目语言，防 member 改原文）
 DELETE /projects/:id/translations/{translationId} — 删除 Key（Maintainer+）
 GET    /projects/:id/translations/count|tags/list — 需项目访问
-GET    /projects/:id/imports/status         — 查询项目导入状态（locked + 类型/发起人用户名/时间；Maintainer+）
+GET    /projects/:id/imports/status         — 查询项目导入状态（locked + 类型/发起人 id+用户名/时间 + `progress`；Maintainer+，前端据此 2s 轮询展示进度，空闲 30s）
 POST   /projects/:id/imports/entries|translations — 批量导入（Maintainer+，同项目互斥锁：导入中再导入返回 Conflict，跨项目并发不受限）
-POST   /projects/:id/imports/abort          — 中止当前项目导入（Maintainer+，无进行中导入时提示）
+POST   /projects/:id/imports/abort          — 中止当前项目导入（Maintainer+，且**仅发起人或 super_admin** 可中止；非本人/非超管返回 Forbidden，无进行中导入返回 Conflict）
 GET|POST|PUT|DELETE /projects/:id/layouts/templates|configs — 布局模板/配置 CRUD（需项目访问）
 GET    /projects/:id/languages         — 需项目访问
 POST|DELETE /projects/:id/languages    — 增删语言（Maintainer+，源语言不可删除）
@@ -270,6 +270,16 @@ GET    /languages|/languages/search    — 基础语言
 - XML：缺 `<resources>` 根节点、`<string>` 缺 `name`、`<language>` 缺 `code` 均报错并定位索引
 - 译文导入（`applyTranslations`）遇**项目未配置的语言代码**（`languageCode` 参数或数据内语言，兼容 `alias`）不拒绝、不自动建语言，而是**跳过该条并累计 `skippedLanguages`** 返回，前端 ImportTemplateView 成功提示中列出；`importKeys` 无语言属性，恒返回 `skippedLanguages: []`
 - 返回统计为**双维度**（所有格式通用）：`importedKeys`（去重键数）/`importedFields`（含多语言展开的条目总数），`created`/`skipped` 为条目维度、`createdKeys`/`skippedKeys` 为去重键维度（count 用累加、keys 用 Set 去重）。前端成功提示按导入类型取主计数：导入条目（entries）用 `importedKeys` 显示「个条目」，导入译文（translations）用 `importedFields` 显示「个字段」
+
+### 导入并发控制与进度
+
+- **同项目互斥锁**：`backend/src/lib/import-lock.ts` 进程内 `Map<projectId, ImportControl>`（单实例 Docker 部署），`tryAcquireImportLock` / `releaseImportLock` / `getImportLock` / `abortImport`。导入进行中再导入返回 `Conflict(1004)`；跨项目并发不受限。
+- **进度 `ImportProgress`**（8 字段，按阶段分组）：解析阶段 `parsedFields`（已解析字段数）/`parsedKeys`（去重键数）；写入阶段 `totalFields`/`totalFields`→`createdFields`/`skippedFields`（字段维度）+ `totalKeys`/`createdKeys`/`skippedKeys`（去重键维度）；`phase` 为 `parsing`/`writing`/`done`。`parseImportData` 每解析 1000 条 `deferEventLoop()` 让出事件循环，避免大文件阻塞。
+- **状态查询** `GET /imports/status` 返回 `ImportStatusRow`：`locked`/`type`/`startUserId`/`startUsername`/`startTimestamp`/`progress`（含以上 8 字段）。前端导入页据此驱动 UI。
+- **中止** `POST /imports/abort`：`ImportControl.aborted = true`，运行中的导入在批次间检查并抛 `Conflict` 中止，锁随之释放；仅**发起人或 super_admin** 可中止（其余返回 `Forbidden(1002)`）。
+- **前端导入页行为**（`ImportTemplateView.vue`）：导入状态以**最近一次 status 轮询为准**（本地 `importing` 仅用于「开始导入」按钮 spinner）；轮询间隔「导入中 2 秒 / 空闲 30 秒」，提交后立刻再拉一次 status。导入中（status `locked`）用页内 `el-alert` 展示进度，并**禁用所有业务控件**（选择文件/开始导入/格式/语言/勾选/文本框），但「模式（导入条目/导入翻译）」「输入方式（文件/文本）」两个 radio-group 仍可切换；若当前用户是发起人（`startUserId === 当前用户`），alert 内显示「中止导入」按钮（跨标签页也有效）。
+- **提示文案双维度**：进度解析阶段显示「X 条目 / Y 字段」（keys→条目，fields→字段）；写入阶段条目模式用 keys 计数、翻译模式用 fields 计数。成功提示导入条目用 `importedKeys`（个条目）、导入译文用 `importedFields`（个字段）。
+
 
 ### 翻译页面关键逻辑
 

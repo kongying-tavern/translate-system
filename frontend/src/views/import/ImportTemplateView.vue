@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import type { UploadFile } from 'element-plus'
-import type { ProjectLanguage } from '@/types/models'
+import type { ImportProgress, ImportResult, ProjectLanguage } from '@/types/models'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
+import { useAuthStore } from '@/stores/auth'
 import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const perm = useProjectPermission()
+const auth = useAuthStore()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
@@ -24,7 +26,9 @@ const importFile = ref<File | null>(null)
 const notice = ref<{ type: 'success' | 'warning' | 'error', text: string } | null>(null)
 const importLocked = ref(false)
 const importLocker = ref('')
+const importLockerId = ref('')
 const importLockType = ref('')
+const importProgress = ref<ImportProgress | null>(null)
 
 function setNotice(type: 'success' | 'warning' | 'error', text: string) {
   notice.value = { type, text }
@@ -36,38 +40,84 @@ async function loadImportStatus() {
     const { data: res } = await client.get(`/projects/${encPathParam(projectSlug.value)}/imports/status`)
     importLocked.value = !!res.data?.locked
     importLocker.value = res.data?.startUsername || ''
+    importLockerId.value = res.data?.startUserId || ''
     importLockType.value = res.data?.type || ''
+    importProgress.value = res.data?.progress || null
   }
   catch {
     importLocked.value = false
     importLocker.value = ''
+    importLockerId.value = ''
     importLockType.value = ''
+    importProgress.value = null
   }
 }
 let statusTimer: ReturnType<typeof setInterval> | undefined
+function startStatusTimer(intervalMs: number) {
+  clearInterval(statusTimer)
+  statusTimer = setInterval(loadImportStatus, intervalMs)
+}
 watch(projectSlug, () => {
   importLocked.value = false
   loadImportStatus()
-  clearInterval(statusTimer)
-  statusTimer = setInterval(loadImportStatus, 30000)
+  startStatusTimer(importLocked.value ? 2000 : 30000)
 }, { immediate: true })
+watch(importLocked, () => {
+  startStatusTimer(importLocked.value ? 2000 : 30000)
+})
 onBeforeUnmount(() => clearInterval(statusTimer))
 const exampleTab = ref('json')
 const inputMode = ref('file')
 const textInput = ref('')
 
 const needLang = computed(() => mode.value === 'translate' && (fmt.value === ImportFormat.JSON || fmt.value === ImportFormat.Properties))
+/** 当前用户是否为该导入的发起人（跨标签页也能中止） */
+const iAmImporter = computed(() => importLocked.value && !!importLockerId.value && importLockerId.value === auth.user?.id)
+/** 我正在导入：本地提交中（POST 进行中）或 status 确认我是发起人（跨标签页） */
+const inImport = computed(() => importing.value || iAmImporter.value)
 /** 项目被他人/其他标签页占用导入（自己发起的导入不视为被锁） */
-const lockedElsewhere = computed(() => importLocked.value && !importing.value)
+const lockedElsewhere = computed(() => importLocked.value && !iAmImporter.value)
+/** 导入进行中（无论发起人是谁）时禁用全部表单控件 */
+const importDisabled = computed(() => importLocked.value)
 const lockTypeName = computed(() => importLockType.value === 'translations' ? '翻译' : '条目')
 /** 锁定的导入类型与当前页模式一致时提示「正在导入」，否则提示发起人正在导入 */
 const lockTip = computed(() => {
   if (!lockedElsewhere.value)
     return ''
   const sameType = importLockType.value === (mode.value === 'entries' ? 'entries' : 'translations')
-  return sameType
-    ? '该项目正在导入中，请稍候再试'
-    : (importLocker.value ? `${importLocker.value} 正在导入${lockTypeName.value}，请稍候再试` : '该项目正在被其他导入占用，请稍候再试')
+  const prefix = sameType
+    ? '该项目正在导入中'
+    : (importLocker.value ? `${importLocker.value} 正在导入${lockTypeName.value}` : '该项目正在被其他导入占用')
+  const p = importProgress.value
+  if (!p)
+    return `${prefix}，请稍候再试`
+  const isTranslate = importLockType.value === 'translations'
+  if (p.phase === 'parsing')
+    return `${prefix}，解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段），请稍候再试`
+  if (p.phase === 'writing') {
+    if (isTranslate)
+      return `${prefix}，写入中（${p.createdFields.toLocaleString()} 字段新增 / ${p.skippedFields.toLocaleString()} 字段跳过，共 ${p.totalFields.toLocaleString()} 字段），请稍候再试`
+    return `${prefix}，写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目），请稍候再试`
+  }
+  return `${prefix}，写入完成，请稍候再试`
+})
+/** 当前导入进度提示（自己发起的导入，显示实时进度） */
+const myImportTip = computed(() => {
+  if (!inImport.value)
+    return ''
+  const p = importProgress.value
+  if (!p)
+    return '正在提交导入任务，请稍候…'
+  const isTranslate = importLockType.value === 'translations'
+  const typeLabel = isTranslate ? '翻译' : '条目'
+  if (p.phase === 'parsing')
+    return `正在导入${typeLabel}：解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段）`
+  if (p.phase === 'writing') {
+    if (isTranslate)
+      return `正在导入${typeLabel}：写入中（${p.createdFields.toLocaleString()} 字段新增 / ${p.skippedFields.toLocaleString()} 字段跳过，共 ${p.totalFields.toLocaleString()} 字段）`
+    return `正在导入${typeLabel}：写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目）`
+  }
+  return `正在导入${typeLabel}：写入完成`
 })
 const fileAccept = computed(() => {
   if (mode.value === 'entries')
@@ -164,15 +214,15 @@ function showImportError(e: unknown) {
 }
 
 /** 组装导入成功提示：导入条目用 keys（记录数），导入翻译用 fields（字段数）；created/skipped 的键维度为去重键数 */
-function importSuccessMsg(mode: 'entries' | 'translate', d1: { importedKeys: number, importedFields: number, created: number, createdKeys: number, skipped: number, skippedKeys: number, skippedLanguages?: string[] }) {
+function importSuccessMsg(mode: 'entries' | 'translate', d1: ImportResult) {
   const total = mode === 'entries' ? d1.importedKeys : d1.importedFields
-  const unit = mode === 'entries' ? '个条目' : '个字段'
-  const parts = [`导入完成: ${total} ${unit}`]
+  const unit = mode === 'entries' ? '条目' : '字段'
+  const parts = [`导入完成: ${total} 个${unit}`]
   if (d1.created)
-    parts.push(`${d1.created} 条新增${d1.createdKeys ? `（${d1.createdKeys} 个键）` : ''}`)
+    parts.push(`${d1.created} 个${unit}新增${d1.createdKeys ? `（${d1.createdKeys} 个键）` : ''}`)
   if (d1.skipped) {
     const langs = d1.skippedLanguages || []
-    parts.push(`${d1.skipped} 条跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个键）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+    parts.push(`${d1.skipped} 个${unit}跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个键）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
   }
   return parts.join('，')
 }
@@ -187,14 +237,15 @@ async function doTextImport() {
     return
   }
   importing.value = true
+  loadImportStatus()
   try {
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: textInput.value, overwrite: overwrite.value }
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
+    textInput.value = ''
     const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
     setNotice('success', importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
-    textInput.value = ''
   }
   catch (e: unknown) { showImportError(e) }
   finally {
@@ -212,16 +263,18 @@ async function doImport() {
     setNotice('warning', '请选择语言')
     return
   }
+  const file = importFile.value
+  importFile.value = null
   importing.value = true
+  loadImportStatus()
   try {
-    const text = await importFile.value.text()
+    const text = await file.text()
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
     const body: Record<string, unknown> = mode.value === 'entries'
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     const { data: res } = await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
     setNotice('success', importSuccessMsg(mode.value === 'entries' ? 'entries' : 'translate', res.data))
-    importFile.value = null
   }
   catch (e: unknown) { showImportError(e) }
   finally {
@@ -258,11 +311,21 @@ async function doAbort() {
 
     <el-alert v-if="notice" :type="notice.type" :closable="true" :title="notice.text" show-icon style="margin-bottom:16px" @close="notice = null" />
     <el-alert v-else-if="lockedElsewhere" type="warning" :closable="false" show-icon :title="lockTip" style="margin-bottom:16px" />
+    <el-alert v-if="inImport && myImportTip" type="info" :closable="false" show-icon style="margin-bottom:16px">
+      <template #title>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span>{{ myImportTip }}</span>
+          <BaseButton type="warning" :loading="aborting" @click="doAbort">
+            中止导入
+          </BaseButton>
+        </div>
+      </template>
+    </el-alert>
 
     <BaseForm :inline="true" class="import-bar" style="margin-top:0">
       <template v-if="mode === 'translate'">
         <BaseFormItem v-if="inputMode === 'text'" label="格式">
-          <BaseSelect v-model="fmt" style="width:160px">
+          <BaseSelect v-model="fmt" :disabled="importDisabled" style="width:160px">
             <el-option class="base-option" label="JSON" :value="ImportFormat.JSON" />
             <el-option class="base-option" label="CSV" :value="ImportFormat.CSV" />
             <el-option class="base-option" label="Properties" :value="ImportFormat.Properties" />
@@ -271,18 +334,18 @@ async function doAbort() {
           </BaseSelect>
         </BaseFormItem>
         <BaseFormItem v-if="needLang" label="语言">
-          <BaseSelect v-model="importLang" style="width:160px">
+          <BaseSelect v-model="importLang" :disabled="importDisabled" style="width:160px">
             <el-option v-for="l in projectLanguages" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
           </BaseSelect>
         </BaseFormItem>
         <BaseFormItem>
-          <BaseCheckbox v-model="autoCreate">
+          <BaseCheckbox v-model="autoCreate" :disabled="importDisabled">
             自动补全新条目
           </BaseCheckbox>
         </BaseFormItem>
       </template>
       <BaseFormItem>
-        <BaseCheckbox v-model="overwrite">
+        <BaseCheckbox v-model="overwrite" :disabled="importDisabled">
           {{ mode === 'entries' ? '覆盖已有条目' : '覆盖已有译文' }}
         </BaseCheckbox>
       </BaseFormItem>
@@ -291,17 +354,14 @@ async function doAbort() {
       </BaseFormItem>
       <BaseFormItem v-if="inputMode === 'file'">
         <el-upload :auto-upload="false" :show-file-list="false" :accept="fileAccept" @change="onFileChange">
-          <BaseButton type="primary" :disabled="!perm.canManageContent.value || lockedElsewhere">
+          <BaseButton type="primary" :disabled="!perm.canManageContent.value || importDisabled">
             选择文件
           </BaseButton>
         </el-upload>
       </BaseFormItem>
       <BaseFormItem v-if="importFile && inputMode === 'file'">
-        <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || lockedElsewhere" @click="doImport">
+        <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || importDisabled" @click="doImport">
           开始导入
-        </BaseButton>
-        <BaseButton v-if="importing" type="warning" :loading="aborting" style="margin-left:12px" @click="doAbort">
-          中止导入
         </BaseButton>
       </BaseFormItem>
     </BaseForm>
@@ -309,12 +369,9 @@ async function doAbort() {
       已选: {{ importFile.name }}
     </div>
     <div v-if="inputMode === 'text'" style="margin-bottom:16px">
-      <BaseInput v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value" style="font-family:monospace;font-size:13px" />
-      <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || lockedElsewhere" style="margin-top:8px" @click="doTextImport">
+      <BaseInput v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value || importDisabled" style="font-family:monospace;font-size:13px" />
+      <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || importDisabled" style="margin-top:8px" @click="doTextImport">
         开始导入
-      </BaseButton>
-      <BaseButton v-if="importing" type="warning" :loading="aborting" style="margin-top:8px;margin-left:12px" @click="doAbort">
-        中止导入
       </BaseButton>
     </div>
     <el-alert v-if="mode === 'entries'" type="info" :closable="false" style="margin-bottom:16px" title="导入条目不会更改现有条目的翻译内容" />
