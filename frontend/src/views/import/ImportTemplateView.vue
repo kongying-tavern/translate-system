@@ -243,6 +243,10 @@ async function doAbort() {
   aborting.value = true
   try {
     await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/abort`)
+    // 服务端已接受中止，直接给出确认提示，避免依赖 SSE/轮询最终态才弹窗（否则 inImport 横幅消失后无提示）
+    setNotice('warning', '导入已中止')
+    wasImporting.value = false
+    consumedTs.value = (importStatus.value?.startTimestamp as number) || consumedTs.value
   }
   catch (e: unknown) {
     const err = e as { response?: { data?: { message?: string } } }
