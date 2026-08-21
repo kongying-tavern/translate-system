@@ -8,7 +8,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import EmptyState from '@/components/common/EmptyState.vue'
-import { BaseButton, BaseDialog, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseSelect, BaseTable, BaseTag } from '@/components/ui'
+import { BaseButton, BaseDialog, BaseIcon, BaseInput, BaseLink, BaseNotice, BasePageHeader, BaseSelect, BaseTable, BaseTag } from '@/components/ui'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
@@ -217,12 +217,10 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
         </BaseButton>
       </template>
     </BasePageHeader>
-    <el-alert
+    <BaseNotice
       v-if="importLocked"
       type="warning"
       :closable="false"
-      show-icon
-      class="import-lock-alert"
       :title="importLockBannerTitle"
     />
     <BaseTable v-loading="tableLoading" :data="projectLanguages || []" :columns="langColumns" stripe row-key="id" />
@@ -252,7 +250,6 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
 .lang-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .lang-option__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lang-option__code { flex: none; color: #909399; font-size: 12px; }
-.import-lock-alert { margin-bottom: 16px; }
 :deep(.lang-name-cell) { display: inline-flex; align-items: center; gap: 12px; }
 :deep(.op-cell) { display: inline-flex; align-items: center; gap: 8px; }
 </style>

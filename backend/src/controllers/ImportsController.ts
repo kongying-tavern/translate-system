@@ -216,8 +216,8 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   const sourceLang = (await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }))?.sourceLanguage || ''
   let createdFields = 0
   let skippedFields = 0
-  let skippedKeys = 0
   const createdKeySet = new Set<string>()
+  const skippedKeySet = new Set<string>()
   const cursor = { nextSo: 0 }
   let inited = false
   /** 跨批缓存 key→id，避免每批重复查库 */
@@ -307,7 +307,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
       const keyExisted = existedSet.has(key)
       if (keyExisted && !overwrite) {
         skippedFields++
-        skippedKeys++
+        skippedKeySet.add(key)
         continue
       }
       if (keyExisted && (context !== undefined || tags?.length)) {
@@ -356,7 +356,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
     ctrl.progress.createdFields = createdFields
     ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size
-    ctrl.progress.skippedKeys = skippedKeys
+    ctrl.progress.skippedKeys = skippedKeySet.size
   }
 
   let batch: ImportEntry[] = []
@@ -374,7 +374,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   if (ctrl.aborted)
     throw new AppError(ErrCode.Conflict, '导入已中止')
   ctrl.progress.phase = 'done'
-  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys, skippedLanguages: [] }
+  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: skippedKeySet.size, skippedLanguages: [] }
 }
 
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean, ctrl: ImportControl): Promise<ImportResult> {
@@ -389,8 +389,8 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   const unknownLangs = new Set<string>()
   let createdFields = 0
   let skippedFields = 0
-  let skippedKeys = 0
   const createdKeySet = new Set<string>()
+  const skippedKeySet = new Set<string>()
   const cursor = { nextSo: 0 }
   let inited = false
   /** 跨批缓存 key→id，避免每批重复查库 */
@@ -501,22 +501,26 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
         if (Object.keys(updates).length)
           keyUpdateMap.set(keyId, updates)
       }
-      if (keyId && translatedText !== undefined && langCode) {
-        const vkey = `${keyId}\u0000${langCode}`
-        const existingText = existingValues.get(vkey)
-        const shouldWrite = overwrite
-          ? true
-          : (existingText === undefined || !existingText)
-        if (shouldWrite) {
-          if (existingText === undefined || existingText !== translatedText)
-            toWrite.push({ keyId, languageCode: langCode, translatedText })
-          createdFields++
-          createdKeySet.add(key)
-        }
-        else {
-          skippedFields++
-          skippedKeys++
-        }
+      // 无法写入的条目（无匹配 key、译文为空、或语言未配置）一律计入「跳过」，保证 created+skipped = imported 恒等式成立
+      if (!keyId || translatedText === undefined || !langCode) {
+        skippedFields++
+        skippedKeySet.add(key)
+        continue
+      }
+      const vkey = `${keyId}\u0000${langCode}`
+      const existingText = existingValues.get(vkey)
+      const shouldWrite = overwrite
+        ? true
+        : (existingText === undefined || !existingText)
+      if (shouldWrite) {
+        if (existingText === undefined || existingText !== translatedText)
+          toWrite.push({ keyId, languageCode: langCode, translatedText })
+        createdFields++
+        createdKeySet.add(key)
+      }
+      else {
+        skippedFields++
+        skippedKeySet.add(key)
       }
     }
 
@@ -540,7 +544,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     ctrl.progress.createdFields = createdFields
     ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size
-    ctrl.progress.skippedKeys = skippedKeys
+    ctrl.progress.skippedKeys = skippedKeySet.size
   }
 
   // 导入前按项目语言预过滤：不支持的语言整条丢弃（不建空 key），但仍在预过滤阶段计入 skipped 统计，
@@ -550,7 +554,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     const langCode = entry.lang || languageCode
     if (langCode && !knownLangs.has(langCode)) {
       skippedFields++
-      skippedKeys++
+      skippedKeySet.add(entry.key)
       unknownLangs.add(langCode)
       continue
     }
@@ -572,7 +576,13 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   if (ctrl.aborted)
     throw new AppError(ErrCode.Conflict, '导入已中止')
   ctrl.progress.phase = 'done'
-  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys, skippedLanguages: [...unknownLangs] }
+  // skippedKeys 仅计「从未成功写入」的去重 key，排除已在 createdKeySet 中的 key（如混合语言 key 部分语言被预过滤跳过、部分语言正常写入），保证 createdKeys + skippedKeys = importedKeys
+  let realSkippedKeys = 0
+  for (const k of skippedKeySet) {
+    if (!createdKeySet.has(k))
+      realSkippedKeys++
+  }
+  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: realSkippedKeys, skippedLanguages: [...unknownLangs] }
 }
 
 /**

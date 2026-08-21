@@ -10,7 +10,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, useTemplateRef, watch 
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
-import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTableVirtualized, BaseTag, BaseTagInput } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BaseNotice, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTableVirtualized, BaseTag, BaseTagInput } from '@/components/ui'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
@@ -1034,12 +1034,10 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         <span class="total-count">共 {{ total }} 条</span>
       </template>
     </BasePageHeader>
-    <el-alert
+    <BaseNotice
       v-if="importLocked"
       type="warning"
       :closable="false"
-      show-icon
-      class="import-lock-alert"
       :title="importLockBannerTitle"
     />
     <BaseForm :inline="true" :model="filters" class="filter-bar">
@@ -1287,5 +1285,4 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .jump-meta .insert-meta-control { min-height: 32px; }
 .row-height-opt { display: inline-flex; align-items: center; gap: 6px; }
 .row-height-icon { width: 18px; height: 18px; flex-shrink: 0; }
-.import-lock-alert { margin-bottom: 16px; }
 </style>

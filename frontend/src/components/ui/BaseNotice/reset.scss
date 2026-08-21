@@ -1,0 +1,23 @@
+// ==========================================================
+// ElementPlus 样式重置（不可修改）
+// 作用：修正 el-alert 默认图标/标题样式，统一提示视觉。
+// 如需调整视觉，请改 style.scss（组件自定义样式，可改）。
+// ==========================================================
+.base-notice {
+  :deep(.el-alert__icon) {
+    align-self: flex-start;
+    margin-top: 2px;
+    margin-right: 12px;
+    font-size: 26px;
+    width: 26px;
+  }
+
+  :deep(.el-alert__title) {
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  :deep(.el-alert__title.with-description) {
+    font-size: 15px;
+  }
+}

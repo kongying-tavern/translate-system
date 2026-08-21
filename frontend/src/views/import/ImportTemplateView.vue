@@ -4,7 +4,7 @@ import type { ImportResult, ProjectLanguage } from '@/types/models'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BaseNotice, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
@@ -17,7 +17,7 @@ const perm = useProjectPermission()
 const auth = useAuthStore()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const importing = ref(false)
-const { isLocked: importLocked, importerId: importLockerId, status: importStatus, load: loadImportStatus, statsLines: importStatsLines, importTitle } = useImportStatus(projectSlug, { importing })
+const { isLocked: importLocked, importerId: importLockerId, status: importStatus, load: loadImportStatus, reset: resetImportStatus, statsLines: importStatsLines, importTitle } = useImportStatus(projectSlug, { importing })
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
 const fmt = ref<string>(ImportFormat.JSON)
@@ -26,7 +26,7 @@ const overwrite = ref(false)
 const autoCreate = ref(true)
 const aborting = ref(false)
 const importFile = ref<File | null>(null)
-const notice = ref<{ type: 'success' | 'warning' | 'error', text: string } | null>(null)
+const notice = ref<{ type: 'success' | 'warning' | 'error', text: string, lines?: string[] } | null>(null)
 /** 已消费（展示过成功/失败提示）的导入起始时间戳，避免轮询重复弹窗 */
 const consumedTs = ref<number>(0)
 /** 本次会话是否由我发起了后台导入（用于判定轮询带回的结果归属） */
@@ -34,8 +34,8 @@ const wasImporting = ref(false)
 /** 本次导入的模式，决定结果提示用「条目」还是「字段」 */
 const importMode = ref<'entries' | 'translate'>('entries')
 
-function setNotice(type: 'success' | 'warning' | 'error', text: string) {
-  notice.value = { type, text }
+function setNotice(type: 'success' | 'warning' | 'error', text: string, lines?: string[]) {
+  notice.value = { type, text, lines }
 }
 
 /** 轮询带回的导入结束结果：本次会话发起且状态翻转（locked→false）且未消费过时，展示成功/失败提示（避免重复弹窗） */
@@ -46,10 +46,13 @@ watch(importStatus, (s) => {
   const result = s.result ?? null
   const error = s.error ?? null
   if (wasImporting.value && !importLocked.value && startTs && startTs !== consumedTs.value) {
-    if (error)
+    if (error) {
       setNotice(error === '导入已中止' ? 'warning' : 'error', error)
-    else if (result)
-      setNotice('success', importSuccessMsg(importMode.value, result))
+    }
+    else if (result) {
+      const msg = importSuccessMsg(importMode.value, result)
+      setNotice('success', msg.title, msg.lines)
+    }
     consumedTs.value = startTs
     wasImporting.value = false
   }
@@ -168,14 +171,14 @@ function showImportError(e: unknown) {
 
 /** 组装导入成功提示：导入译文用字段/条目双维度，导入条目仅用条目（键）维度，未配置语言单独成行 */
 function importSuccessMsg(mode: 'entries' | 'translate', d1: ImportResult) {
-  const lines: string[] = ['导入完成：']
+  const lines: string[] = []
   if (mode === 'translate')
     lines.push(`字段：总 ${formatCount(d1.importedFields)} 个，新增 ${formatCount(d1.createdFields)} 个，跳过 ${formatCount(d1.skippedFields)} 个`)
-  lines.push(`条目：总 ${formatCount(d1.importedKeys)} 条，新增 ${formatCount(d1.createdKeys)} 条，跳过 ${formatCount(d1.skippedKeys)} 条`)
+  lines.push(`条目：总 ${formatCount(d1.importedKeys)} 条，新增 ${formatCount(d1.createdKeys)} 条，跳过 ${formatCount(d1.skippedKeys)} 个`)
   const langs = d1.skippedLanguages || []
   if (langs.length)
     lines.push(`以下语言项目未配置，已跳过导入：${langs.join('、')}`)
-  return lines.join('\n')
+  return { title: '导入完成：', lines }
 }
 
 async function doTextImport() {
@@ -188,7 +191,9 @@ async function doTextImport() {
     return
   }
   importing.value = true
-  loadImportStatus()
+  wasImporting.value = true
+  notice.value = null
+  resetImportStatus()
   try {
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
     importMode.value = mode.value === 'entries' ? 'entries' : 'translate'
@@ -197,7 +202,6 @@ async function doTextImport() {
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     textInput.value = ''
     await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
-    wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {
@@ -218,7 +222,9 @@ async function doImport() {
   const file = importFile.value
   importFile.value = null
   importing.value = true
-  loadImportStatus()
+  wasImporting.value = true
+  notice.value = null
+  resetImportStatus()
   try {
     const text = await file.text()
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
@@ -227,7 +233,6 @@ async function doImport() {
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
-    wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {
@@ -266,29 +271,13 @@ async function doAbort() {
       </BaseFormItem>
     </BaseForm>
 
-    <el-alert v-if="notice" :type="notice.type" :closable="true" :title="notice.text" show-icon style="margin-bottom:16px" @close="notice = null" />
-    <el-alert v-else-if="lockedElsewhere" type="warning" :closable="false" show-icon :title="importTitle" style="margin-bottom:16px">
-      <div class="import-stats">
-        <div v-for="(line, i) in importStatsLines" :key="i">
-          {{ line }}
-        </div>
-      </div>
-    </el-alert>
-    <el-alert v-if="inImport && importTitle" type="info" :closable="false" show-icon style="margin-bottom:16px">
-      <template #title>
-        {{ importTitle }}
-      </template>
-      <div class="import-alert-body">
-        <div class="import-stats">
-          <div v-for="(line, i) in importStatsLines" :key="i">
-            {{ line }}
-          </div>
-        </div>
-        <BaseButton type="warning" :loading="aborting" @click="doAbort">
-          中止导入
-        </BaseButton>
-      </div>
-    </el-alert>
+    <BaseNotice v-if="notice" :type="notice.type" :title="notice.text" :lines="notice.lines" @close="notice = null" />
+    <BaseNotice v-else-if="lockedElsewhere" type="warning" :closable="false" :title="importTitle" :lines="importStatsLines" />
+    <BaseNotice v-if="inImport && importTitle" type="info" :closable="false" :title="importTitle" :lines="importStatsLines">
+      <BaseButton type="warning" :loading="aborting" style="margin-top:8px" @click="doAbort">
+        中止导入
+      </BaseButton>
+    </BaseNotice>
 
     <BaseForm :inline="true" class="import-bar" style="margin-top:0">
       <template v-if="mode === 'translate'">
@@ -342,7 +331,7 @@ async function doAbort() {
         开始导入
       </BaseButton>
     </div>
-    <el-alert v-if="mode === 'entries'" type="info" :closable="false" style="margin-bottom:16px" title="导入条目不会更改现有条目的翻译内容" />
+    <BaseNotice v-if="mode === 'entries'" type="info" :closable="false" :show-icon="false" title="导入条目不会更改现有条目的翻译内容" />
 
     <el-card header="格式说明" style="margin-top:16px">
       <template v-if="mode === 'entries'">
@@ -389,8 +378,4 @@ async function doAbort() {
 .import-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .import-bar .el-form-item { margin-bottom: 0; }
 .ex-pre { font-size:13px; white-space:pre-wrap; margin:0; }
-.import-stats { margin-top:4px; font-size:13px; line-height:20px; }
-.import-alert-body { display:flex; flex-direction:column; align-items:flex-start; gap:8px; margin-top:4px; }
-.import-alert-body .import-stats { margin-top:0; }
-:deep(.el-alert__icon) { align-self: flex-start; margin-top: 2px; }
 </style>

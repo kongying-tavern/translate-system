@@ -210,5 +210,5 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>, options?:
     return ''
   })
 
-  return { isLocked, importType, importerName, importerId, progress, status, load, start, stop, iAmImporter, phaseText, progressPct, statusLine, statsLines, bannerTitle, importTitle }
+  return { isLocked, importType, importerName, importerId, progress, status, load, start, stop, reset: resetRow, iAmImporter, phaseText, progressPct, statusLine, statsLines, bannerTitle, importTitle }
 }
