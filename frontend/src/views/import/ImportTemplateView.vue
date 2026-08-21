@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { UploadFile } from 'element-plus'
-import type { ImportProgress, ImportResult, ProjectLanguage } from '@/types/models'
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import type { ImportResult, ProjectLanguage } from '@/types/models'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
+import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { decPathParam, encPathParam } from '@/utils/path'
@@ -14,6 +15,7 @@ const route = useRoute()
 const perm = useProjectPermission()
 const auth = useAuthStore()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
+const { locked: importLocked, lockType: importLockType, locker: importLocker, lockerId: importLockerId, progress: importProgress, status: importStatus, load: loadImportStatus } = useImportStatus(projectSlug)
 const projectLanguages = ref<ProjectLanguage[]>([])
 const mode = ref('entries')
 const fmt = ref<string>(ImportFormat.JSON)
@@ -24,11 +26,6 @@ const importing = ref(false)
 const aborting = ref(false)
 const importFile = ref<File | null>(null)
 const notice = ref<{ type: 'success' | 'warning' | 'error', text: string } | null>(null)
-const importLocked = ref(false)
-const importLocker = ref('')
-const importLockerId = ref('')
-const importLockType = ref('')
-const importProgress = ref<ImportProgress | null>(null)
 /** 已消费（展示过成功/失败提示）的导入起始时间戳，避免轮询重复弹窗 */
 const consumedTs = ref<number>(0)
 /** 本次会话是否由我发起了后台导入（用于判定轮询带回的结果归属） */
@@ -40,55 +37,26 @@ function setNotice(type: 'success' | 'warning' | 'error', text: string) {
   notice.value = { type, text }
 }
 
-/** 拉取项目导入状态：被他人/其他标签页占用时禁用导入并提示（导入进行中为 10 分钟级，切页后仍可能在导） */
-async function loadImportStatus() {
-  try {
-    const { data: res } = await client.get(`/projects/${encPathParam(projectSlug.value)}/imports/status`)
-    importLocked.value = !!res.data?.locked
-    importLocker.value = res.data?.startUsername || ''
-    importLockerId.value = res.data?.startUserId || ''
-    importLockType.value = res.data?.type || ''
-    importProgress.value = res.data?.progress || null
-    const startTs = (res.data?.startTimestamp as number) || 0
-    const result = (res.data?.result ?? null) as ImportResult | null
-    const error = (res.data?.error ?? null) as string | null
-    if (wasImporting.value && !importLocked.value && startTs && startTs !== consumedTs.value) {
-      if (error)
-        setNotice(error === '导入已中止' ? 'warning' : 'error', error)
-      else if (result)
-        setNotice('success', importSuccessMsg(importMode.value, result))
-      consumedTs.value = startTs
-      wasImporting.value = false
-    }
+/** 轮询带回的导入结束结果：本次会话发起且状态翻转（locked→false）且未消费过时，展示成功/失败提示（避免重复弹窗） */
+watch(importStatus, (s) => {
+  if (!s)
+    return
+  const startTs = (s.startTimestamp as number) || 0
+  const result = s.result ?? null
+  const error = s.error ?? null
+  if (wasImporting.value && !importLocked.value && startTs && startTs !== consumedTs.value) {
+    if (error)
+      setNotice(error === '导入已中止' ? 'warning' : 'error', error)
+    else if (result)
+      setNotice('success', importSuccessMsg(importMode.value, result))
+    consumedTs.value = startTs
+    wasImporting.value = false
   }
-  catch {
-    importLocked.value = false
-    importLocker.value = ''
-    importLockerId.value = ''
-    importLockType.value = ''
-    importProgress.value = null
-  }
-}
-let statusTimer: ReturnType<typeof setInterval> | undefined
-function startStatusTimer(intervalMs: number) {
-  clearInterval(statusTimer)
-  statusTimer = setInterval(loadImportStatus, intervalMs)
-}
+})
 watch(projectSlug, () => {
-  importLocked.value = false
-  importLocker.value = ''
-  importLockerId.value = ''
-  importLockType.value = ''
-  importProgress.value = null
   wasImporting.value = false
   consumedTs.value = 0
-  loadImportStatus()
-  startStatusTimer(importLocked.value ? 2000 : 30000)
-}, { immediate: true })
-watch(importLocked, () => {
-  startStatusTimer(importLocked.value ? 2000 : 30000)
 })
-onBeforeUnmount(() => clearInterval(statusTimer))
 const exampleTab = ref('json')
 const inputMode = ref('file')
 const textInput = ref('')
@@ -119,7 +87,7 @@ const lockTip = computed(() => {
     return `${prefix}，解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段），请稍候再试`
   if (p.phase === 'writing') {
     if (isTranslate)
-      return `${prefix}，写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 键）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 键），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 键）），请稍候再试`
+      return `${prefix}，写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 条目）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 条目），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 条目）），请稍候再试`
     return `${prefix}，写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目），请稍候再试`
   }
   return `${prefix}，写入完成，请稍候再试`
@@ -137,7 +105,7 @@ const myImportTip = computed(() => {
     return `正在导入${typeLabel}：解析中（${p.parsedKeys.toLocaleString()} 条目 / ${p.parsedFields.toLocaleString()} 字段）`
   if (p.phase === 'writing') {
     if (isTranslate)
-      return `正在导入${typeLabel}：写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 键）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 键），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 键））`
+      return `正在导入${typeLabel}：写入中（${p.createdFields.toLocaleString()} 字段新增（${p.createdKeys.toLocaleString()} 条目）/ ${p.skippedFields.toLocaleString()} 字段跳过（${p.skippedKeys.toLocaleString()} 条目），共 ${p.totalFields.toLocaleString()} 字段（${p.totalKeys.toLocaleString()} 条目））`
     return `正在导入${typeLabel}：写入中（${p.createdKeys.toLocaleString()} 条目新增 / ${p.skippedKeys.toLocaleString()} 条目跳过，共 ${p.totalKeys.toLocaleString()} 条目）`
   }
   return `正在导入${typeLabel}：写入完成`
@@ -250,12 +218,12 @@ function importSuccessMsg(mode: 'entries' | 'translate', d1: ImportResult) {
     }
   }
   else {
-    parts.push(`导入完成: ${d1.importedFields} 个字段，涉及 ${d1.importedKeys} 个键`)
+    parts.push(`导入完成: ${d1.importedFields} 个字段，涉及 ${d1.importedKeys} 个条目`)
     if (d1.createdFields)
-      parts.push(`${d1.createdFields} 个新增${d1.createdKeys ? `（${d1.createdKeys} 个键）` : ''}`)
+      parts.push(`${d1.createdFields} 个新增${d1.createdKeys ? `（${d1.createdKeys} 个条目）` : ''}`)
     if (d1.skippedFields) {
       const langs = d1.skippedLanguages || []
-      parts.push(`${d1.skippedFields} 个跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个键）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
+      parts.push(`${d1.skippedFields} 个跳过${d1.skippedKeys ? `（${d1.skippedKeys} 个条目）` : ''}${langs.length ? `（含未配置语言 ${langs.join('、')}）` : '（已有）'}`)
     }
   }
   return parts.join('，')

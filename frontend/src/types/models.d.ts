@@ -184,4 +184,8 @@ export interface ImportStatusRow {
   startTimestamp: number
   /** 导入进度（有导入时为对象，否则为 null） */
   progress: ImportProgress | null
+  /** 导入结束后的结果（无导入时为 null） */
+  result: ImportResult | null
+  /** 导入失败的错误信息（无导入或成功时为 null） */
+  error: string | null
 }
