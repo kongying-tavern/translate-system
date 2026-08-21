@@ -101,23 +101,48 @@ interface ValueUpsertRow {
 
 /**
  * 译文/原文值批量 upsert：单条原生 INSERT ... ON CONFLICT DO UPDATE 完成整批写入，
- * 替代逐条 translationValue.update 事务；同 key+lang 自动去重取末值。
+ * 替代逐条 translationValue.update 事务；同 key+lang 自动去重取末值（即优化 E）。
+ * 仅构建查询、不执行，空数组返回 null，便于调用方决定是否需要纳入 $transaction（即优化 C）；
+ * 需要独立执行时直接 `await bulkWriteTranslationValues(rows)` 即可。
  */
-async function bulkWriteTranslationValues(rows: ValueUpsertRow[]): Promise<void> {
-  if (!rows.length)
-    return
+function bulkWriteTranslationValues(rows: ValueUpsertRow[]): Prisma.PrismaPromise<number> | null {
   const map = new Map<string, ValueUpsertRow>()
   for (const r of rows)
     map.set(`${r.keyId}\u0000${r.languageCode}`, r)
   const deduped = [...map.values()]
   if (!deduped.length)
-    return
+    return null
   // id / updated_at 为 Prisma 客户端侧默认值，原生 INSERT 需自行提供
   const now = new Date()
-  await prisma.$executeRaw`
+  return prisma.$executeRaw`
     INSERT INTO "translation_values" ("id", "key_id", "language_code", "translated_text", "updated_at")
     VALUES ${Prisma.join(deduped.map(r => Prisma.sql`(${randomUUID()}::uuid, ${r.keyId}::uuid, ${r.languageCode}, ${r.translatedText}, ${now})`), ', ')}
     ON CONFLICT ("key_id", "language_code") DO UPDATE SET "translated_text" = EXCLUDED."translated_text", "updated_at" = EXCLUDED."updated_at"
+  `
+}
+
+interface KeyMetaUpdate {
+  id: string
+  context?: string
+  tags?: string[]
+}
+
+/**
+ * Key 的 context/tags 批量更新（优化 B）：单条原生 `UPDATE ... FROM (VALUES ...)` 一次完成，替代 N 条 update 事务。
+ * 各列按 has_* 标志仅在确有值时覆盖，未提供字段保留原值。tags 为 string[]，经参数化 + `::text[]` 交由驱动转义，无注入风险。
+ */
+function bulkUpdateKeyMeta(items: KeyMetaUpdate[]): Prisma.PrismaPromise<number> | null {
+  if (!items.length)
+    return null
+  const valuesSql = Prisma.join(items.map(it => Prisma.sql`
+    (${it.id}::uuid, ${it.context ?? null}, ${(it.tags ?? null)}::text[], ${(it.context !== undefined)}, ${(it.tags?.length ?? 0) > 0})
+  `), ', ')
+  return prisma.$executeRaw`
+    UPDATE "translation_keys" AS tk SET
+      "context" = CASE WHEN v.has_context THEN v.context ELSE tk."context" END,
+      "tags" = CASE WHEN v.has_tags THEN v.tags ELSE tk."tags" END
+    FROM (VALUES ${valuesSql}) AS v(id, context, tags, has_context, has_tags)
+    WHERE tk."id" = v.id
   `
 }
 
@@ -191,8 +216,8 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   const sourceLang = (await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }))?.sourceLanguage || ''
   let createdFields = 0
   let skippedFields = 0
+  let skippedKeys = 0
   const createdKeySet = new Set<string>()
-  const skippedKeySet = new Set<string>()
   const cursor = { nextSo: 0 }
   let inited = false
   /** 跨批缓存 key→id，避免每批重复查库 */
@@ -244,7 +269,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
         if (!firstOf.has(e.key))
           firstOf.set(e.key, e)
       }
-      await prisma.translationKey.createMany({
+      const createdRows = await prisma.translationKey.createManyAndReturn({
         data: newKeysInOrder.map((k, i) => {
           const e = firstOf.get(k)!
           return {
@@ -257,7 +282,6 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
         }),
       })
       cursor.nextSo += newKeysInOrder.length * 100
-      const createdRows = await prisma.translationKey.findMany({ where: { projectId, key: { in: newKeysInOrder } }, select: { id: true, key: true } })
       for (const r of createdRows) {
         keyMap.set(r.key, r.id)
         keyIdCache.set(r.key, r.id)
@@ -283,7 +307,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
       const keyExisted = existedSet.has(key)
       if (keyExisted && !overwrite) {
         skippedFields++
-        skippedKeySet.add(key)
+        skippedKeys++
         continue
       }
       if (keyExisted && (context !== undefined || tags?.length)) {
@@ -312,15 +336,27 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
       createdKeySet.add(key)
     }
 
+    // 优化 C：Key 属性更新（bulkUpdateKeyMeta 原生单条 UPDATE）与译文值 upsert（bulkWriteTranslationValues）合并为同一个 $transaction 提交
+    const ops: Prisma.PrismaPromise<unknown>[] = []
     if (keyUpdateMap.size) {
-      const keyUpdates = [...keyUpdateMap].map(([id, data]) => prisma.translationKey.update({ where: { id }, data }))
-      await prisma.$transaction(keyUpdates)
+      const metaItems: KeyMetaUpdate[] = [...keyUpdateMap.entries()].map(([id, data]) => ({
+        id,
+        context: typeof data.context === 'string' ? data.context : undefined,
+        tags: Array.isArray(data.tags) ? data.tags : undefined,
+      }))
+      const metaQ = bulkUpdateKeyMeta(metaItems)
+      if (metaQ)
+        ops.push(metaQ)
     }
-    await bulkWriteTranslationValues(toWrite)
+    const valQ = bulkWriteTranslationValues(toWrite)
+    if (valQ)
+      ops.push(valQ)
+    if (ops.length)
+      await prisma.$transaction(ops)
     ctrl.progress.createdFields = createdFields
     ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size
-    ctrl.progress.skippedKeys = skippedKeySet.size
+    ctrl.progress.skippedKeys = skippedKeys
   }
 
   let batch: ImportEntry[] = []
@@ -338,7 +374,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   if (ctrl.aborted)
     throw new AppError(ErrCode.Conflict, '导入已中止')
   ctrl.progress.phase = 'done'
-  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: skippedKeySet.size, skippedLanguages: [] }
+  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys, skippedLanguages: [] }
 }
 
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean, ctrl: ImportControl): Promise<ImportResult> {
@@ -353,8 +389,8 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   const unknownLangs = new Set<string>()
   let createdFields = 0
   let skippedFields = 0
+  let skippedKeys = 0
   const createdKeySet = new Set<string>()
-  const skippedKeySet = new Set<string>()
   const cursor = { nextSo: 0 }
   let inited = false
   /** 跨批缓存 key→id，避免每批重复查库 */
@@ -407,7 +443,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
         if (!firstOf.has(e.key))
           firstOf.set(e.key, e)
       }
-      await prisma.translationKey.createMany({
+      const createdRows = await prisma.translationKey.createManyAndReturn({
         data: toAutoCreate.map((k, i) => {
           const e = firstOf.get(k)!
           return {
@@ -420,7 +456,6 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
         }),
       })
       cursor.nextSo += toAutoCreate.length * 100
-      const createdRows = await prisma.translationKey.findMany({ where: { projectId, key: { in: toAutoCreate } }, select: { id: true, key: true } })
       for (const r of createdRows) {
         keyMap.set(r.key, r.id)
         keyIdCache.set(r.key, r.id)
@@ -439,12 +474,15 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
       valueLangSet.add(langCode)
     }
     let existingValues = new Map<string, string>()
-    if (valueKeyIdSet.size) {
-      const vals = await prisma.translationValue.findMany({
-        where: { keyId: { in: [...valueKeyIdSet] }, languageCode: { in: [...valueLangSet] } },
-        select: { keyId: true, languageCode: true, translatedText: true },
-      })
-      existingValues = new Map(vals.map(v => [`${v.keyId}\u0000${v.languageCode}`, v.translatedText]))
+    if (valueKeyIdSet.size && valueLangSet.size) {
+      // 优化 F：用 (key_id, language_code) 元组 IN 精确匹配，避免 keyId IN ∧ lang IN 的笛卡尔积回查
+      const pairSql = Prisma.join([...valueKeyIdSet].flatMap(kid => [...valueLangSet].map(lc => Prisma.sql`(${kid}::uuid, ${lc})`)), ', ')
+      const vals = await prisma.$queryRaw<Array<{ key_id: string, language_code: string, translated_text: string }>>`
+        SELECT "key_id", "language_code", "translated_text"
+        FROM "translation_values"
+        WHERE ("key_id", "language_code") IN (${pairSql})
+      `
+      existingValues = new Map(vals.map(v => [`${v.key_id}\u0000${v.language_code}`, v.translated_text]))
     }
 
     const toWrite: ValueUpsertRow[] = []
@@ -453,12 +491,6 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     for (const entry of batch) {
       const { key, translatedText, context, tags, lang } = entry
       const langCode = lang || languageCode
-      if (langCode && !knownLangs.has(langCode)) {
-        unknownLangs.add(langCode)
-        skippedFields++
-        skippedKeySet.add(key)
-        continue
-      }
       const keyId = keyMap.get(key)
       if (keyId && existedSet.has(key) && (context !== undefined || tags?.length)) {
         const updates: Prisma.TranslationKeyUpdateInput = {}
@@ -483,24 +515,50 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
         }
         else {
           skippedFields++
-          skippedKeySet.add(key)
+          skippedKeys++
         }
       }
     }
 
+    // 优化 C：Key 属性更新（bulkUpdateKeyMeta 原生单条 UPDATE）与译文值 upsert（bulkWriteTranslationValues）合并为同一个 $transaction 提交
+    const ops: Prisma.PrismaPromise<unknown>[] = []
     if (keyUpdateMap.size) {
-      const keyUpdates = [...keyUpdateMap].map(([id, data]) => prisma.translationKey.update({ where: { id }, data }))
-      await prisma.$transaction(keyUpdates)
+      const metaItems: KeyMetaUpdate[] = [...keyUpdateMap.entries()].map(([id, data]) => ({
+        id,
+        context: typeof data.context === 'string' ? data.context : undefined,
+        tags: Array.isArray(data.tags) ? data.tags : undefined,
+      }))
+      const metaQ = bulkUpdateKeyMeta(metaItems)
+      if (metaQ)
+        ops.push(metaQ)
     }
-    await bulkWriteTranslationValues(toWrite)
+    const valQ = bulkWriteTranslationValues(toWrite)
+    if (valQ)
+      ops.push(valQ)
+    if (ops.length)
+      await prisma.$transaction(ops)
     ctrl.progress.createdFields = createdFields
     ctrl.progress.skippedFields = skippedFields
     ctrl.progress.createdKeys = createdKeySet.size
-    ctrl.progress.skippedKeys = skippedKeySet.size
+    ctrl.progress.skippedKeys = skippedKeys
+  }
+
+  // 导入前按项目语言预过滤：不支持的语言整条丢弃（不建空 key），但仍在预过滤阶段计入 skipped 统计，
+  // 保证与「逐条 skip」的统计口径完全一致（imported 由 parseImportData 按全量 entries 计算，skipped 在此累加）
+  const filteredEntries: ImportEntry[] = []
+  for (const entry of entries) {
+    const langCode = entry.lang || languageCode
+    if (langCode && !knownLangs.has(langCode)) {
+      skippedFields++
+      skippedKeys++
+      unknownLangs.add(langCode)
+      continue
+    }
+    filteredEntries.push(entry)
   }
 
   let batch: ImportEntry[] = []
-  for (const entry of entries) {
+  for (const entry of filteredEntries) {
     if (ctrl.aborted)
       throw new AppError(ErrCode.Conflict, '导入已中止')
     batch.push(entry)
@@ -514,7 +572,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   if (ctrl.aborted)
     throw new AppError(ErrCode.Conflict, '导入已中止')
   ctrl.progress.phase = 'done'
-  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: skippedKeySet.size, skippedLanguages: [...unknownLangs] }
+  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys, skippedLanguages: [...unknownLangs] }
 }
 
 /**
@@ -615,12 +673,14 @@ export class ImportsController extends Controller {
     const lastEmit = { t: 0 }
     const unsub = subscribeImportStatus(access.projectId, () => {
       const now = Date.now()
+      // 优化 D：先读内存锁状态判节流，被节流时不再 buildImportStatusRow（省去建行 + JSON 序列化的开销）
+      const lock = getImportLock(access.projectId)
+      if (lastEmit.t && now - lastEmit.t < 250 && lock && !lock.done)
+        return
+      lastEmit.t = now
       void (async () => {
         try {
           const row = await buildImportStatusRow(access.projectId)
-          if (lastEmit.t && now - lastEmit.t < 250 && row.locked)
-            return
-          lastEmit.t = now
           response.write(`data: ${JSON.stringify(row)}\n\n`)
         }
         catch {
