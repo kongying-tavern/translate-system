@@ -279,6 +279,9 @@ GET    /languages|/languages/search    — 基础语言
 - **状态查询** `GET /imports/status` 返回 `ImportStatusRow`：`locked`/`type`/`startUserId`/`startUsername`/`startTimestamp`/`progress`（含以上 8 字段）/ `result`（导入结束后的 `ImportResult`，否则 null）/ `error`（导入失败的错误信息，否则 null）。前端导入页据此驱动 UI。
 - **中止** `POST /imports/abort`：`ImportControl.aborted = true`，运行中的导入在**解析阶段（`parseImportData` 每 1000 条让出事件循环处）与每个写入批次（`flush` 开头）均会检查该标志**，命中即抛 `Conflict` 中止，控制对象置 `done` 并保留 `error: '导入已中止'`；仅**发起人或 super_admin** 可中止（其余返回 `Forbidden(1002)`，无进行中导入返回 `Conflict(1004)`）。
 - **前端导入页行为**（`ImportTemplateView.vue`）：导入状态以**最近一次 status 轮询为准**（本地 `importing` 仅用于「开始导入」按钮 spinner）；轮询间隔「导入中 2 秒 / 空闲 30 秒」，提交后立刻再拉一次 status。POST 仅返回 `accepted`，**真正的成功/失败提示在 status 轮询带回 `result`/`error` 时弹出**（按 `startTimestamp` 去重避免重复）；导入中（status `locked`）用页内 `el-alert` 展示进度，并**禁用所有业务控件**（选择文件/开始导入/格式/语言/勾选/文本框），但「模式（导入条目/导入翻译）」「输入方式（文件/文本）」两个 radio-group 仍可切换；若当前用户是发起人（`startUserId === 当前用户`），alert 内显示「中止导入」按钮（跨标签页也有效）。
+- **导入锁（共享 composable）**：`frontend/src/hooks/useImportStatus.ts` 封装 `GET /projects/{slug}/imports/status` 轮询（频率随锁状态切换：进行中 2 秒 / 空闲 30 秒，slug 变更自动重置、组件卸载自动停止），向所有受导入影响的页面暴露 `locked` / `lockType` / `locker` 等响应式状态。`status` 接口对任意项目成员开放（仅 `@Security('auth')` + `assertProjectAccess`），锁状态对**所有角色、跨标签页**实时生效，防止页面编辑与后台导入并发写入冲突。
+- **翻译管理页导入锁**（`TranslationListView.vue`）：导入进行中，**翻译管理整页不可写**——复用 `useImportStatus`，`status.locked` 为真时顶部展示 `el-alert` 警告条并禁用所有写操作（新增/删除 Key、编辑 Key/原文/译文/标签/备注、拖拽排序、跨屏插入），可编辑列回退为只读渲染（`translationColumns` 内 `void importLocked.value` 显式建依赖）。导入结束（status `locked` 变 false）后 2 秒内自动解锁恢复编辑。
+- **语言管理页导入锁**（`LanguageManageView.vue`）：语言与导入强相关（导入条目/译文依赖项目语言集），导入进行中同样**锁定**——复用 `useImportStatus`，`locked` 为真时顶部展示 `el-alert` 警告条，并禁用所有写操作（添加/删除语言、设为源语言、编辑别名、上下排序），别名输入框转为只读。导入结束后自动恢复。
 - **提示文案双维度**：进度解析阶段显示「X 条目 / Y 字段」（keys→条目，fields→字段）；写入阶段条目模式用 keys 计数、翻译模式用 fields 计数。成功提示导入条目用 `importedKeys`（个条目）、导入译文用 `importedFields`（个字段）。
 
 
@@ -302,7 +305,8 @@ GET    /languages|/languages/search    — 基础语言
 5. **列表交互**：全局语言切换仅改显示不刷新；「仅未翻译」开启时切换才刷新；虚拟滚动滚动流畅、固定行高无跳动；拖拽只限同屏可视区、禁跨区；滚动时单元格降级为静态 div（滚动中不可编辑、斑马纹/行过渡/文本选择禁用），停止滚动 600ms 后恢复交互组件；行高 4 档（低/默认/高/超高）切换即时生效并持久化（localStorage `trans-row-height`），高/超高档单元格顶对齐、内边距变大
 6. **跨屏插入**：仅无筛选时拖动句柄旁显示定位图标 → 弹窗输入目标行号 + 之前/之后；行号越界弹警告；目标=当前行直接关闭；member 无图标；插入后刷新顺序保持
 7. **textarea 滚轮**：弹窗内多行 textarea 滚轮只在框内滚动，不被表格吞掉；未超长 textarea 滚轮仍滚动表格
-8. **标签折叠与弹窗**：行内标签 `collapseTags` 折叠为「+N」不溢出行高；Edit 图标打开标签弹窗全量编辑，保存后行内/候选标签刷新；标签列可编辑权限下才有图标
+ 8. **标签折叠与弹窗**：行内标签 `collapseTags` 折叠为「+N」不溢出行高；Edit 图标打开标签弹窗全量编辑，保存后行内/候选标签刷新；标签列可编辑权限下才有图标
+ 9. **导入锁**：导入进行中（`GET /imports/status` 的 `locked` 为真）打开翻译管理页，顶部显示警告条，且所有写操作禁用——新增/删除 Key、编辑 Key/原文/译文/标签/备注、拖拽排序、跨屏插入图标均不可见/不可触发，可编辑列回退只读渲染；锁状态对所有角色、跨标签页实时生效（status 接口全员可访问），导入结束后约 2 秒自动解锁
 
 ### API Key 鉴权
 

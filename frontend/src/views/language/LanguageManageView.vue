@@ -9,6 +9,7 @@ import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { BaseButton, BaseDialog, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseSelect, BaseTable, BaseTag } from '@/components/ui'
+import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useProjectStore } from '@/stores/project'
@@ -40,6 +41,8 @@ watch(projectSlug, () => {
 })
 const sortedBaseLanguages = computed(() => [...baseLanguages.value].sort((a, b) => a.englishName.localeCompare(b.englishName)))
 const perm = useProjectPermission()
+/** 导入锁：导入进行中时语言管理也锁定（增删/设源语言/别名/排序均不可操作），避免与导入并发写入冲突 */
+const { locked: importLocked, lockType: importLockType, locker: importLocker, progressText: importProgressText } = useImportStatus(projectSlug)
 const tableLoading = ref(false)
 function loadLangs() {
   tableLoading.value = true
@@ -49,6 +52,8 @@ function loadLangs() {
 }
 
 async function handleSetSource(code: string) {
+  if (importLocked.value)
+    return
   try {
     await client.put(`/projects/${encPathParam(projectSlug.value)}/sourceLanguage`, { languageCode: code })
     ElMessage.success('源语言已更新')
@@ -60,6 +65,8 @@ async function handleSetSource(code: string) {
 }
 
 async function onAliasSave(row: ProjectLanguage) {
+  if (importLocked.value)
+    return
   const alias = aliasCache[row.id]?.trim() ?? ''
   if (alias === (row.alias || ''))
     return
@@ -72,6 +79,8 @@ async function onAliasSave(row: ProjectLanguage) {
 }
 
 async function handleAdd() {
+  if (importLocked.value)
+    return
   try {
     await langStore.addLanguage(projectSlug.value, selectedLang.value)
     ElMessage.success('添加成功')
@@ -82,6 +91,8 @@ async function handleAdd() {
 }
 
 async function handleRemove(code: string) {
+  if (importLocked.value)
+    return
   try {
     await ElMessageBox.confirm('确定要移除此语言吗？关联的翻译数据将被一并删除。', '确认删除', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
   }
@@ -94,6 +105,8 @@ async function handleRemove(code: string) {
 }
 
 async function moveUp(index: number) {
+  if (importLocked.value)
+    return
   const list = projectLanguages.value || []
   if (index <= 0 || !list.length)
     return
@@ -109,6 +122,8 @@ async function moveUp(index: number) {
 }
 
 async function moveDown(index: number) {
+  if (importLocked.value)
+    return
   const list = projectLanguages.value || []
   if (index >= list.length - 1)
     return
@@ -134,10 +149,10 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
     align: 'center',
     cell: (_row, _val, index) => (
       <div>
-        {perm.canManageContent.value
+        {perm.canManageContent.value && !importLocked.value
           ? <BaseLink size="small" underline={false} disabled={index === 0} onClick={() => moveUp(index)}><BaseIcon><ArrowUp /></BaseIcon></BaseLink>
           : null}
-        {perm.canManageContent.value
+        {perm.canManageContent.value && !importLocked.value
           ? <BaseLink size="small" underline={false} disabled={index === (projectLanguages.value || []).length - 1} onClick={() => moveDown(index)}><BaseIcon><ArrowDown /></BaseIcon></BaseLink>
           : null}
       </div>
@@ -166,7 +181,7 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
         v-model={aliasCache[row.id]}
         size="small"
         placeholder="输入别名..."
-        readonly={!perm.canManageContent.value}
+        readonly={!perm.canManageContent.value || importLocked.value}
         onBlur={() => onAliasSave(row)}
       />
     ),
@@ -179,7 +194,7 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
   {
     title: '操作',
     minWidth: 150,
-    cell: row => perm.canManageContent.value
+    cell: row => perm.canManageContent.value && !importLocked.value
       ? (
           <div class="op-cell">
             {row.languageCode !== sourceLanguage.value
@@ -197,11 +212,19 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
   <div>
     <BasePageHeader title="语言管理">
       <template #extra>
-        <BaseButton v-if="perm.canManageContent.value" type="primary" @click="showAddDialog = true">
+        <BaseButton v-if="perm.canManageContent.value && !importLocked" type="primary" @click="showAddDialog = true">
           添加语言
         </BaseButton>
       </template>
     </BasePageHeader>
+    <el-alert
+      v-if="importLocked"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="import-lock-alert"
+      :title="`正在导入${importLockType === 'translations' ? '翻译' : '条目'}${importLocker ? `（发起人：${importLocker}）` : ''}${importProgressText ? ` · ${importProgressText}` : ''}，本页已锁定，暂不可编辑，导入结束后自动恢复`"
+    />
     <BaseTable v-loading="tableLoading" :data="projectLanguages || []" :columns="langColumns" stripe row-key="id" />
     <EmptyState v-if="!projectLanguages || !projectLanguages.length" description="暂无语言" />
 
@@ -229,6 +252,7 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
 .lang-option { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; }
 .lang-option__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lang-option__code { flex: none; color: #909399; font-size: 12px; }
+.import-lock-alert { margin-bottom: 16px; }
 :deep(.lang-name-cell) { display: inline-flex; align-items: center; gap: 12px; }
 :deep(.op-cell) { display: inline-flex; align-items: center; gap: 8px; }
 </style>

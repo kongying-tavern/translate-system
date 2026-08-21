@@ -11,6 +11,7 @@ import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
 import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTableVirtualized, BaseTag, BaseTagInput } from '@/components/ui'
+import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useLanguageStore } from '@/stores/language'
 import { useLoadingStore } from '@/stores/loading'
@@ -198,6 +199,10 @@ function stopTagsPolling() {
     tagsTimer = undefined
   }
 }
+
+/** 导入锁：复用共享 composable 轮询 status，导入进行中时翻译管理页整体锁定（禁止编辑/删除/排序等），避免并发写入冲突。
+ *  status 接口对所有项目成员开放，锁状态跨角色/跨标签页实时生效。 */
+const { locked: importLocked, lockType: importLockType, locker: importLocker, progressText: importProgressText } = useImportStatus(projectSlug)
 function onVisibilityChange() {
   if (document.visibilityState === 'visible') {
     loadTags()
@@ -303,7 +308,7 @@ let dragStart: { index: number, keyId: string, y: number } | null = null
 let dragRaf = 0
 let dragClientY = 0
 function onDragStart(e: PointerEvent, index: number, keyId: string) {
-  if (!dragOrderable.value || !perm.canReorderRows.value)
+  if (importLocked.value || !dragOrderable.value || !perm.canReorderRows.value)
     return
   e.preventDefault()
   dragStart = { index, keyId, y: e.clientY }
@@ -400,6 +405,8 @@ function onDragEnd() {
 }
 
 function openInsertDialog(row: GroupedRow) {
+  if (importLocked.value)
+    return
   const idx = rows.value.findIndex(r => r.keyId === row.keyId)
   insertDialog.row = row
   insertDialog.srcNo = idx + 1
@@ -409,6 +416,8 @@ function openInsertDialog(row: GroupedRow) {
 }
 
 async function confirmInsert() {
+  if (importLocked.value)
+    return
   const src = insertDialog.row
   if (!src)
     return
@@ -471,6 +480,8 @@ function confirmJump() {
 }
 
 async function handleDelete(row: GroupedRow) {
+  if (importLocked.value)
+    return
   try {
     await ElMessageBox.confirm(`确定要删除 Key ${row.translationKey} 的所有翻译吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
   }
@@ -489,11 +500,15 @@ async function handleDelete(row: GroupedRow) {
 }
 
 function openCreate() {
+  if (importLocked.value)
+    return
   Object.assign(form, { translationKey: '', tags: [] })
   showCreateDialog.value = true
 }
 
 async function handleCreate() {
+  if (importLocked.value)
+    return
   if (!form.translationKey.trim()) {
     ElMessage.warning('请填写 Key')
     return
@@ -531,6 +546,8 @@ function handleBlurSave(action: () => void) {
 }
 
 async function onTagsChange(row: GroupedRow) {
+  if (importLocked.value)
+    return
   try {
     await updateKey(projectSlug.value, row.keyId, { tags: row.tags })
     ElMessage.success('标签已更新')
@@ -543,6 +560,8 @@ async function onTagsChange(row: GroupedRow) {
 }
 
 async function onKeySave(row: GroupedRow) {
+  if (importLocked.value)
+    return
   const newKey = (editCache[`key|${row.keyId}`] ?? row.translationKey).trim()
   if (!newKey) {
     ElMessage.warning('Key 不能为空')
@@ -564,6 +583,8 @@ async function onKeySave(row: GroupedRow) {
 }
 
 async function onSourceSave(row: GroupedRow) {
+  if (importLocked.value)
+    return
   const newText = editCache[`source|${row.keyId}`] ?? row.sourceText
   if (newText === row.sourceText) {
     delete editCache[`source|${row.keyId}`]
@@ -581,6 +602,8 @@ async function onSourceSave(row: GroupedRow) {
 }
 
 async function onContextSave(row: GroupedRow) {
+  if (importLocked.value)
+    return
   const newText = editCache[`context|${row.keyId}`] ?? row.context
   if (newText === row.context) {
     delete editCache[`context|${row.keyId}`]
@@ -598,6 +621,8 @@ async function onContextSave(row: GroupedRow) {
 }
 
 async function onTranslationSave(row: GroupedRow, lang: string) {
+  if (importLocked.value)
+    return
   if (!lang)
     return
   const ck = `translation|${row.keyId}|${lang}`
@@ -627,6 +652,8 @@ const expandTitle = computed(() => {
 })
 
 function openExpand(field: 'key' | 'source' | 'translation' | 'context' | 'tags', row: GroupedRow, langCode?: string) {
+  if (importLocked.value)
+    return
   expandDialog.field = field
   expandDialog.row = row
   expandDialog.langCode = langCode
@@ -651,6 +678,8 @@ function openExpand(field: 'key' | 'source' | 'translation' | 'context' | 'tags'
 }
 
 async function saveExpand() {
+  if (importLocked.value)
+    return
   const row = expandDialog.row
   if (!row)
     return
@@ -708,6 +737,7 @@ function rowClassName(params: Parameters<RowClassNameGetter<GroupedRow>>[0]): st
 
 const translationColumns = computed<Column<GroupedRow>[]>(() => {
   void scrolling.value
+  void importLocked.value
   const FIXED_WIDTHS = { drag: 64, rowIndex: 60, actions: 80 }
   const SCROLLBAR = 10
   const FLEX_MINS: Record<string, number> = { translationKey: 150, sourceText: 150, lang: 110, translation: 170, tags: 130, context: 130 }
@@ -734,7 +764,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
   }
   const cols: Column<GroupedRow>[] = []
 
-  if (dragOrderable.value && perm.canReorderRows.value) {
+  if (dragOrderable.value && perm.canReorderRows.value && !importLocked.value) {
     cols.push({
       key: 'drag',
       width: FIXED_WIDTHS.drag,
@@ -767,7 +797,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: flexWidths.translationKey,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditKeyColumn.value) {
+      if (perm.canEditKeyColumn.value && !importLocked.value) {
         if (scrolling.value)
           return <StaticTextCell text={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey} rows={rowHeightMult.value} />
         return (
@@ -805,7 +835,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: flexWidths.sourceText,
     fixed: TableV2FixedDir.LEFT,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditSourceColumn.value) {
+      if (perm.canEditSourceColumn.value && !importLocked.value) {
         if (scrolling.value)
           return <StaticTextCell text={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText} rows={rowHeightMult.value} />
         return (
@@ -867,6 +897,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       const ck = `translation|${rowData.keyId}|${lang}`
       if (scrolling.value)
         return <StaticTextCell text={editCache[ck] ?? text} rows={rowHeightMult.value} />
+      if (importLocked.value)
+        return <span class="cell-text" title={text}>{text}</span>
       return (
         <div class="expand-cell">
           <BaseInput
@@ -903,7 +935,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '标签',
     width: flexWidths.tags,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditTagsColumn.value) {
+      if (perm.canEditTagsColumn.value && !importLocked.value) {
         if (scrolling.value) {
           const tags = rowData.tags || []
           const rest = tags.length - 1
@@ -944,7 +976,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     title: '备注',
     width: flexWidths.context,
     cellRenderer: ({ rowData }) => {
-      if (perm.canEditContextColumn.value) {
+      if (perm.canEditContextColumn.value && !importLocked.value) {
         if (scrolling.value)
           return <StaticTextCell text={editCache[`context|${rowData.keyId}`] ?? rowData.context} rows={rowHeightMult.value} />
         return (
@@ -977,7 +1009,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     },
   })
 
-  if (perm.canManageKeys.value) {
+  if (perm.canManageKeys.value && !importLocked.value) {
     cols.push({
       key: 'actions',
       title: '操作',
@@ -1002,6 +1034,14 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         <span class="total-count">共 {{ total }} 条</span>
       </template>
     </BasePageHeader>
+    <el-alert
+      v-if="importLocked"
+      type="warning"
+      :closable="false"
+      show-icon
+      class="import-lock-alert"
+      :title="`正在导入${importLockType === 'translations' ? '翻译' : '条目'}${importLocker ? `（发起人：${importLocker}）` : ''}${importProgressText ? ` · ${importProgressText}` : ''}，本页已锁定，暂不可编辑，导入结束后自动恢复`"
+    />
     <BaseForm :inline="true" :model="filters" class="filter-bar">
       <BaseFormItem label="源语言">
         <BaseTag v-if="sourceLanguage" size="small" type="primary" effect="plain">
@@ -1047,7 +1087,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           查询
         </BaseButton><BaseButton @click="jumpDialog.visible = true">
           <BaseIcon><Position /></BaseIcon><span style="margin-left:4px">跳转</span>
-        </BaseButton><BaseButton v-if="perm.canManageKeys.value" @click="openCreate">
+        </BaseButton><BaseButton v-if="perm.canManageKeys.value && !importLocked" @click="openCreate">
           新增 Key
         </BaseButton>
       </BaseFormItem>
@@ -1247,4 +1287,5 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .jump-meta .insert-meta-control { min-height: 32px; }
 .row-height-opt { display: inline-flex; align-items: center; gap: 6px; }
 .row-height-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.import-lock-alert { margin-bottom: 16px; }
 </style>
