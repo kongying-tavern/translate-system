@@ -484,3 +484,8 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 - 基于本地项目代码和开发环境，在开发周期中使用（如数据导入、同步、本地调试等），依赖本地已安装的依赖和运行中的开发服务
 - 通过 `$(dirname "$0")`（sh）或 `$PSCommandPath`（ps1）自动定位项目子目录，在项目根目录下直接运行即可，无需先 `cd` 到对应子目录
 - 在 `docs/SCRIPTS_GUIDE.md` 中归入「开发脚本」章节
+
+## 交互约定
+- AI 回答应保持精简，用中文回答。
+- 遇到不确定的问题先提问；对规划类任务，先给出规划，再收到指令后才落实执行。
+
