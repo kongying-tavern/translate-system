@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import type { BaseTabularViewerProps, TabularViewMode } from './types'
+import type { BaseTabularViewerProps, TabularSize, TabularViewMode } from './types'
+import { CopyDocument } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed } from 'vue'
-import { BaseButton, BaseCheckbox, BaseRadioGroup } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseIcon, BaseRadioGroup } from '@/components/ui'
 
 const props = withDefaults(defineProps<BaseTabularViewerProps>(), {
   format: 'csv',
@@ -18,6 +19,9 @@ const modeOptions = [
   { label: '表格', value: 'table' as TabularViewMode },
   { label: '原文', value: 'raw' as TabularViewMode },
 ]
+
+/** 视图尺寸（small/default/large）：默认中，可受控传入 */
+const size = defineModel<TabularSize>('size', { default: 'default' })
 
 /** 兼容带引号字段、内嵌逗号/换行/双引号转义的 CSV 拆分（RFC 4180） */
 function csvSplit(data: string): string[][] {
@@ -127,12 +131,13 @@ async function copyData() {
 <template>
   <div class="base-tabular-viewer">
     <div class="base-tabular-viewer__toolbar">
-      <BaseRadioGroup v-model="mode" button size="small" :options="modeOptions" />
-      <BaseCheckbox v-if="mode === 'table'" v-model="wrap" size="small" class="base-tabular-viewer__wrap-toggle">
+      <BaseRadioGroup v-model="mode" button :size="size" :options="modeOptions" />
+      <BaseCheckbox v-if="mode === 'table'" v-model="wrap" :size="size" class="base-tabular-viewer__wrap-toggle">
         自动换行
       </BaseCheckbox>
       <div class="base-tabular-viewer__toolbar-spacer" />
-      <BaseButton size="small" @click="copyData">
+      <BaseButton :size="size" @click="copyData">
+        <BaseIcon><CopyDocument /></BaseIcon>
         复制
       </BaseButton>
     </div>
@@ -144,6 +149,8 @@ async function copyData() {
           :class="{
             'base-tabular-viewer__table--grid': showGridLines,
             'base-tabular-viewer__table--wrap': wrap,
+            'base-tabular-viewer__table--small': size === 'small',
+            'base-tabular-viewer__table--large': size === 'large',
           }"
         >
           <thead v-if="header.length">
@@ -167,7 +174,15 @@ async function copyData() {
         </div>
       </div>
     </template>
-    <pre v-else class="base-tabular-viewer__raw" :style="{ maxHeight }">{{ data }}</pre>
+    <pre
+      v-else
+      class="base-tabular-viewer__raw"
+      :class="{
+        'base-tabular-viewer__raw--small': size === 'small',
+        'base-tabular-viewer__raw--large': size === 'large',
+      }"
+      :style="{ maxHeight }"
+    >{{ data }}</pre>
   </div>
 </template>
 

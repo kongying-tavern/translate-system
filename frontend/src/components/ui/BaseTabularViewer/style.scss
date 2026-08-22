@@ -1,6 +1,7 @@
 .base-tabular-viewer {
   width: 100%;
-  font-size: 13px;
+  /* 默认（中）档正文 14px，与 el-table 全局默认字号一致 */
+  font-size: 14px;
   border: 1px solid #e4e7ed;
   border-radius: 8px;
   background: #fff;
@@ -64,11 +65,39 @@
       }
     }
 
+    // 尺寸档位：默认（中）为上方基础值，小/大在此覆写疏密
+    &.base-tabular-viewer__table--small {
+      th,
+      td {
+        padding: 3px 8px;
+        font-size: 12px;
+        line-height: 18px;
+      }
+
+      thead th {
+        font-size: 13px;
+      }
+    }
+
+    &.base-tabular-viewer__table--large {
+      th,
+      td {
+        padding: 10px 14px;
+        font-size: 16px;
+        line-height: 24px;
+      }
+
+      thead th {
+        font-size: 17px;
+      }
+    }
+
     thead th {
       background: #3a3f51;
       color: #fff;
       font-weight: 600;
-      font-size: 12px;
+      /* 表头比正文大 1px，深底白字下更醒目 */
+      font-size: 15px;
       position: sticky;
       top: 0;
       z-index: 1;
@@ -107,9 +136,18 @@
     border-top: 1px solid #e4e7ed;
     border-radius: 0 0 6px 6px;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-    font-size: 12px;
+    font-size: 14px;
     line-height: 1.6;
     color: #303133;
     white-space: pre;
+
+    // 尺寸档位：默认（中）为上方基础值，小/大在此覆写字号（与表格档位一致）
+    &.base-tabular-viewer__raw--small {
+      font-size: 12px;
+    }
+
+    &.base-tabular-viewer__raw--large {
+      font-size: 16px;
+    }
   }
 }
