@@ -11,6 +11,7 @@ import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useProjectStore } from '@/stores/project'
 import { decPathParam, encPathParam } from '@/utils/path'
+// 同目录组件用相对路径引入，避免经 common barrel 造成 index.ts ↔ AppHeader.vue 循环引用
 import EmptyState from './EmptyState.vue'
 
 const auth = useAuthStore()

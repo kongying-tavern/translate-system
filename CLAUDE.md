@@ -116,7 +116,7 @@ middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴�
 
 ```
 views/ → stores/ → api/ → Express (/api/v1/*)
-components/common/ — AppHeader(项目切换+设置), AppSidebar(菜单+权限), AppTabs(顶部标签页, 基于 BaseTabButton；首位固定「首页」标签，点击进 DashboardView；右键菜单只显示可执行操作——首页无「关闭自身/关闭左侧」、最左侧/最右侧标签无对应关闭项、标签≤1 无「关闭其他」，不可操作用隐藏而非禁用)
+components/common/ — 统一从 `@/components/common` barrel（index.ts 命名导出）引入，禁止深路径 import（common 目录内部互引用相对路径，避免 barrel 循环依赖）：AppHeader(项目切换+设置), AppSidebar(菜单+权限), AppTabs(顶部标签页, 基于 BaseTabButton；首位固定「首页」标签，点击进 DashboardView；右键菜单只显示可执行操作——首页无「关闭自身/关闭左侧」、最左侧/最右侧标签无对应关闭项、标签≤1 无「关闭其他」，不可操作用隐藏而非禁用)
 layouts/AuthLayout — 登录/注册卡片布局
 layouts/AppLayout — 主界面布局（Header + AppTabs 标签栏 + 内容区）
 ```

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { Loading } from '@element-plus/icons-vue'
-import AppHeader from '@/components/common/AppHeader.vue'
-import AppSidebar from '@/components/common/AppSidebar.vue'
-import AppTabs from '@/components/common/AppTabs.vue'
+import { AppHeader, AppSidebar, AppTabs } from '@/components/common'
 import { BaseIcon } from '@/components/ui'
 import { useLoadingStore } from '@/stores/loading'
 
