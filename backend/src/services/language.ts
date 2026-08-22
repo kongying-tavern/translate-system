@@ -24,7 +24,9 @@ export async function addProjectLanguage(projectId: string, languageCode: string
   const exists = await prisma.projectLanguage.findUnique({ where: { projectId_languageCode: { projectId, languageCode } } })
   if (exists)
     throw new AppError(1004, 'language already added to project')
-  return prisma.projectLanguage.create({ data: { projectId, languageCode } })
+  // 追加到末尾（max+100），避免默认 0 与既有语言并列导致刷新后按 languageCode 兜底排序
+  const max = await prisma.projectLanguage.aggregate({ where: { projectId }, _max: { sortOrder: true } })
+  return prisma.projectLanguage.create({ data: { projectId, languageCode, sortOrder: (max._max.sortOrder ?? 0) + 100 } })
 }
 
 /** 确保语言已在项目语言中；不存在则自动添加（默认排序置于最前） */
@@ -50,11 +52,19 @@ export async function removeProjectLanguage(projectId: string, languageCode: str
   return prisma.projectLanguage.deleteMany({ where: { projectId, languageCode } })
 }
 
-export async function updateLanguageAlias(id: string, alias: string) {
+/** 按行 id 更新别名；projectId 用于校验行归属，防跨项目改写 */
+export async function updateLanguageAlias(projectId: string, id: string, alias: string) {
+  const row = await prisma.projectLanguage.findFirst({ where: { id, projectId } })
+  if (!row)
+    throw new AppError(ErrCode.NotFound, 'language not found')
   return prisma.projectLanguage.update({ where: { id }, data: { alias: alias || null } })
 }
 
-export async function updateLanguageSortOrder(id: string, sortOrder: number) {
+/** 按行 id 更新排序；projectId 用于校验行归属，防跨项目改写 */
+export async function updateLanguageSortOrder(projectId: string, id: string, sortOrder: number) {
+  const row = await prisma.projectLanguage.findFirst({ where: { id, projectId } })
+  if (!row)
+    throw new AppError(ErrCode.NotFound, 'language not found')
   return prisma.projectLanguage.update({ where: { id }, data: { sortOrder } })
 }
 

@@ -111,14 +111,9 @@ async function moveUp(index: number) {
   if (index <= 0 || !list.length)
     return
   const cur = list[index]
-  const prev = list[index - 1]
-  const newOrder = prev.sortOrder ?? (index - 1)
-  cur.sortOrder = newOrder
-  prev.sortOrder = newOrder + 1
   list.splice(index, 1)
   list.splice(index - 1, 0, cur)
-  await saveOrder(cur)
-  await saveOrder(prev)
+  await persistOrder(list)
 }
 
 async function moveDown(index: number) {
@@ -128,18 +123,21 @@ async function moveDown(index: number) {
   if (index >= list.length - 1)
     return
   const cur = list[index]
-  const next = list[index + 1]
-  const newOrder = next.sortOrder ?? (index + 1)
-  cur.sortOrder = newOrder
-  next.sortOrder = newOrder - 1
   list.splice(index, 1)
   list.splice(index + 1, 0, cur)
-  await saveOrder(cur)
-  await saveOrder(next)
+  await persistOrder(list)
 }
 
-async function saveOrder(row: ProjectLanguage) {
-  await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/sortOrder`, { sortOrder: row.sortOrder }).catch(() => {})
+/** 按当前显示顺序全量重编号（index×10）并仅保存变化的行：历史数据 sortOrder 可能并列（新增语言曾默认 0），
+ * 只交换相邻两值会制造新并列，刷新后被 orderBy 的 languageCode 兜底打乱顺序 */
+async function persistOrder(list: ProjectLanguage[]) {
+  const updates = list
+    .map((row, index) => ({ row, sortOrder: index * 10 }))
+    .filter(({ row, sortOrder }) => row.sortOrder !== sortOrder)
+  await Promise.all(updates.map(async ({ row, sortOrder }) => {
+    row.sortOrder = sortOrder
+    await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/sortOrder`, { sortOrder }).catch(() => {})
+  }))
 }
 
 const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [

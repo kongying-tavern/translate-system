@@ -275,8 +275,8 @@ export class ProjectsController extends Controller {
   @Put('{projectSlug}/languages/{langCode}/alias')
   @Security('auth')
   public async updateAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: AliasBody): Promise<ApiOk<ProjectLanguageRow>> {
-    await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    return ok(await langService.updateLanguageAlias(langCode, body.alias) as ProjectLanguageRow)
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
+    return ok(await langService.updateLanguageAlias(access.projectId, langCode, body.alias) as ProjectLanguageRow)
   }
 
   /**
@@ -290,8 +290,8 @@ export class ProjectsController extends Controller {
   @Put('{projectSlug}/languages/{langCode}/sortOrder')
   @Security('auth')
   public async updateSortOrder(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: SortOrderBody): Promise<ApiOk<ProjectLanguageRow>> {
-    await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    return ok(await langService.updateLanguageSortOrder(langCode, body.sortOrder) as ProjectLanguageRow)
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
+    return ok(await langService.updateLanguageSortOrder(access.projectId, langCode, body.sortOrder) as ProjectLanguageRow)
   }
 
   /**
