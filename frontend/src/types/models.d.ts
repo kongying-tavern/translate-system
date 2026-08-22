@@ -168,6 +168,8 @@ export interface ImportResult {
   skippedKeys: number
   /** 因项目未配置语言而被跳过的语言代码（去重） */
   skippedLanguages: string[]
+  /** 源语言列被跳过的字段数（原文不随翻译导入修改） */
+  sourceSkippedFields?: number
 }
 
 /** 导入状态（与后端 ImportStatusRow 对应） */

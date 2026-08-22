@@ -112,6 +112,10 @@ function* csvParseGen(data: string): Generator<ImportEntry> {
   const langCols: ColumnDef[] = []
 
   for (let idx = 0; idx < headerFields.length; idx++) {
+    // 空表头列（尾部多余逗号产生的无名列）无法归属到任何语言，直接忽略、不产出条目，
+    // 否则每格都会经「entry.lang || languageCode」回退成目标语言字段被展开/统计
+    if (!headerFields[idx].trim())
+      continue
     const role = matchRole(headerFields[idx].trim())
     const col: ColumnDef = { idx, role: role ?? 'lang' }
     if (col.role === 'lang')

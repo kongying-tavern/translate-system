@@ -383,16 +383,22 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
 
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean, ctrl: ImportControl): Promise<ImportResult> {
   const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl)
-  const projectLangs = await prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } })
-  const knownLangs = new Set<string>()
+  const [projectLangs, project] = await Promise.all([
+    prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } }),
+    prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }),
+  ])
+  const sourceLang = project?.sourceLanguage ?? ''
+  /** 语言代码/别名 → 项目语言规范 code 的映射：比对与写入均用规范 code（alias 导入归一写真实语言，不落游离于项目语言之外的 value 行） */
+  const langCanonical = new Map<string, string>()
   for (const l of projectLangs) {
-    knownLangs.add(l.languageCode)
+    langCanonical.set(l.languageCode, l.languageCode)
     if (l.alias)
-      knownLangs.add(l.alias)
+      langCanonical.set(l.alias, l.languageCode)
   }
   const unknownLangs = new Set<string>()
   let createdFields = 0
   let skippedFields = 0
+  let sourceSkippedFields = 0
   const createdKeySet = new Set<string>()
   const skippedKeySet = new Set<string>()
   const cursor = { nextSo: 0 }
@@ -473,9 +479,9 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     const valueKeyIdSet = new Set<string>()
     const valueLangSet = new Set<string>()
     for (const entry of batch) {
-      const langCode = entry.lang || languageCode
+      const langCode = langCanonical.get(entry.lang || languageCode)
       const keyId = keyMap.get(entry.key)
-      if (!langCode || !knownLangs.has(langCode) || !keyId || entry.translatedText === undefined)
+      if (!langCode || !keyId || entry.translatedText === undefined)
         continue
       valueKeyIdSet.add(keyId)
       valueLangSet.add(langCode)
@@ -497,7 +503,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
 
     for (const entry of batch) {
       const { key, translatedText, context, tags, lang } = entry
-      const langCode = lang || languageCode
+      const langCode = langCanonical.get(lang || languageCode) ?? ''
       const keyId = keyMap.get(key)
       if (keyId && existedSet.has(key) && (context !== undefined || tags?.length)) {
         const updates: Prisma.TranslationKeyUpdateInput = {}
@@ -559,11 +565,21 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
   // imported 由 parseImportData 按全量 entries 计算，skipped 在此累加，口径与「逐条 skip」完全一致
   let batch: ImportEntry[] = []
   for (const entry of entries) {
-    const langCode = entry.lang || languageCode
-    if (langCode && !knownLangs.has(langCode)) {
+    const rawLang = entry.lang || languageCode
+    const canonical = langCanonical.get(rawLang)
+    if (!canonical) {
+      // 未配置的语言（或无语言）：整条丢弃计入 skipped；unknownLangs 仅供结果提示
+      if (rawLang)
+        unknownLangs.add(rawLang)
       skippedFields++
       skippedKeySet.add(entry.key)
-      unknownLangs.add(langCode)
+      continue
+    }
+    if (canonical === sourceLang) {
+      // 源语言的译文即原文列：翻译导入恒不触碰（无论是否勾选覆盖），计入 skipped 并单独统计提示
+      sourceSkippedFields++
+      skippedFields++
+      skippedKeySet.add(entry.key)
       continue
     }
     if (ctrl.aborted)
@@ -585,7 +601,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     if (!createdKeySet.has(k))
       realSkippedKeys++
   }
-  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: realSkippedKeys, skippedLanguages: [...unknownLangs] }
+  return { importedKeys, importedFields, createdFields, createdKeys: createdKeySet.size, skippedFields, skippedKeys: realSkippedKeys, skippedLanguages: [...unknownLangs], sourceSkippedFields }
 }
 
 /**

@@ -40,6 +40,8 @@ export interface ImportResult {
   skippedKeys: number
   /** 因项目未配置语言而被跳过的语言代码（去重） */
   skippedLanguages: string[]
+  /** 源语言列被跳过的字段数（源语言译文即原文列，翻译导入恒不触碰）；为 0 时前端不展示该行 */
+  sourceSkippedFields?: number
 }
 
 export interface ImportControl {

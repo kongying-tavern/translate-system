@@ -9,16 +9,22 @@ import { ImportFormat } from '@/data/importFormats'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
+import { useProjectStore } from '@/stores/project'
 import { formatCount } from '@/utils/format'
 import { decPathParam, encPathParam } from '@/utils/path'
 
 const route = useRoute()
 const perm = useProjectPermission()
 const auth = useAuthStore()
+const projectStore = useProjectStore()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const importing = ref(false)
 const { isLocked: importLocked, importerId: importLockerId, status: importStatus, load: loadImportStatus, reset: resetImportStatus, statsLines: importStatsLines, importTitle } = useImportStatus(projectSlug, { importing })
 const projectLanguages = ref<ProjectLanguage[]>([])
+/** 项目源语言（原文列）：翻译导入恒不触碰，目标语言下拉排除之 */
+const sourceLanguage = computed(() => projectStore.bySlug[projectSlug.value]?.sourceLanguage ?? '')
+/** 可选目标语言 = 项目语言排除源语言 */
+const importableLangs = computed(() => projectLanguages.value.filter(l => l.languageCode !== sourceLanguage.value))
 const mode = ref('entries')
 const fmt = ref<string>(ImportFormat.JSON)
 const importLang = ref('')
@@ -52,7 +58,9 @@ watch(importStatus, (s) => {
   }
   else if (result) {
     const msg = importSuccessMsg(s.type === 'translations' ? 'translate' : 'entries', result)
-    setNotice('success', wasImporting.value ? msg.title : '已导入：', msg.lines)
+    // 一个字段都没写入（如目标语言误选、文件语言全部未配置）时以警告级别展示，提示排查而非默默"成功"
+    const wroteNothing = result.createdFields === 0 && result.createdKeys === 0
+    setNotice(wroteNothing ? 'warning' : 'success', wroteNothing ? '导入完成：未写入任何译文' : (wasImporting.value ? msg.title : '已导入：'), msg.lines)
   }
   else {
     return
@@ -124,8 +132,7 @@ const isXmlExample = computed(() => fmt.value === ImportFormat.XML)
 async function loadLanguages() {
   const { data: res } = await client.get(`/projects/${encPathParam(projectSlug.value)}/languages`)
   projectLanguages.value = res.data || []
-  if (projectLanguages.value.length)
-    importLang.value = projectLanguages.value[0].languageCode
+  importLang.value = importableLangs.value[0]?.languageCode ?? ''
 }
 watch(projectSlug, () => {
   importFile.value = null
@@ -181,6 +188,8 @@ function importSuccessMsg(mode: 'entries' | 'translate', d1: ImportResult) {
   const langs = d1.skippedLanguages || []
   if (langs.length)
     lines.push(`以下语言项目未配置，已跳过导入：${langs.join('、')}`)
+  if (d1.sourceSkippedFields)
+    lines.push(`源语言译文 ${formatCount(d1.sourceSkippedFields)} 个已跳过（对应原文列，不随翻译导入修改）`)
   return { title: '导入完成：', lines }
 }
 
@@ -194,7 +203,6 @@ async function doTextImport() {
     return
   }
   importing.value = true
-  wasImporting.value = true
   notice.value = null
   resetImportStatus()
   try {
@@ -205,6 +213,8 @@ async function doTextImport() {
       : { data: textInput.value, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     textInput.value = ''
     await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
+    // POST 成功（accepted）才视为“我发起了导入”；提交失败（如 Conflict）若不复位会误认领后续历史结果
+    wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {
@@ -225,7 +235,6 @@ async function doImport() {
   const file = importFile.value
   importFile.value = null
   importing.value = true
-  wasImporting.value = true
   notice.value = null
   resetImportStatus()
   try {
@@ -236,6 +245,7 @@ async function doImport() {
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
+    wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {
@@ -295,7 +305,7 @@ async function doAbort() {
         </BaseFormItem>
         <BaseFormItem v-if="needLang" label="语言">
           <BaseSelect v-model="importLang" :disabled="importDisabled" style="width:160px">
-            <el-option v-for="l in projectLanguages" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
+            <el-option v-for="l in importableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
           </BaseSelect>
         </BaseFormItem>
         <BaseFormItem>
