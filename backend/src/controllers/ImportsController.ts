@@ -86,6 +86,8 @@ interface ParsedImport {
 }
 
 const IMPORT_BATCH = 1000
+/** 跨批 key→id 缓存上限（优化 H）：超限整体清空，由后续批次重新查库（unique(project_id, key) 命中索引），防百万级 key 时 Map 无界膨胀 */
+const IMPORT_KEY_CACHE_MAX = 50_000
 
 /** 让出事件循环，避免长循环阻塞其他请求 */
 function deferEventLoop(): Promise<void> {
@@ -226,6 +228,9 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
     if (ctrl.aborted)
       throw new AppError(ErrCode.Conflict, '导入已中止')
     emitImportStatus(ctrl.projectId)
+    // keyIdCache 封顶（优化 H）：超限整体清空，本批起重新查库
+    if (keyIdCache.size > IMPORT_KEY_CACHE_MAX)
+      keyIdCache.clear()
     // 1. 预加载本批缺失 key→id（已缓存跳过），建映射；existedSet 仅含本批查到的已存在 key
     const batchKeys = [...new Set(batch.map(e => e.key))]
     const uncached = batchKeys.filter(k => !keyIdCache.has(k))
@@ -399,6 +404,9 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     if (ctrl.aborted)
       throw new AppError(ErrCode.Conflict, '导入已中止')
     emitImportStatus(ctrl.projectId)
+    // keyIdCache 封顶（优化 H）：超限整体清空，本批起重新查库
+    if (keyIdCache.size > IMPORT_KEY_CACHE_MAX)
+      keyIdCache.clear()
     // 1. 预加载本批缺失 key→id（已缓存跳过），建映射；existedSet 仅含本批查到的已存在 key
     const batchKeys = [...new Set(batch.map(e => e.key))]
     const uncached = batchKeys.filter(k => !keyIdCache.has(k))
@@ -546,9 +554,10 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     ctrl.progress.skippedKeys = skippedKeySet.size
   }
 
-  // 导入前按项目语言预过滤：不支持的语言整条丢弃（不建空 key），但仍在预过滤阶段计入 skipped 统计，
-  // 保证与「逐条 skip」的统计口径完全一致（imported 由 parseImportData 按全量 entries 计算，skipped 在此累加）
-  const filteredEntries: ImportEntry[] = []
+  // 语言预过滤与分批写入同属单次流式遍历（优化 G）：不支持的语言整条丢弃（不建空 key）并在此计入 skipped 统计，
+  // 无 filteredEntries 全量中间数组——多语言大 CSV 展开的百万级条目若物化全量数组会直接 OOM。
+  // imported 由 parseImportData 按全量 entries 计算，skipped 在此累加，口径与「逐条 skip」完全一致
+  let batch: ImportEntry[] = []
   for (const entry of entries) {
     const langCode = entry.lang || languageCode
     if (langCode && !knownLangs.has(langCode)) {
@@ -557,11 +566,6 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
       unknownLangs.add(langCode)
       continue
     }
-    filteredEntries.push(entry)
-  }
-
-  let batch: ImportEntry[] = []
-  for (const entry of filteredEntries) {
     if (ctrl.aborted)
       throw new AppError(ErrCode.Conflict, '导入已中止')
     batch.push(entry)
