@@ -10,6 +10,7 @@ import { computed, onMounted, onUnmounted, reactive, ref, useTemplateRef, watch 
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
 import { getTags, saveTranslation, updateKey } from '@/api/translation'
+import { EmptyState } from '@/components/common'
 import { BaseButton, BaseCheckbox, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseLink, BaseNotice, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTableVirtualized, BaseTag, BaseTagInput } from '@/components/ui'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
@@ -1114,7 +1115,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
             @scroll="onTableScroll"
           >
             <template #empty>
-              暂无数据
+              <EmptyState description="暂无翻译 Key，输入关键词或创建新的 Key 开始翻译" />
             </template>
           </BaseTableVirtualized>
         </template>
@@ -1285,4 +1286,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .jump-meta .insert-meta-control { min-height: 32px; }
 .row-height-opt { display: inline-flex; align-items: center; gap: 6px; }
 .row-height-icon { width: 18px; height: 18px; flex-shrink: 0; }
+
+/* 表格空状态：el-table-v2__empty 默认仅 offset left，不居中，改为整体居中 */
+.trans-table :deep(.el-table-v2__empty) { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; }
 </style>
