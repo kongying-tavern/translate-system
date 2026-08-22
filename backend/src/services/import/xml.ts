@@ -42,26 +42,36 @@ function parseString(s: RawString, index: number): ImportEntry {
   }
 }
 
-function parseFlatXml(root: Exclude<RawDoc['resources'], undefined>): ImportEntry[] {
-  return toArray(root.string).map(parseString)
+function* parseFlatXml(root: Exclude<RawDoc['resources'], undefined>): Generator<ImportEntry> {
+  const strings = toArray(root.string)
+  for (let i = 0; i < strings.length; i++)
+    yield parseString(strings[i], i)
 }
 
-function parseNestedXml(root: Exclude<RawDoc['resources'], undefined>): ImportEntry[] {
-  const entries: ImportEntry[] = []
+function* parseNestedXml(root: Exclude<RawDoc['resources'], undefined>): Generator<ImportEntry> {
   for (const lang of toArray(root.language)) {
     const langCode = lang['@_code'] ?? ''
     if (!langCode)
       throw new AppError(ErrCode.InvalidParams, 'XML <language> 缺少 code 属性（语言代码），已拒绝导入')
-    toArray(lang.string).forEach((s, i) => entries.push({ ...parseString(s, i), lang: langCode }))
+    const strings = toArray(lang.string)
+    for (let i = 0; i < strings.length; i++)
+      yield { ...parseString(strings[i], i), lang: langCode }
   }
-  return entries
 }
 
-export function xmlParse(data: string): ImportEntry[] {
+/**
+ * XML 流式解析：fast-xml-parser 整体建 DOM 后按 flat/nested 结构以生成器逐条产出（不物化条目数组）。
+ * 返回可重复迭代的 Iterable——每次迭代从同一棵 DOM 重建新生成器，供「校验遍历 → 写入遍历」两轮消费；
+ * 校验抛错即全量拒绝。
+ */
+export function xmlParse(data: string): Iterable<ImportEntry> {
   const parser = new XMLParser({ ignoreAttributes: false })
   const doc = parser.parse(data) as RawDoc
   const root = doc?.resources
   if (!root)
     throw new AppError(ErrCode.InvalidParams, '未找到 <resources> 根节点，请检查 XML 结构')
-  return toArray(root.language).length ? parseNestedXml(root) : parseFlatXml(root)
+  return {
+    [Symbol.iterator]: () =>
+      toArray(root.language).length ? parseNestedXml(root) : parseFlatXml(root),
+  }
 }

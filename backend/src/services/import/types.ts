@@ -22,8 +22,3 @@ export const FlatEntryValueSchema = z.object({
   tags: z.array(z.string()).optional(),
   context: z.string().optional(),
 }).strict()
-
-export const FlatEntriesSchema = z.record(
-  z.string(),
-  z.union([z.string(), FlatEntryValueSchema]),
-)
