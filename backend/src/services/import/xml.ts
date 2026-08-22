@@ -36,7 +36,7 @@ function parseString(s: RawString, index: number): ImportEntry {
   return {
     key: name,
     sourceText: s['@_sourceText'] || name,
-    translatedText: s['#text']?.trim() ?? '',
+    translatedText: String(s['#text'] ?? '').trim(),
     tags: s['@_tags'] ? s['@_tags'].split(';').map(t => t.trim()) : [],
     context: s['@_context'] ?? '',
   }
@@ -65,7 +65,7 @@ function* parseNestedXml(root: Exclude<RawDoc['resources'], undefined>): Generat
  * 校验抛错即全量拒绝。
  */
 export function xmlParse(data: string): Iterable<ImportEntry> {
-  const parser = new XMLParser({ ignoreAttributes: false })
+  const parser = new XMLParser({ ignoreAttributes: false, parseTagValue: false })
   const doc = parser.parse(data) as RawDoc
   const root = doc?.resources
   if (!root)
