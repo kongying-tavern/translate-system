@@ -2,6 +2,7 @@ import type { User } from '@/types/models'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as authApi from '@/api/auth'
+import { scheduleProactiveRefresh, stopProactiveRefresh } from '@/api/tokenRefresh'
 import { useProjectStore } from '@/stores/project'
 import { SystemRole } from '@/utils/roles'
 import { clearTokens, getAccessToken, setTokens } from '@/utils/token'
@@ -28,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function init() {
     if (!getAccessToken())
       return
+    scheduleProactiveRefresh()
     try {
       const { data: res } = await authApi.getMe()
       user.value = res.data
@@ -113,6 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   function logout() {
     stopPermissionPolling()
+    stopProactiveRefresh()
     clearTokens()
     user.value = null
     isAuthenticated.value = false

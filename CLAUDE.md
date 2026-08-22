@@ -100,7 +100,7 @@ docs/swagger.ts          — 手写包装（import swagger.json + 加 basePath�
 docs/routes.ts + swagger.json — tsoa 生成产物（`pnpm gen` 重新生成，勿手改），已 gitignore（`backend/src/docs/*` + `!swagger.ts`），由 `predev`（开发启动）和 Dockerfile `RUN pnpm gen`（镜像构建）自动生成
 middleware/auth.ts         — AuthRequest 类型 + authMiddleware（JWT，docs 路由仍用）
 middleware/decodePathParams.ts — 统一解码 URL 路径参数（`b64_` 前缀才解码），经类级 `@Middlewares(decodePathParams)` 挂在所有含 `@Path` 参数的 controller 上（ApiKeys/Auth/Exports/Imports/Layouts/Projects/Translations），在 handler 前改写 `req.params`
-middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000，英文校验信息格式化为中文，如「缺少必填参数：templateSlug、languageCodes」）；body-parser 错误（`express.json({ limit: '200mb' })`，index.ts）返回统一 JSON：超限 413「请求体过大」、非法 JSON 400
+middleware/errorHandler.ts — 适配 AppError（业务错误 200 + code，鉴权失败 401）与 tsoa ValidateError（→ 1000，英文校验信息格式化为中文，如「缺少必填参数：templateSlug、languageCodes」）；body-parser 错误（`express.json({ limit: '200mb' })`，index.ts）返回统一 JSON：超限 413「请求体过大」、非法 JSON 400；AppError/ValidateError/body-parser 均为预期路径只记单行 `console.warn`（含 method/url/code/message），**不打堆栈**——access token 每 15min 过期的常规 401 靠前端静默刷新消化，勿改回无条件 `console.error`；仅未预期异常才打完整堆栈并返回 500
 ```
 
 **tsoa 用法**：控制器用 `@Route` / `@Get|@Post|@Put|@Delete` / `@Path` / `@Query` / `@Body` / `@Security` 注解，改完控制器后必须 `cd backend && pnpm gen` 重新生成 `docs/routes.ts`（挂载用）和 `docs/swagger.json`（OpenAPI）。
@@ -416,13 +416,14 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 | 文件 | 职责 |
 |------|------|
-| `stores/auth.ts` | 用户信息、系统角色、`activeProjectSlug`；`activeProjectName` / `projectRole` 为从 project store `bySlug` map 派生的 computed，`setActiveProject(slug)` 只写 slug + localStorage；`init()` 启动**权限轮询**（`startPermissionPolling`）：每 30s 刷新 `getMe` + 项目列表（`fetchProjects(true)`），后台标签页跳过、回前台立即补一次，权限变更后 UI 权限 computeds 响应式隐藏/显示操作入口（不重载页面）；`logout()` 停止轮询 |
+| `stores/auth.ts` | 用户信息、系统角色、`activeProjectSlug`；`activeProjectName` / `projectRole` 为从 project store `bySlug` map 派生的 computed，`setActiveProject(slug)` 只写 slug + localStorage；`init()` 启动**token 主动刷新调度**（scheduleProactiveRefresh）与**权限轮询**（`startPermissionPolling`）：每 30s 刷新 `getMe` + 项目列表（`fetchProjects(true)`），后台标签页跳过、回前台立即补一次，权限变更后 UI 权限 computeds 响应式隐藏/显示操作入口（不重载页面）；`logout()` 同时停止两者 |
 | `stores/project.ts` | 用户参与的项目列表 + `bySlug` computed（slug=`code||id` → Project）；`auth.init()` 启动加载（`loaded` 守卫），增删改（`create`/`update`/`remove`）统一走 store 保证 map 一致，`clear()` 供 logout 调用 |
 | `stores/translation.ts` | 翻译列表、GroupedRow 类型 |
 | `stores/loading.ts` | 全局 loading 遮罩 |
 | `stores/tabs.ts` | 顶部标签页（AppTabs）：已打开页面列表、activePath、增删标签（首页标签为固定首项，不在 store 中，不可关闭，右键只显示「关闭右侧/关闭其他」）；`renameProjectSlug` 重写项目 tab 路径（code 变更）、`removeProjectTabs` 关闭某项目全部 tab（删除项目） |
 | `hooks/useProjectPermission.ts` | 三层权限模型（菜单/功能/数据权限） |
 | `api/client.ts` | Axios 实例、401 自动 refresh token；响应拦截器对 `code !== 0` 的业务错误（HTTP 200）统一 reject 并携带 `response`，让各页面 catch 能拿到 `e.response?.data?.message` |
+| `api/tokenRefresh.ts` | **token 刷新单源**：`refreshTokens()` 单飞（并发共享一次请求 + 排队）；**主动刷新**——auth.init 后按 localStorage `token_expires` 在过期前 30s 定时换新（后台标签页定时器节流由响应式 401 兜底），监听 `storage` 事件在其他标签页更新/清除 token 时自动重排；**多标签页旋转竞态守卫**——刷新失败时若本地 refreshToken 已被其他标签页换新，则采用新值视为成功而不登出；彻底失败才清 token 跳登录。access TTL 仅 15min，过期瞬间的单次 401 属正常轮换 |
 | `router/index.ts` | 路由守卫、auth.init() 初始化；路由 `meta.isStatic: true` 标记固定标签页（不进 tabs store、不可关闭），AppTabs 通过 `router.resolve(path).meta.isStatic` 判断；`meta.perm` 做 URL 直达拦截（`sys:admin`/`sys:super_admin` 按系统角色、`proj:admin`/`proj:maintainer`/`proj:member` 按 URL 项目角色，`hasRoutePermission` 校验，super_admin 项目级恒放行，无权限重定向 `/`）。新增受限页面需设置 `meta.perm` |
 
 ### 改动翻译相关功能
