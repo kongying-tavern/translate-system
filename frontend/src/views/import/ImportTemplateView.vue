@@ -38,24 +38,27 @@ function setNotice(type: 'success' | 'warning' | 'error', text: string, lines?: 
   notice.value = { type, text, lines }
 }
 
-/** 轮询带回的导入结束结果：本次会话发起且状态翻转（locked→false）且未消费过时，展示成功/失败提示（避免重复弹窗） */
+/** 轮询带回的导入结束结果：未锁定且有 result/error 时展示可关闭提示（按 startTimestamp 去重避免重复弹窗）——本会话发起的用「导入完成：」标题；进页面/刷新后直接读到已完成状态（如进行中刷新、他人历史导入）用「已导入：」标题，统计行一致，避免刷新后错过结果 */
 watch(importStatus, (s) => {
   if (!s)
     return
   const startTs = (s.startTimestamp as number) || 0
   const result = s.result ?? null
   const error = s.error ?? null
-  if (wasImporting.value && !importLocked.value && startTs && startTs !== consumedTs.value) {
-    if (error) {
-      setNotice(error === '导入已中止' ? 'warning' : 'error', error)
-    }
-    else if (result) {
-      const msg = importSuccessMsg(importMode.value, result)
-      setNotice('success', msg.title, msg.lines)
-    }
-    consumedTs.value = startTs
-    wasImporting.value = false
+  if (importLocked.value || !startTs || startTs === consumedTs.value)
+    return
+  if (error) {
+    setNotice(error === '导入已中止' ? 'warning' : 'error', error)
   }
+  else if (result) {
+    const msg = importSuccessMsg(s.type === 'translations' ? 'translate' : 'entries', result)
+    setNotice('success', wasImporting.value ? msg.title : '已导入：', msg.lines)
+  }
+  else {
+    return
+  }
+  consumedTs.value = startTs
+  wasImporting.value = false
 })
 watch(projectSlug, () => {
   wasImporting.value = false
