@@ -74,7 +74,7 @@ async function handleSave() {
         </BaseSelect>
       </BaseFormItem>
       <BaseFormItem label="覆盖配置 (JSON)">
-        <BaseInput v-model="overrideStr" type="textarea" :rows="12" placeholder="输入JSON覆盖配置..." />
+        <BaseInput v-model="overrideStr" type="textarea" :rows="12" placeholder="输入JSON覆盖配置..." style="font-family:monospace;font-size:13px" />
       </BaseFormItem>
       <BaseFormItem>
         <BaseButton type="primary" :loading="saving" @click="handleSave">

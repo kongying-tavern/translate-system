@@ -236,7 +236,7 @@ onMounted(async () => {
             <h4 class="section-title">
               curl 示例
             </h4>
-            <BaseInput :model-value="curlExample" type="textarea" :rows="6" readonly class="curl-box" />
+            <BaseInput :model-value="curlExample" type="textarea" :rows="6" readonly class="code-box" />
           </el-card>
         </div>
       </el-tab-pane>
@@ -451,7 +451,7 @@ onMounted(async () => {
   color: #e74c3c;
 }
 
-.curl-box :deep(textarea) {
+.code-box :deep(textarea) {
   font-family: 'JetBrains Mono', Consolas, monospace;
   font-size: 13px;
   background: #f8f9fa;

@@ -77,7 +77,7 @@ async function handleSave() {
         <el-switch v-model="form.isDefault" />
       </BaseFormItem>
       <BaseFormItem label="配置 (JSON)">
-        <BaseInput v-model="configStr" type="textarea" :rows="12" placeholder="输入JSON配置..." />
+        <BaseInput v-model="configStr" type="textarea" :rows="12" placeholder="输入JSON配置..." style="font-family:monospace;font-size:13px" />
       </BaseFormItem>
       <BaseFormItem>
         <BaseButton type="primary" :loading="saving" @click="handleSave">
