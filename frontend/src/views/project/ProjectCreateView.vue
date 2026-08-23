@@ -3,7 +3,8 @@ import type { ComponentExposed } from 'vue-component-type-helpers'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, reactive, ref, useTemplateRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BaseNotice, BasePageHeader, BaseSelect } from '@/components/ui'
+import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
 import { useLanguageStore } from '@/stores/language'
@@ -23,6 +24,8 @@ const loaded = ref(false)
 const slug = computed(() => decPathParam(route.params.projectSlug as string | undefined))
 const isEdit = computed(() => !!slug.value)
 const title = computed(() => (isEdit.value ? '编辑项目' : '新建项目'))
+// 编辑模式复用本页（/projects/:slug/edit）：改源语言会写项目语言数据，导入进行中需锁定整个表单与删除按钮
+const { isLocked: importLocked, bannerTitle: importLockBannerTitle } = useImportStatus(() => slug.value || '')
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en-US' })
 const formRef = useTemplateRef<ComponentExposed<typeof BaseForm>>('formRef')
 const rules = {
@@ -53,7 +56,7 @@ onMounted(async () => {
 })
 
 async function handleDelete() {
-  if (!slug.value)
+  if (!slug.value || importLocked.value)
     return
   try {
     await ElMessageBox.confirm(`确定要删除项目「${form.name}」吗？该操作不可恢复。`, '危险操作', { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'error' })
@@ -75,6 +78,8 @@ async function handleDelete() {
 }
 
 async function handleSubmit() {
+  if (importLocked.value)
+    return
   if (!formRef.value)
     return
   try {
@@ -116,18 +121,24 @@ async function handleSubmit() {
 <template>
   <div>
     <BasePageHeader :title="title" />
+    <BaseNotice
+      v-if="importLocked"
+      type="warning"
+      :closable="false"
+      :title="importLockBannerTitle"
+    />
     <BaseForm ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-width:600px">
       <BaseFormItem label="项目名称" prop="name">
-        <BaseInput v-model="form.name" placeholder="请输入项目名称" />
+        <BaseInput v-model="form.name" placeholder="请输入项目名称" :disabled="loading || importLocked" />
       </BaseFormItem>
       <BaseFormItem label="项目标识" prop="code">
-        <BaseInput v-model="form.code" placeholder="英文标识，如 my-project" />
+        <BaseInput v-model="form.code" placeholder="英文标识，如 my-project" :disabled="loading || importLocked" />
       </BaseFormItem>
       <BaseFormItem label="项目描述">
-        <BaseInput v-model="form.description" type="textarea" placeholder="项目描述(可选)" />
+        <BaseInput v-model="form.description" type="textarea" placeholder="项目描述(可选)" :disabled="loading || importLocked" />
       </BaseFormItem>
       <BaseFormItem label="源语言" prop="sourceLanguage">
-        <BaseSelect v-model="form.sourceLanguage" filterable placeholder="搜索语言..." style="width:100%">
+        <BaseSelect v-model="form.sourceLanguage" filterable placeholder="搜索语言..." style="width:100%" :disabled="loading || importLocked">
           <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" class="base-option" :label="`${l.englishName} (${l.nativeName || ''}) - ${l.languageCode}`" :value="l.languageCode">
             <span class="lang-option">
               <span class="lang-option__name">{{ l.englishName }} ({{ l.nativeName || '' }})</span>
@@ -142,13 +153,13 @@ async function handleSubmit() {
       <BaseFormItem>
         <div class="form-actions">
           <div class="form-actions__main">
-            <BaseButton type="primary" :loading="loading" @click="handleSubmit">
+            <BaseButton type="primary" :loading="loading" :disabled="loading || importLocked" @click="handleSubmit">
               {{ isEdit ? '保存' : '创建' }}
             </BaseButton><BaseButton @click="$router.push('/')">
               取消
             </BaseButton>
           </div>
-          <BaseButton v-if="isEdit && perm.canDeleteProject.value" type="danger" @click="handleDelete">
+          <BaseButton v-if="isEdit && perm.canDeleteProject.value" type="danger" :disabled="loading || importLocked" @click="handleDelete">
             删除项目
           </BaseButton>
         </div>

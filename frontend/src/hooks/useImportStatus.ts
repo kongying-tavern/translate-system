@@ -105,6 +105,9 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>, options?:
           idx = buf.indexOf('\n\n')
         }
       }
+      // 服务端正常关闭（后端重启/代理断开等）：与异常同等对待，立即拉取一次状态并回退轮询，避免页面永久失聪
+      if (!ctrl.signal.aborted)
+        startPolling()
     }
     catch {
       // 连接失败/被中止（非主动 stop）时回退轮询

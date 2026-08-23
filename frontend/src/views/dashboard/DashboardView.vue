@@ -2,8 +2,9 @@
 import type { Project } from '@/types/models'
 import { Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import client from '@/api/client'
 import { BaseButton, BaseIcon, BaseLink } from '@/components/ui'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
 import { useAuthStore } from '@/stores/auth'
@@ -18,12 +19,43 @@ const store = useProjectStore()
 const tabsStore = useTabsStore()
 const perm = useProjectPermission()
 const loading = ref(true)
+// 首页不建长连接：10s 轻量轮询各项目导入状态，驱动「导入中」徽标与编辑/删除禁用
+const importLockMap = ref<Record<string, boolean>>({})
+let lockTimer: ReturnType<typeof setInterval> | undefined
+
+function isProjLocked(p: Project): boolean {
+  return !!importLockMap.value[p.code || p.id]
+}
+
+async function refreshImportLocks(): Promise<void> {
+  const pairs = await Promise.all(store.projects.map(async (p) => {
+    const slug = p.code || p.id
+    try {
+      const { data: res } = await client.get(`/projects/${encPathParam(slug)}/imports/status`)
+      return [slug, !!res.data?.locked] as const
+    }
+    catch {
+      return [slug, false] as const
+    }
+  }))
+  importLockMap.value = Object.fromEntries(pairs)
+}
 
 onMounted(async () => {
   await store.fetchProjects()
   loading.value = false
-  if (store.projects.length === 0)
+  if (store.projects.length === 0) {
     auth.setActiveProject('')
+  }
+  else {
+    void refreshImportLocks()
+    lockTimer = setInterval(() => void refreshImportLocks(), 10000)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (lockTimer)
+    clearInterval(lockTimer)
 })
 
 function goProject(p: Project): void {
@@ -35,6 +67,10 @@ function editProject(p: Project): void {
 }
 
 async function deleteProject(p: Project): Promise<void> {
+  if (isProjLocked(p)) {
+    ElMessage.warning('该项目正在导入，暂不能删除')
+    return
+  }
   try {
     await ElMessageBox.confirm(`确定删除项目「${p.name}」吗？该操作不可恢复。`, '删除项目', { type: 'warning' })
   }
@@ -79,6 +115,7 @@ async function deleteProject(p: Project): Promise<void> {
         <div class="project-card__top">
           <span class="project-card__name">{{ p.name }}</span>
           <span v-if="p.projectRole" class="project-card__role">{{ projectRoleLabel(p.projectRole) }}</span>
+          <span v-if="isProjLocked(p)" class="project-card__lock">导入中</span>
         </div>
         <code v-if="p.code" class="project-card__code">{{ p.code }}</code>
         <p
@@ -92,12 +129,12 @@ async function deleteProject(p: Project): Promise<void> {
             源语言：<code class="project-card__lang-code">{{ p.sourceLanguage }}</code>
           </span>
           <div v-if="perm.canEditProject.value" class="project-card__actions" @click.stop>
-            <BaseLink class="project-card__action" :underline="false" title="编辑" @click.stop="editProject(p)">
+            <BaseLink class="project-card__action" :underline="false" title="编辑" :disabled="isProjLocked(p)" @click.stop="editProject(p)">
               <BaseIcon size="16">
                 <Edit />
               </BaseIcon>
             </BaseLink>
-            <BaseLink type="danger" class="project-card__action" :underline="false" title="删除" @click.stop="deleteProject(p)">
+            <BaseLink type="danger" class="project-card__action" :underline="false" title="删除" :disabled="isProjLocked(p)" @click.stop="deleteProject(p)">
               <BaseIcon size="16">
                 <Delete />
               </BaseIcon>
@@ -181,6 +218,15 @@ async function deleteProject(p: Project): Promise<void> {
     font-size: 12px;
     color: #409eff;
     background: #ecf5ff;
+    border-radius: 4px;
+    padding: 2px 6px;
+  }
+
+  &__lock {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #e6a23c;
+    background: #fdf6ec;
     border-radius: 4px;
     padding: 2px 6px;
   }

@@ -3,7 +3,8 @@ import { ElMessage } from 'element-plus'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getProject, updateProject } from '@/api/project'
-import { BaseButton, BaseForm, BaseFormItem, BaseInput, BasePageHeader, BaseSelect } from '@/components/ui'
+import { BaseButton, BaseForm, BaseFormItem, BaseInput, BaseNotice, BasePageHeader, BaseSelect } from '@/components/ui'
+import { useImportStatus } from '@/hooks/useImportStatus'
 import { useLanguageStore } from '@/stores/language'
 import { decPathParam } from '@/utils/path'
 
@@ -12,6 +13,8 @@ const router = useRouter()
 const projectSlug = computed(() => decPathParam(route.params.projectSlug as string) as string)
 const langStore = useLanguageStore()
 const saving = ref(false)
+// 改源语言会写入项目语言数据（ensureProjectLanguage 自动补语言），导入进行中需与语言管理页同样锁定
+const { isLocked: importLocked, bannerTitle: importLockBannerTitle } = useImportStatus(projectSlug)
 const form = reactive({ name: '', code: '', description: '', sourceLanguage: 'en-US' })
 const sortedBaseLanguages = computed(() => [...langStore.baseLanguages].sort((a, b) => a.englishName.localeCompare(b.englishName)))
 
@@ -25,6 +28,8 @@ async function loadProject() {
 watch(projectSlug, loadProject, { immediate: true })
 
 async function handleSave() {
+  if (importLocked.value)
+    return
   if (!form.name.trim()) {
     ElMessage.warning('项目名称不能为空')
     return
@@ -52,18 +57,24 @@ async function handleSave() {
 <template>
   <div>
     <BasePageHeader title="项目设置" />
+    <BaseNotice
+      v-if="importLocked"
+      type="warning"
+      :closable="false"
+      :title="importLockBannerTitle"
+    />
     <BaseForm :model="form" label-width="100px" style="max-width:600px">
       <BaseFormItem label="项目名称">
-        <BaseInput v-model="form.name" />
+        <BaseInput v-model="form.name" :disabled="saving" />
       </BaseFormItem>
       <BaseFormItem label="项目标识">
-        <BaseInput v-model="form.code" placeholder="英文标识，如 my-project" />
+        <BaseInput v-model="form.code" placeholder="英文标识，如 my-project" :disabled="saving" />
       </BaseFormItem>
       <BaseFormItem label="描述">
-        <BaseInput v-model="form.description" type="textarea" :rows="3" />
+        <BaseInput v-model="form.description" type="textarea" :rows="3" :disabled="saving" />
       </BaseFormItem>
       <BaseFormItem label="源语言">
-        <BaseSelect v-model="form.sourceLanguage" filterable placeholder="搜索语言..." style="width:100%">
+        <BaseSelect v-model="form.sourceLanguage" filterable placeholder="搜索语言..." style="width:100%" :disabled="saving || importLocked">
           <el-option v-for="l in sortedBaseLanguages" :key="l.languageCode" class="base-option" :label="`${l.englishName} (${l.nativeName || ''}) - ${l.languageCode}`" :value="l.languageCode">
             <span class="lang-option">
               <span class="lang-option__name">{{ l.englishName }} ({{ l.nativeName || '' }})</span>
@@ -76,7 +87,7 @@ async function handleSave() {
         </div>
       </BaseFormItem>
       <BaseFormItem>
-        <BaseButton type="primary" :loading="saving" @click="handleSave">
+        <BaseButton type="primary" :loading="saving" :disabled="saving || importLocked" @click="handleSave">
           保存
         </BaseButton>
       </BaseFormItem>
