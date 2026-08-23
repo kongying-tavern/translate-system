@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import type { UploadFile } from 'element-plus'
 import type { ImportResult, ProjectLanguage } from '@/types/models'
+import { Close } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseCheckbox, BaseDataViewer, BaseForm, BaseFormItem, BaseInput, BaseNotice, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseNotice, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
@@ -111,6 +112,16 @@ watch(projectSlug, () => {
 const exampleTab = ref('json')
 const inputMode = ref('file')
 const textInput = ref('')
+const textDialog = ref(false)
+const textDraft = ref('')
+function openTextDialog() {
+  textDraft.value = textInput.value
+  textDialog.value = true
+}
+function confirmTextDialog() {
+  textInput.value = textDraft.value
+  textDialog.value = false
+}
 
 // 除 CSV（语言=列名）外均需目标语言：JSON/YAML/XML 的扁平变体与 Properties 用所选语言，嵌套结构由后端按内容判定并忽略所选
 const needLang = computed(() => mode.value === 'translate' && fmt.value !== ImportFormat.CSV)
@@ -366,10 +377,12 @@ async function doAbort() {
             </BaseSelect>
           </BaseFormItem>
           <BaseFormItem label="语言">
-            <span v-if="!needLang" class="lang-from-file">取自文件列名（各语言一列），无需指定</span>
-            <BaseSelect v-else v-model="importLang" :disabled="importDisabled" style="width:160px">
-              <el-option v-for="l in importableLangs" :key="l.languageCode" class="base-option" :label="l.codeAlias || l.languageCode" :value="l.languageCode" />
-            </BaseSelect>
+            <span v-if="!needLang" class="lang-from-file">取自文件列名，无需指定</span>
+            <template v-else>
+              <BaseSelect v-model="importLang" :disabled="importDisabled" style="width:160px">
+                <el-option v-for="l in importableLangs" :key="l.languageCode" class="base-option" :label="l.codeAlias || l.languageCode" :value="l.languageCode" />
+              </BaseSelect>
+            </template>
           </BaseFormItem>
           <BaseFormItem>
             <BaseCheckbox v-model="autoCreate" :disabled="importDisabled">
@@ -397,14 +410,32 @@ async function doAbort() {
             开始导入
           </BaseButton>
         </BaseFormItem>
+        <BaseFormItem v-if="inputMode === 'text'">
+          <BaseButton type="warning" :disabled="!perm.canManageContent.value || importDisabled" @click="openTextDialog">
+            填写内容
+          </BaseButton>
+        </BaseFormItem>
+        <BaseFormItem v-if="inputMode === 'text' && textInput">
+          <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || importDisabled" @click="doTextImport">
+            开始导入
+          </BaseButton>
+        </BaseFormItem>
       </BaseForm>
-      <div v-if="importFile && inputMode === 'file'" style="font-size:13px;color:#909399;margin-bottom:12px">
-        已选: {{ importFile.name }}
+      <div v-if="mode === 'translate'" class="lang-from-file" style="margin-bottom:12px">
+        <template v-if="inputMode === 'file'">
+          支持 JSON / YAML / XML / CSV，Properties 仅文本输入；
+        </template>嵌套结构按文件内语言解析，扁平与 Properties 使用所选目标语言
       </div>
-      <div v-if="inputMode === 'text'" style="margin-bottom:12px">
-        <BaseInput v-model="textInput" type="textarea" :rows="12" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value || importDisabled" style="font-family:monospace;font-size:13px" />
-        <BaseButton type="success" :loading="importing" :disabled="!perm.canManageContent.value || importDisabled" style="margin-top:8px" @click="doTextImport">
-          开始导入
+      <div v-if="importFile && inputMode === 'file'" class="file-selected">
+        <span>已选: {{ importFile.name }}</span>
+        <BaseIcon v-if="!importDisabled" class="file-clear" title="清除已选文件" @click="importFile = null">
+          <Close />
+        </BaseIcon>
+      </div>
+      <div v-if="inputMode === 'text' && textInput" class="file-selected">
+        <span>文本长度: {{ textInput.length.toLocaleString() }}</span>
+        <BaseButton class="text-clear" link type="danger" :disabled="importDisabled" @click="textInput = ''">
+          清空
         </BaseButton>
       </div>
     </div>
@@ -444,11 +475,30 @@ async function doAbort() {
       </el-card>
     </div>
   </div>
+
+  <BaseDialog v-model="textDialog" title="填写导入内容" width="720px" :close-on-click-modal="false">
+    <BaseInput v-model="textDraft" type="textarea" :rows="18" placeholder="在此粘贴或输入导入内容..." :disabled="!perm.canManageContent.value || importDisabled" style="font-family:monospace;font-size:13px" />
+    <div class="dialog-length">
+      文本长度: {{ textDraft.length.toLocaleString() }}
+    </div>
+    <template #footer>
+      <BaseButton @click="textDialog = false">
+        取消
+      </BaseButton>
+      <BaseButton type="primary" @click="confirmTextDialog">
+        确定
+      </BaseButton>
+    </template>
+  </BaseDialog>
 </template>
 
 <style lang="scss" scoped>
 .import-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 .lang-from-file { color: #909399; font-size: 13px; line-height: 32px; }
+.file-selected { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #909399; margin-bottom: 12px; }
+.file-clear { cursor: pointer; color: #f56c6c; &:hover { color: #c45656; } }
+.text-clear { margin-left: 12px; }
+.dialog-length { margin-top: 8px; font-size: 13px; color: #909399; text-align: right; }
 .import-ops { flex: none; overflow: auto; }
 .import-zone { flex: 1; min-height: 200px; margin-top: 12px; display: flex; gap: 12px; }
 .import-zone .el-card { min-width: 0; display: flex; flex-direction: column; }
