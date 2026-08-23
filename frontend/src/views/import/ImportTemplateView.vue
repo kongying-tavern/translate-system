@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import type { UploadFile } from 'element-plus'
 import type { ImportResult, ProjectLanguage } from '@/types/models'
-import { Close } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import client from '@/api/client'
-import { BaseButton, BaseCheckbox, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseIcon, BaseInput, BaseNotice, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
+import { BaseButton, BaseCheckbox, BaseDataViewer, BaseDialog, BaseForm, BaseFormItem, BaseInput, BaseLink, BaseNotice, BasePageHeader, BaseRadioGroup, BaseSelect, BaseTabs, BaseTabularViewer } from '@/components/ui'
 import { ImportFormat } from '@/data/importFormats'
 import { useImportStatus } from '@/hooks/useImportStatus'
 import { useProjectPermission } from '@/hooks/useProjectPermission'
@@ -428,15 +427,15 @@ async function doAbort() {
       </div>
       <div v-if="importFile && inputMode === 'file'" class="file-selected">
         <span>已选: {{ importFile.name }}</span>
-        <BaseIcon v-if="!importDisabled" class="file-clear" title="清除已选文件" @click="importFile = null">
-          <Close />
-        </BaseIcon>
+        <BaseLink class="text-clear" type="danger" :underline="false" :disabled="importDisabled" @click="importFile = null">
+          移除
+        </BaseLink>
       </div>
       <div v-if="inputMode === 'text' && textInput" class="file-selected">
         <span>文本长度: {{ textInput.length.toLocaleString() }}</span>
-        <BaseButton class="text-clear" link type="danger" :disabled="importDisabled" @click="textInput = ''">
+        <BaseLink class="text-clear" type="danger" :underline="false" :disabled="importDisabled" @click="textInput = ''">
           清空
-        </BaseButton>
+        </BaseLink>
       </div>
     </div>
 
@@ -496,8 +495,7 @@ async function doAbort() {
 .import-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 .lang-from-file { color: #909399; font-size: 13px; line-height: 32px; }
 .file-selected { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #909399; margin-bottom: 12px; }
-.file-clear { cursor: pointer; color: #f56c6c; &:hover { color: #c45656; } }
-.text-clear { margin-left: 12px; }
+.text-clear { margin-left: 12px; font-weight: 400; line-height: inherit; }
 .dialog-length { margin-top: 8px; font-size: 13px; color: #909399; text-align: right; }
 .import-ops { flex: none; overflow: auto; }
 .import-zone { flex: 1; min-height: 200px; margin-top: 12px; display: flex; gap: 12px; }
