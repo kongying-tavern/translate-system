@@ -7,10 +7,6 @@ export function getBaseLanguages() {
   return client.get<ApiResponse<BaseLanguage[]>>('/languages')
 }
 
-export function searchBaseLanguages(q: string) {
-  return client.get<ApiResponse<BaseLanguage[]>>('/languages/search', { params: { q } })
-}
-
 export function getProjectLanguages(projectId: string) {
   return client.get<ApiResponse<ProjectLanguage[]>>(`/projects/${encPathParam(projectId)}/languages`)
 }

@@ -1,11 +1,3 @@
-export interface JsonSchemaField {
-  name: string
-  type: string
-  required: boolean
-  desc: string
-  depth: number
-}
-
 export interface JsonSchema {
   type?: string | string[]
   description?: string
@@ -126,32 +118,4 @@ export function typeLabel(schema: JsonSchema, schemas: SchemaMap = {}): string {
   if (type === 'array')
     return s.items ? `array<${typeLabel(s.items, schemas)}>` : 'array'
   return type ?? 'object'
-}
-
-/**
- * 将 JSON Schema 展平为字段表格行。
- * 传入根 schema 时 name 留空、depth 传 -1，只展开其 properties。
- * `schemas` 用于解析 `$ref`（对应 OpenAPI 的 components.schemas）。
- */
-export function schemaToFields(schema: JsonSchema, name: string, required = false, depth = 0, schemas: SchemaMap = {}): JsonSchemaField[] {
-  const s = normalize(schema, schemas)
-  const fields: JsonSchemaField[] = []
-  if (name && (depth > 0 || name === 'data'))
-    fields.push({ name, type: typeLabel(s, schemas), required, desc: s.description ?? '', depth })
-  if (s.properties) {
-    for (const [propName, propSchema] of Object.entries(s.properties)) {
-      const childRequired = s.required?.includes(propName) ?? false
-      fields.push(...schemaToFields(propSchema, propName, childRequired, depth + 1, schemas))
-    }
-  }
-  else if (s.items) {
-    const item = normalize(s.items, schemas)
-    if (item.properties) {
-      for (const [propName, propSchema] of Object.entries(item.properties)) {
-        const childRequired = item.required?.includes(propName) ?? false
-        fields.push(...schemaToFields(propSchema, propName, childRequired, depth + 1, schemas))
-      }
-    }
-  }
-  return fields
 }
