@@ -132,12 +132,12 @@ interface KeyMetaUpdate {
  * 项目语言「code/alias → 规范 code」映射：导入的语言归一化单源。
  * 约定——存储与比对一律用规范 code，alias 仅作输入兼容被识别归一（导出文件可能含别名，需能回灌），绝不按 alias 落库。
  */
-function buildLangCanonical(projectLangs: Array<{ languageCode: string, alias: string | null }>): Map<string, string> {
+function buildLangCanonical(projectLangs: Array<{ languageCode: string, codeAlias: string | null }>): Map<string, string> {
   const map = new Map<string, string>()
   for (const l of projectLangs) {
     map.set(l.languageCode, l.languageCode)
-    if (l.alias)
-      map.set(l.alias, l.languageCode)
+    if (l.codeAlias)
+      map.set(l.codeAlias, l.languageCode)
   }
   return map
 }
@@ -230,7 +230,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
   const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl)
   const [project, projectLangs] = await Promise.all([
     prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }),
-    prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } }),
+    prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, codeAlias: true } }),
   ])
   const sourceLang = project?.sourceLanguage || ''
   // 源语言列识别同样走 code/alias 归一（别名列如 zh → zh-Hans 也能回灌原文）
@@ -404,7 +404,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
 async function applyTranslations(projectId: string, raw: string, fmt: string, languageCode: string, overwrite: boolean, autoCreate: boolean, ctrl: ImportControl): Promise<ImportResult> {
   const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl)
   const [projectLangs, project] = await Promise.all([
-    prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } }),
+    prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, codeAlias: true } }),
     prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }),
   ])
   const sourceLang = project?.sourceLanguage ?? ''

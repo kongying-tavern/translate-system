@@ -27,7 +27,7 @@ export function exportNestedXML(translations: FlatTranslation[], langs: string[]
   const grouped = groupByLanguage(translations)
   const resources: { language: XmlLanguage[] } = { language: [] }
   for (const lang of langs) {
-    const name = getLangKey({ languageCode: lang, alias: translations.find(t => t.languageCode === lang)?.alias }, config)
+    const name = getLangKey({ languageCode: lang, codeAlias: translations.find(t => t.languageCode === lang)?.codeAlias }, config)
     const strings: XmlString[] = Object.entries(grouped[lang] || {}).map(([key, text]) => ({ '@_name': key, '#text': text }))
     resources.language.push({ '@_code': name, 'string': strings.length === 1 ? strings[0] : strings })
   }

@@ -1,7 +1,7 @@
 import type { FlatTranslation } from './types'
 
-export function getLangKey(t: { languageCode: string, alias?: string }, config?: Record<string, unknown>) {
-  return config?.useCodeKey ? t.languageCode : (t.alias || t.languageCode)
+export function getLangKey(t: { languageCode: string, codeAlias?: string }, config?: Record<string, unknown>) {
+  return config?.useCodeKey ? t.languageCode : (t.codeAlias || t.languageCode)
 }
 
 export function groupByLanguage(translations: FlatTranslation[]): Record<string, Record<string, string>> {

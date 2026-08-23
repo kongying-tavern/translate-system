@@ -23,13 +23,13 @@ const { projectLanguages, baseLanguages } = storeToRefs(langStore)
 const sourceLanguage = computed(() => projectStore.getProject(projectSlug.value)?.sourceLanguage || '')
 const showAddDialog = ref(false)
 const selectedLang = ref('')
-const aliasCache = reactive<Record<string, string>>({})
+const codeAliasCache = reactive<Record<string, string>>({})
 
 watch(projectLanguages, (langs) => {
   if (langs) {
     for (const l of langs) {
-      if (!(l.id in aliasCache))
-        aliasCache[l.id] = l.alias || ''
+      if (!(l.id in codeAliasCache))
+        codeAliasCache[l.id] = l.codeAlias || ''
     }
   }
 }, { immediate: true, deep: true })
@@ -64,15 +64,15 @@ async function handleSetSource(code: string) {
   }
 }
 
-async function onAliasSave(row: ProjectLanguage) {
+async function onCodeAliasSave(row: ProjectLanguage) {
   if (importLocked.value)
     return
-  const alias = aliasCache[row.id]?.trim() ?? ''
-  if (alias === (row.alias || ''))
+  const codeAlias = codeAliasCache[row.id]?.trim() ?? ''
+  if (codeAlias === (row.codeAlias || ''))
     return
   try {
-    await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/alias`, { alias })
-    row.alias = alias || ''
+    await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/alias`, { codeAlias })
+    row.codeAlias = codeAlias || ''
     ElMessage.success('已更新')
   }
   catch { ElMessage.error('更新失败') }
@@ -171,18 +171,18 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
     minWidth: 160,
     cell: row => (
       <BaseInput
-        v-model={aliasCache[row.id]}
+        v-model={codeAliasCache[row.id]}
         size="small"
         placeholder="输入代码别名..."
         readonly={!perm.canManageContent.value || importLocked.value}
-        onBlur={() => onAliasSave(row)}
+        onBlur={() => onCodeAliasSave(row)}
       />
     ),
   },
   {
     title: '代码标识',
     minWidth: 120,
-    cell: row => row.alias || row.languageCode,
+    cell: row => row.codeAlias || row.languageCode,
   },
   {
     title: '语言名称',

@@ -878,11 +878,11 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       if (scrolling.value) {
         const lang = rowLangs.value[rowIndex]
         const item = (editableLangs.value || []).find(l => l.languageCode === lang)
-        return <div class="cell-static-lang">{item?.alias || lang || '-'}</div>
+        return <div class="cell-static-lang">{item?.codeAlias || lang || '-'}</div>
       }
       return (
         <BaseSelect size="small" modelValue={rowLangs.value[rowIndex]} style={{ width: '100%' }} onChange={(v: unknown) => onRowLangChange(rowIndex, v as string)}>
-          {(editableLangs.value || []).map(l => <ElOption label={l.alias || l.languageCode} value={l.languageCode} />)}
+          {(editableLangs.value || []).map(l => <ElOption label={l.codeAlias || l.languageCode} value={l.languageCode} />)}
         </BaseSelect>
       )
     },
@@ -1055,7 +1055,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           :disabled="!hasTargetLang"
           @change="onGlobalLangChange"
         >
-          <ElOption v-for="l in editableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
+          <ElOption v-for="l in editableLangs" :key="l.languageCode" class="base-option" :label="l.codeAlias || l.languageCode" :value="l.languageCode" />
         </BaseSelect>
       </BaseFormItem>
       <BaseFormItem label="行高">

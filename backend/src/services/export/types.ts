@@ -6,7 +6,7 @@ export interface FlatTranslation {
   translationKey: string
   languageCode: string
   translatedText: string
-  alias?: string
+  codeAlias?: string
 }
 
 export interface XmlString { '@_name': string, '#text': string }

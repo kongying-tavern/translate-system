@@ -337,7 +337,7 @@ async function doAbort() {
           </BaseFormItem>
           <BaseFormItem v-if="needLang" label="语言">
             <BaseSelect v-model="importLang" :disabled="importDisabled" style="width:160px">
-              <el-option v-for="l in importableLangs" :key="l.languageCode" class="base-option" :label="l.alias || l.languageCode" :value="l.languageCode" />
+              <el-option v-for="l in importableLangs" :key="l.languageCode" class="base-option" :label="l.codeAlias || l.languageCode" :value="l.languageCode" />
             </BaseSelect>
           </BaseFormItem>
           <BaseFormItem>
@@ -380,7 +380,7 @@ async function doAbort() {
 
     <div class="import-zone">
       <el-card class="zone-card--tips" header="导入说明">
-        <div class="tip-body" v-dompurify-html="tipsHtml" />
+        <div v-dompurify-html="tipsHtml" class="tip-body" />
       </el-card>
       <el-card class="zone-card--format" header="格式说明">
         <template v-if="mode === 'entries'">

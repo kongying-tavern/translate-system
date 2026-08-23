@@ -80,8 +80,8 @@ export interface SourceLanguageBody {
 }
 
 export interface AliasBody {
-  /** 语言别名 */
-  alias: string
+  /** 代码别名 */
+  codeAlias: string
 }
 
 export interface SortOrderBody {
@@ -131,8 +131,8 @@ export interface ProjectLanguageRow {
   projectId: string
   /** 语言代码 */
   languageCode: string
-  /** 语言别名 */
-  alias: string | null
+  /** 代码别名 */
+  codeAlias: string | null
   /** 排序值 */
   sortOrder: number
   /** 创建时间 */
@@ -276,7 +276,7 @@ export class ProjectsController extends Controller {
   @Security('auth')
   public async updateAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: AliasBody): Promise<ApiOk<ProjectLanguageRow>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    return ok(await langService.updateLanguageAlias(access.projectId, langCode, body.alias) as ProjectLanguageRow)
+    return ok(await langService.updateLanguageCodeAlias(access.projectId, langCode, body.codeAlias) as ProjectLanguageRow)
   }
 
   /**

@@ -52,12 +52,12 @@ export async function removeProjectLanguage(projectId: string, languageCode: str
   return prisma.projectLanguage.deleteMany({ where: { projectId, languageCode } })
 }
 
-/** 按行 id 更新别名；projectId 用于校验行归属，防跨项目改写 */
-export async function updateLanguageAlias(projectId: string, id: string, alias: string) {
+/** 按行 id 更新代码别名；projectId 用于校验行归属，防跨项目改写 */
+export async function updateLanguageCodeAlias(projectId: string, id: string, codeAlias: string) {
   const row = await prisma.projectLanguage.findFirst({ where: { id, projectId } })
   if (!row)
     throw new AppError(ErrCode.NotFound, 'language not found')
-  return prisma.projectLanguage.update({ where: { id }, data: { alias: alias || null } })
+  return prisma.projectLanguage.update({ where: { id }, data: { codeAlias: codeAlias || null } })
 }
 
 /** 按行 id 更新排序；projectId 用于校验行归属，防跨项目改写 */
@@ -73,7 +73,7 @@ export async function getLanguageDisplayMap(projectId: string): Promise<{ aliase
   const aliases: Record<string, string> = {}
   const languageOrder: string[] = []
   for (const l of langs) {
-    aliases[l.languageCode] = l.alias || l.languageCode
+    aliases[l.languageCode] = l.codeAlias || l.languageCode
     languageOrder.push(l.languageCode)
   }
   return { aliases, languageOrder }

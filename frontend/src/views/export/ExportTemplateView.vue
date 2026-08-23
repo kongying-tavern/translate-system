@@ -168,7 +168,7 @@ const exportColumns: BaseTableColumnConfig<ExportTemplate>[] = [
         </BaseFormItem>
         <BaseFormItem label="导出语言" required>
           <BaseSelect v-model="selectedLangs" multiple placeholder="选择语言" style="width:280px" filterable clearable>
-            <el-option v-for="l in projectLanguages" :key="l.languageCode" class="base-option" :label="`${l.alias || l.languageCode}${l.alias ? ` (${l.languageCode})` : ''}`" :value="l.languageCode" />
+            <el-option v-for="l in projectLanguages" :key="l.languageCode" class="base-option" :label="`${l.codeAlias || l.languageCode}${l.codeAlias ? ` (${l.languageCode})` : ''}`" :value="l.languageCode" />
           </BaseSelect>
         </BaseFormItem>
         <BaseFormItem label="标签过滤">

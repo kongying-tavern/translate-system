@@ -83,7 +83,7 @@ translation_keys              translation_values
 
 context 和 tags 为 Key 级别属性，跨语言共享
 原文 = 源语言语言值（源语言 value 的 translatedText），无独立存储
-project_languages (alias 别名字段) — 导出和 UI 优先显示别名
+project_languages (codeAlias 字段，列 code_alias，由 `20260824000000_rename_project_language_code_alias` RENAME 改名) — 导出和 UI 优先显示代码别名
 ```
 
 **索引约定**（Postgres 不自动为 FK 列建索引）：`translation_keys` 有复合索引 `(project_id, sort_order, key)`（listGrouped/导出排序过滤，`20260822000000`）与 unique `(project_id, key)`；`project_members` 有 `user_id` 单列索引（fetchProjects「查我的项目」走 WHERE user_id，auth.init + 每 30s 权限轮询热路径，unique 以 project_id 为首列覆盖不了它；`20260823010000`）；`translation_values` 所有查询均以 `key_id` 打头（导入批量 upsert 的 ON CONFLICT / 元组 IN 同样命中），由 unique `(key_id, language_code)` 首列覆盖，勿重复单建 key_id 索引
@@ -432,6 +432,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 1. 先改 `services/translation.ts` → 再改 `controllers/TranslationsController.ts` → `cd backend && pnpm gen` → 最后改前端
 2. 改 `prisma/schema.prisma` → `pnpm db:migrate` 生成迁移文件 → 更新 service。必须创建迁移文件（不要用 `db:push` 绕过），否则 Docker 部署时 `migrate deploy` 会遗漏变更
    - 注意：`db:push` 后的 DB 没有 `_prisma_migrations` 记录，直接用 `migrate deploy` 会因列已存在报错，需先用 `migrate resolve --applied` 手动标记已存在的迁移
+   - 字段改名类变更：Prisma 自动 diff 会生成 DROP+ADD（丢数据、等于重建列），必须手写迁移 SQL 为 `RENAME COLUMN`（范例 `20260824000000_rename_project_language_code_alias`），schema 用 `@map("新列名")` 对齐后再 `migrate deploy`
 3. 翻译列表分页在 `listGrouped` 中处理，导出不过滤在 `getForExport`
 
 ### 改 Prisma Schema 后必须做的事
@@ -447,7 +448,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 ### 语言管理
 
 - 基础语言列表由**后端写死常量**提供（`backend/src/data/languages.ts` 的 `BASE_LANGUAGES`），经 `GET /languages`、`GET /languages/search` 接口（需 auth）下发，前端 `stores/language.ts` 的 `fetchBaseLanguages()` 加载（带 loaded 守卫）；后端 `addProjectLanguage` 严格校验 languageCode 必须存在于该列表，不存在的 code 拒绝添加
-- 项目语言支持 `alias` 别名和 `sortOrder` 排序，导出时别名优先
+- 项目语言支持 `codeAlias` 代码别名（原字段/列名 alias，物理列已由迁移更名 code_alias，请求体/响应/类型均已同步；REST 路径保持 `/languages/:id/alias` 不变）和 `sortOrder` 排序，导出时别名优先
 - 语言管理页支持拖拽排序（上下箭头），排序值通过 `PUT /languages/:code/sortOrder` 保存（`:code` 实为 project_languages 行 id，服务端按 id + projectId 校验归属）。新增语言 sortOrder 取 max+100 追加末尾；前端每次移动后按显示顺序**全量重编号 index×10 并仅保存变化的行**——历史数据曾默认 0 并列（并列时列表按 languageCode 兜底排序），只交换相邻两值会制造新并列导致刷新后顺序回退，全量重编号可自愈存量并列；存量并列另由 `20260823000000_normalize_language_sort_order` 迁移按当前显示序固化（显示顺序零变化，随部署自动应用，勿手动用 `db:push` 绕过）
 
 **项目源语言**：源语言必须是项目语言之一，不可删除（`removeProjectLanguage` 对源语言 code 抛错）。三个设置入口共享「自动补语言」语义（`ensureProjectLanguage`：不在项目语言中则自动添加并置顶）：

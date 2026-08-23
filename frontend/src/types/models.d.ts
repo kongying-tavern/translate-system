@@ -31,7 +31,8 @@ export interface ProjectLanguage {
   id: string
   projectId: string
   languageCode: string
-  alias: string
+  /** 代码别名（导出键名与 UI 显示优先用） */
+  codeAlias: string
   sortOrder: number
 }
 

@@ -12,7 +12,7 @@ export function exportNestedJSON(translations: FlatTranslation[], langs: string[
   const grouped = groupByLanguage(translations)
   const result: Record<string, Record<string, string>> = {}
   for (const lang of langs) {
-    const name = getLangKey({ languageCode: lang, alias: translations.find(t => t.languageCode === lang)?.alias }, config)
+    const name = getLangKey({ languageCode: lang, codeAlias: translations.find(t => t.languageCode === lang)?.codeAlias }, config)
     result[name] = grouped[lang] || {}
   }
   return JSON.stringify(result)
