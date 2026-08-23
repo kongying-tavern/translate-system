@@ -112,7 +112,8 @@ const exampleTab = ref('json')
 const inputMode = ref('file')
 const textInput = ref('')
 
-const needLang = computed(() => mode.value === 'translate' && (fmt.value === ImportFormat.JSON || fmt.value === ImportFormat.Properties))
+// 除 CSV（语言=列名）外均需目标语言：JSON/YAML/XML 的扁平变体与 Properties 用所选语言，嵌套结构由后端按内容判定并忽略所选
+const needLang = computed(() => mode.value === 'translate' && fmt.value !== ImportFormat.CSV)
 /** 当前用户是否为该导入的发起人（跨标签页也能中止） */
 const iAmImporter = computed(() => importLocked.value && !!importLockerId.value && importLockerId.value === auth.user?.id)
 /** 我正在导入：本地提交中（POST 进行中）或 status 确认我是发起人（跨标签页） */
@@ -364,8 +365,9 @@ async function doAbort() {
               <el-option class="base-option" label="XML" :value="ImportFormat.XML" />
             </BaseSelect>
           </BaseFormItem>
-          <BaseFormItem v-if="needLang" label="语言">
-            <BaseSelect v-model="importLang" :disabled="importDisabled" style="width:160px">
+          <BaseFormItem label="语言">
+            <span v-if="!needLang" class="lang-from-file">取自文件列名（各语言一列），无需指定</span>
+            <BaseSelect v-else v-model="importLang" :disabled="importDisabled" style="width:160px">
               <el-option v-for="l in importableLangs" :key="l.languageCode" class="base-option" :label="l.codeAlias || l.languageCode" :value="l.languageCode" />
             </BaseSelect>
           </BaseFormItem>
@@ -446,6 +448,7 @@ async function doAbort() {
 
 <style lang="scss" scoped>
 .import-page { height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.lang-from-file { color: #909399; font-size: 13px; line-height: 32px; }
 .import-ops { flex: none; overflow: auto; }
 .import-zone { flex: 1; min-height: 200px; margin-top: 12px; display: flex; gap: 12px; }
 .import-zone .el-card { min-width: 0; display: flex; flex-direction: column; }
