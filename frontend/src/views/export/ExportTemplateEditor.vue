@@ -124,7 +124,7 @@ async function handleSave() {
             跳过译文为空的行
           </BaseCheckbox>
           <BaseCheckbox v-model="configForm.useCodeKey">
-            使用原始语言 Code（不应用别名）
+            使用原始语言代码（不应用代码别名）
           </BaseCheckbox>
         </div>
       </BaseFormItem>

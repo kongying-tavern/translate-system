@@ -167,27 +167,27 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
     ),
   },
   {
-    title: '语言名称',
-    minWidth: 200,
-    cell: row => langStore.getBaseName(row.languageCode),
-  },
-  {
-    title: '别名',
+    title: '代码别名',
     minWidth: 160,
     cell: row => (
       <BaseInput
         v-model={aliasCache[row.id]}
         size="small"
-        placeholder="输入别名..."
+        placeholder="输入代码别名..."
         readonly={!perm.canManageContent.value || importLocked.value}
         onBlur={() => onAliasSave(row)}
       />
     ),
   },
   {
-    title: '显示名',
+    title: '代码标识',
     minWidth: 120,
     cell: row => row.alias || row.languageCode,
+  },
+  {
+    title: '语言名称',
+    minWidth: 200,
+    cell: row => langStore.getBaseName(row.languageCode),
   },
   {
     title: '操作',
