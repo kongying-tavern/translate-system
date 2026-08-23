@@ -423,10 +423,23 @@ async function doAbort() {
 .zone-card--tips { flex: 0 0 420px; }
 .zone-card--format { flex: 1; }
 .import-zone :deep(.el-card__body) { flex: 1; min-height: 0; overflow: auto; }
-.tip-body { font-size: 13px; color: #606266; }
-.tip-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
-.tip-sub { margin: 6px 0 0; }
-.tip-body code { padding: 0 5px; background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px; font-size: 12px; font-family: Consolas, Menlo, monospace; color: #476582; }
+// 提示内容为 v-dompurify-html 注入，无 scoped 属性，须经 .tip-body :deep() 穿透
+.tip-body {
+  font-size: 13px;
+  color: #606266;
+
+  :deep(.tip-list) { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+
+  :deep(.tip-sub) {
+    margin: 6px 0 0;
+    padding-left: 16px;
+    list-style-type: circle;
+
+    li + li { margin-top: 4px; }
+  }
+
+  :deep(code) { padding: 0 5px; background: #f5f7fa; border: 1px solid #e4e7ed; border-radius: 4px; font-size: 12px; font-family: Consolas, Menlo, monospace; color: #476582; }
+}
 .import-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 12px; }
 .import-bar .el-form-item { margin-bottom: 0; }
 .ex-pre { font-size:13px; white-space:pre-wrap; margin:0; }
