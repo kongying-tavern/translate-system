@@ -627,7 +627,8 @@ async function onTranslationSave(row: GroupedRow, lang: string) {
   if (!lang)
     return
   const ck = `translation|${row.keyId}|${lang}`
-  const newText = editCache[ck] ?? ''
+  // 未输入过时兜底为行当前值，避免「点击后直接失焦」把空串当新值保存清空译文
+  const newText = editCache[ck] ?? row.translations[lang]?.translatedText ?? ''
   const prev = row.translations[lang]?.translatedText ?? ''
   if (newText === prev) {
     delete editCache[ck]
