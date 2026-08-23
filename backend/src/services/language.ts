@@ -29,8 +29,10 @@ export async function addProjectLanguage(projectId: string, languageCode: string
   return prisma.projectLanguage.create({ data: { projectId, languageCode, sortOrder: (max._max.sortOrder ?? 0) + 100 } })
 }
 
-/** 确保语言已在项目语言中；不存在则自动添加（默认排序置于最前） */
+/** 确保语言已在项目语言中；不存在则自动添加（置于最前 min-100，避免与首位并列）。供创建/编辑项目与「设为源语言」共用 */
 export async function ensureProjectLanguage(projectId: string, languageCode: string) {
+  if (!BASE_LANGUAGES.some(l => l.languageCode === languageCode))
+    throw new AppError(ErrCode.InvalidParams, `unsupported language code: ${languageCode}`)
   const exists = await prisma.projectLanguage.findUnique({
     where: { projectId_languageCode: { projectId, languageCode } },
   })

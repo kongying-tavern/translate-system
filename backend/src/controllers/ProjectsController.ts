@@ -49,10 +49,10 @@ export interface CreateProjectBody {
    */
   description?: string
   /**
-   * 源语言（基础语言代码）
+   * 源语言（基础语言代码，必填；保存时会自动添加为项目语言并置顶）
    * @example "zh-Hans"
    */
-  sourceLanguage?: string
+  sourceLanguage: string
 }
 
 export interface UpdateProjectBody {

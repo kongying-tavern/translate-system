@@ -439,6 +439,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 
 1. 生成迁移文件：`cd backend && pnpm db:migrate`（绝对不能用 `db:push` 代替）
 2. 同步 `frontend/src/types/models.d.ts` — 新增或改动的字段必须加上，否则前端 TypeScript 编译报错
+3. **重新生成 Prisma Client 并重启后端 dev**（`pnpm db:generate` + 重启 `pnpm dev`；predev 只跑 tsoa gen 不含它）。漏做会出现 P2022「column does not exist」：运行中的进程仍用旧映射列名的 Client 查询已被迁移改名/新增的物理列——报错里的列名是**旧 Client 想查的列**，不是库里缺的列，排查时先 `prisma migrate status` 确认库端状态再定方向
 
 ### 改动代码后必须做的事
 
@@ -451,9 +452,9 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 - 项目语言支持 `codeAlias` 代码别名（原字段/列名 alias，物理列已由迁移更名 code_alias，请求体/响应/类型均已同步；REST 路径保持 `/languages/:id/alias` 不变）和 `sortOrder` 排序，导出时别名优先
 - 语言管理页支持拖拽排序（上下箭头），排序值通过 `PUT /languages/:code/sortOrder` 保存（`:code` 实为 project_languages 行 id，服务端按 id + projectId 校验归属）。新增语言 sortOrder 取 max+100 追加末尾；前端每次移动后按显示顺序**全量重编号 index×10 并仅保存变化的行**——历史数据曾默认 0 并列（并列时列表按 languageCode 兜底排序），只交换相邻两值会制造新并列导致刷新后顺序回退，全量重编号可自愈存量并列；存量并列另由 `20260823000000_normalize_language_sort_order` 迁移按当前显示序固化（显示顺序零变化，随部署自动应用，勿手动用 `db:push` 绕过）
 
-**项目源语言**：源语言必须是项目语言之一，不可删除（`removeProjectLanguage` 对源语言 code 抛错）。三个设置入口共享「自动补语言」语义（`ensureProjectLanguage`：不在项目语言中则自动添加并置顶）：
-- 创建项目：`createProject` 事务内同时创建源语言的项目语言记录（sortOrder 0 置顶）
-- 编辑项目：`updateProject` 源语言变更且不在项目语言时先自动添加
+**项目源语言**：源语言必须是项目语言之一，不可删除（`removeProjectLanguage` 对源语言 code 抛错）。三个设置入口共享「自动补语言」语义（`ensureProjectLanguage`：**先校验 code 必须在 BASE_LANGUAGES**，不在项目语言中则自动添加并置顶 min-100 避免并列）：
+- 创建项目：源语言**必填**（CreateProjectBody tsoa required + 服务层不再回退 'en'），事务内同时创建源语言的项目语言记录（sortOrder 0 置顶）
+- 编辑项目：`updateProject` **无条件**确保最终源语言（传入值或现值）存在语言条目，缺失即补建置顶——不限于「源语言变更时」，保存一次即自愈存量「有源语言设置但语言管理缺该条目」的脏数据
 - 语言管理页「设为源语言」：`PUT /projects/:projectSlug/sourceLanguage`（Maintainer+），保存后前端 `loadLangs()` 刷新语言列表并更新 project store
 
 前端约定：语言管理页语言代码列显示源语言 tag、删除按钮禁用；翻译管理页 `editableLangs`（`projectLanguages` 排除源语言）驱动全局语言下拉与行内语言列，源语言不出现在翻译目标语言中。项目创建/编辑页源语言下拉基于 `BASE_LANGUAGES` 全量可选（样式同「新增语言」下拉：左名字右代码），创建/编辑提示源语言会自动添加为项目语言。

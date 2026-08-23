@@ -47,11 +47,11 @@ export async function getProject(projectSlug: string) {
   return p
 }
 
-export async function createProject(userId: string, data: { name: string, description?: string, sourceLanguage?: string, code: string }) {
+export async function createProject(userId: string, data: { name: string, description?: string, sourceLanguage: string, code: string }) {
   const existing = await prisma.project.findUnique({ where: { code: data.code } })
   if (existing)
     throw new AppError(1004, 'code already exists')
-  const sourceLanguage = data.sourceLanguage || 'en'
+  const sourceLanguage = data.sourceLanguage
   return prisma.$transaction(async (tx) => {
     const project = await tx.project.create({
       data: {
@@ -76,17 +76,18 @@ export async function updateProject(projectSlug: string, data: { name?: string, 
   if (data.code && data.code !== p.code) {
     const existing = await prisma.project.findUnique({ where: { code: data.code } })
     if (existing)
-      // eslint-disable-next-line no-throw-literal
-      throw { code: 1004, message: 'code already exists' }
+      throw new AppError(1004, 'code already exists')
   }
-  if (data.sourceLanguage && data.sourceLanguage !== p.sourceLanguage)
-    await ensureProjectLanguage(p.id, data.sourceLanguage)
+  // 源语言必填语义：无论本次是否变更源语言，保存前无条件确保最终源语言存在对应语言条目
+  // （缺失即自动补建并置顶）——顺带自愈存量「有源语言设置但语言管理缺该条目」的脏数据
+  const sourceLanguage = data.sourceLanguage || p.sourceLanguage
+  await ensureProjectLanguage(p.id, sourceLanguage)
   return prisma.project.update({
     where: { id: p.id },
     data: {
       name: data.name,
       description: data.description,
-      sourceLanguage: data.sourceLanguage || p.sourceLanguage,
+      sourceLanguage,
       code: data.code,
     },
   })
