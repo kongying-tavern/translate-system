@@ -21,6 +21,11 @@ const projectSlug = computed(() => decPathParam(route.params.projectSlug as stri
 const importing = ref(false)
 const { isLocked: importLocked, importerId: importLockerId, status: importStatus, load: loadImportStatus, reset: resetImportStatus, statsLines: importStatsLines, importTitle } = useImportStatus(projectSlug, { importing })
 const projectLanguages = ref<ProjectLanguage[]>([])
+// 本地提交锁交接：远程状态确认 locked 后即释放本地锁（消除 accepted → 状态刷新间的解锁缝隙）
+watch(() => importStatus.value?.locked, (locked) => {
+  if (locked && importing.value)
+    importing.value = false
+})
 /** 项目源语言（原文列）：翻译导入恒不触碰，目标语言下拉排除之 */
 const sourceLanguage = computed(() => projectStore.bySlug[projectSlug.value]?.sourceLanguage ?? '')
 /** 可选目标语言 = 项目语言排除源语言 */
@@ -236,6 +241,7 @@ async function doTextImport() {
   importing.value = true
   notice.value = null
   resetImportStatus()
+  let accepted = false
   try {
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
     importMode.value = mode.value === 'entries' ? 'entries' : 'translate'
@@ -245,12 +251,23 @@ async function doTextImport() {
     textInput.value = ''
     await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
     // POST 成功（accepted）才视为“我发起了导入”；提交失败（如 Conflict）若不复位会误认领后续历史结果
+    accepted = true
     wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {
-    importing.value = false
-    loadImportStatus()
+    if (accepted) {
+      // 提交成功：保持本地锁，远程状态确认 locked 后由 watcher 交接；超时兜底防异常场景永久锁死
+      loadImportStatus()
+      setTimeout(() => {
+        importing.value = false
+      }, 5000)
+    }
+    else {
+      // 提交失败：立即释放本地锁
+      importing.value = false
+      loadImportStatus()
+    }
   }
 }
 
@@ -268,6 +285,7 @@ async function doImport() {
   importing.value = true
   notice.value = null
   resetImportStatus()
+  let accepted = false
   try {
     const text = await file.text()
     const endpoint = mode.value === 'entries' ? 'entries' : 'translations'
@@ -276,12 +294,23 @@ async function doImport() {
       ? { data: text, overwrite: overwrite.value }
       : { data: text, formatType: fmt.value, languageCode: importLang.value, overwrite: overwrite.value, autoCreate: autoCreate.value }
     await client.post(`/projects/${encPathParam(projectSlug.value)}/imports/${endpoint}`, body, { timeout: 600000 })
+    accepted = true
     wasImporting.value = true
   }
   catch (e: unknown) { showImportError(e) }
   finally {
-    importing.value = false
-    loadImportStatus()
+    if (accepted) {
+      // 提交成功：保持本地锁，远程状态确认 locked 后由 watcher 交接；超时兜底防异常场景永久锁死
+      loadImportStatus()
+      setTimeout(() => {
+        importing.value = false
+      }, 5000)
+    }
+    else {
+      // 提交失败：立即释放本地锁
+      importing.value = false
+      loadImportStatus()
+    }
   }
 }
 

@@ -14,7 +14,8 @@ import { getAccessToken } from '@/utils/token'
  */
 export function useImportStatus(projectSlug: MaybeRefOrGetter<string>, options?: { importing?: MaybeRefOrGetter<boolean> }) {
   // ---- 状态 ----
-  const isLocked = ref(false)
+  // 远程锁：来自服务端状态行；本地锁：调用方传入的提交中状态（点击导入即生效）
+  const remoteLocked = ref(false)
   const importType = ref('')
   const importerName = ref('')
   const importerId = ref('')
@@ -22,13 +23,16 @@ export function useImportStatus(projectSlug: MaybeRefOrGetter<string>, options?:
   const status = ref<ImportStatusRow | null>(null)
 
   function applyRow(row: ImportStatusRow | null) {
-    isLocked.value = !!row?.locked
+    remoteLocked.value = !!row?.locked
     importType.value = row?.type || ''
     importerName.value = row?.startUsername || ''
     importerId.value = row?.startUserId || ''
     progress.value = row?.progress ?? null
     status.value = row
   }
+
+  /** 生效锁定 = 远程锁 ∥ 本地提交锁：消除「点击导入 → 首个远程状态到达」之间的未锁定缝隙 */
+  const isLocked = computed(() => remoteLocked.value || !!(options?.importing && toValue(options.importing)))
   function resetRow() {
     applyRow(null)
   }
