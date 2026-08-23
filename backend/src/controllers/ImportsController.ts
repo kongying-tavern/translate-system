@@ -129,6 +129,20 @@ interface KeyMetaUpdate {
 }
 
 /**
+ * 项目语言「code/alias → 规范 code」映射：导入的语言归一化单源。
+ * 约定——存储与比对一律用规范 code，alias 仅作输入兼容被识别归一（导出文件可能含别名，需能回灌），绝不按 alias 落库。
+ */
+function buildLangCanonical(projectLangs: Array<{ languageCode: string, alias: string | null }>): Map<string, string> {
+  const map = new Map<string, string>()
+  for (const l of projectLangs) {
+    map.set(l.languageCode, l.languageCode)
+    if (l.alias)
+      map.set(l.alias, l.languageCode)
+  }
+  return map
+}
+
+/**
  * Key 的 context/tags 批量更新（优化 B）：单条原生 `UPDATE ... FROM (VALUES ...)` 一次完成，替代 N 条 update 事务。
  * 各列按 has_* 标志仅在确有值时覆盖，未提供字段保留原值。tags 为 string[]，经参数化 + `::text[]` 交由驱动转义，无注入风险。
  */
@@ -214,7 +228,13 @@ async function ensureSortCursor(projectId: string, cursor: { nextSo: number }): 
 
 async function importKeys(projectId: string, raw: string, fmt: ImportFormat, overwrite: boolean, ctrl: ImportControl): Promise<ImportResult> {
   const { entries, importedKeys, importedFields } = await parseImportData(raw, fmt, ctrl)
-  const sourceLang = (await prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }))?.sourceLanguage || ''
+  const [project, projectLangs] = await Promise.all([
+    prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }),
+    prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, alias: true } }),
+  ])
+  const sourceLang = project?.sourceLanguage || ''
+  // 源语言列识别同样走 code/alias 归一（别名列如 zh → zh-Hans 也能回灌原文）
+  const langCanonical = buildLangCanonical(projectLangs)
   let createdFields = 0
   let skippedFields = 0
   const createdKeySet = new Set<string>()
@@ -328,7 +348,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
         let sourceVal: string | undefined
         if (entry.sourceText && entry.sourceText !== key)
           sourceVal = entry.sourceText
-        if (sourceVal === undefined && entry.lang === sourceLang && entry.translatedText)
+        if (sourceVal === undefined && entry.lang && langCanonical.get(entry.lang) === sourceLang && entry.translatedText)
           sourceVal = entry.translatedText
         if (sourceVal !== undefined) {
           const existingText = existingVals.get(keyId)
@@ -388,13 +408,8 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }),
   ])
   const sourceLang = project?.sourceLanguage ?? ''
-  /** 语言代码/别名 → 项目语言规范 code 的映射：比对与写入均用规范 code（alias 导入归一写真实语言，不落游离于项目语言之外的 value 行） */
-  const langCanonical = new Map<string, string>()
-  for (const l of projectLangs) {
-    langCanonical.set(l.languageCode, l.languageCode)
-    if (l.alias)
-      langCanonical.set(l.alias, l.languageCode)
-  }
+  // 比对与写入均用规范 code（alias 导入归一写真实语言，不落游离于项目语言之外的 value 行）
+  const langCanonical = buildLangCanonical(projectLangs)
   const unknownLangs = new Set<string>()
   let createdFields = 0
   let skippedFields = 0
