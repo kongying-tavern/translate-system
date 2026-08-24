@@ -17,7 +17,7 @@ param(
     [Parameter(Mandatory, HelpMessage = "格式类型，支持: json (JSON), csv (CSV), yaml (YAML), xml (XML), properties (Properties)")]
     [string]$FormatType,
 
-    [Parameter(Mandatory, HelpMessage = "目标语言代码（如 zh-Hans，不支持别名）")]
+    [Parameter(Mandatory, HelpMessage = "目标语言代码（如 zh-Hans，支持代码别名）")]
     [string]$Language,
 
     [Parameter(Mandatory, HelpMessage = "数据文件路径")]

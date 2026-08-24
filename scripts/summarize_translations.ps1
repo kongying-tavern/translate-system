@@ -20,10 +20,10 @@ param(
     [Parameter(HelpMessage = "按标签过滤，逗号分隔，只统计含指定标签的条目")]
     [string]$FilterTags = "",
 
-    [Parameter(HelpMessage = "文件名和输出的 langCode 使用语言代码而非代码别名")]
+    [Parameter(HelpMessage = "输出的 langCode/文件名 使用语言代码而非代码别名（codeAlias）")]
     [switch]$NoCodeAlias,
 
-    [Parameter(HelpMessage = "输出的 langName 不使用语言别名，回退语言名称")]
+    [Parameter(HelpMessage = "输出的 langName 跳过语言别名（nameAlias），直接使用语言名称")]
     [switch]$NoNameAlias,
 
     [Parameter(HelpMessage = "输入文件类型: json, yaml, xml, properties, csv（默认 json）")]
@@ -92,7 +92,7 @@ try {
     exit 1
 }
 
-Write-Host "正在获取基础语言列表..." -ForegroundColor Cyan
+# ── 获取基础语言列表（构建 语言代码 → 语言名称 映射，供 --no-name-alias 启用时回退） ──
 $baseNameByCode = @{}
 try {
     $baseResp = Invoke-RestMethod -Uri "$apiBase/languages" -Headers $headers -Method Get
@@ -234,10 +234,15 @@ foreach ($l in $targetLangs) {
     $nameAlias = if ($l.nameAlias) { [string]$l.nameAlias } else { "" }
     $logicLangCode = if ($NoCodeAlias -or -not $codeAlias) { $code } else { $codeAlias }
 
-    # 显示名称：与页面【显示名称】同逻辑 = 语言别名 || 语言名称（-NoNameAlias 跳过语言别名）
+    # 显示名称：nameAlias → languageName → languageCode
+    # --no-name-alias 跳过 nameAlias，变为 languageName → languageCode
     $displayName = ""
-    if (-not $NoNameAlias -and $nameAlias) { $displayName = $nameAlias }
-    if (-not $displayName -and $baseNameByCode.ContainsKey($code)) { $displayName = $baseNameByCode[$code] }
+    if (-not $NoNameAlias -and $nameAlias) {
+        $displayName = $nameAlias
+    }
+    if (-not $displayName) {
+        $displayName = $baseNameByCode[$code]
+    }
     if (-not $displayName) { $displayName = $code }
 
     if ($FilterTags) {
@@ -266,6 +271,7 @@ foreach ($l in $targetLangs) {
         continue
     }
 
+    # 文件名使用 logicLangCode（别名优先，其次语言代码）
     $filePath = Join-Path $InputDir "$logicLangCode.$inExt"
 
     if (-not (Test-Path $filePath)) {

@@ -18,7 +18,7 @@
 | `-AuthConfig` | `-a, --auth-config` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
 | `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
 | `-FormatType` | `-t, --format-type` | 格式类型（取值见下表） |
-| `-Language` | `-l, --language` | 目标语言代码（如 `zh-Hans`，不支持代码别名） |
+| `-Language` | `-l, --language` | 目标语言代码（如 `zh-Hans`，支持代码别名） |
 | `-File` | `-f, --file` | 数据文件路径 |
 | `-Overwrite` | `-o, --overwrite` | 覆盖已有译文（默认不覆盖） |
 | `-NoAutoCreate` | `-n, --no-auto-create` | 不自动补全新条目（默认自动创建） |
@@ -132,7 +132,7 @@
 | `-TemplateSlug` | `-t, --template` | 导出模板 Slug（UUID 或 code） |
 | `-OutputDir` | `-o, --output-dir` | 输出目录 |
 | `-Languages` | `-l, --languages` | 过滤语言，逗号分隔，支持语言代码或代码别名（如 `zh-Hans,简体中文`），不传则导出全部 |
-| `-NoCodeAlias` | `-n, --no-code-alias` | 输出文件名及字段名使用语言代码而非代码别名 |
+| `-NoCodeAlias` | `-n, --no-code-alias` | 输出的 langCode/文件名 使用语言代码而非代码别名（codeAlias） |
 | `-Delete` | `-d, --delete` | 写文件前若有则删除（`file` 模式）或导出前删整个目录（`folder` 模式） |
 | `-DeleteMode` | `-m, --delete-mode` | 清理模式：`file` 写文件前删除同路径旧文件，`folder` 删整个目录，默认 `file` |
 
@@ -194,25 +194,25 @@
 | `-AuthConfig` | `-a, --auth-config` | 鉴权信息文件路径（JSON，包含 `apiKey` 和 `apiSecret`） |
 | `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
 | `-Languages` | `-l, --languages` | 过滤语言，逗号分隔，支持语言代码或代码别名，不传则全部 |
-| `-NoCodeAlias` | `-n, --no-code-alias` | 文件名和输出的 langCode 使用语言代码而非代码别名 |
-| `-NoNameAlias` | `-N, --no-name-alias` | 输出的 langName 不使用语言别名（回退语言名称） |
+| `-NoCodeAlias` | `-n, --no-code-alias` | 输出的 langCode/文件名 使用语言代码而非代码别名（codeAlias） |
+| `-NoNameAlias` | `-N, --no-name-alias` | 输出的 langName 跳过语言别名（nameAlias），直接使用语言名称 |
 | `-InputFormat` | `-f, --input-format` | 输入文件类型: json/yaml/xml/properties/csv，默认 `json` |
 | `-OutputFormat` | `-t, --output-format` | 输出文件类型: json/yaml/xml，默认 `json` |
 | `-InputDir` | `-i, --input-dir` | 包含翻译文件的目录（必填） |
-| `-OutputFile` | `-o, --output` | 输出文件路径，默认 `<InputDir>/summary.json` |
+| `-OutputFile` | `-o, --output` | 输出文件路径，默认 `<InputDir>/summary.<格式>` |
 
 #### 输出示例
 
 ```json
-[{"langName":"简体中文","langCode":"cn","md5Hash":"...","summary":{"countTotal":100,"countTranslated":80,"ratioTranslated":80.0}}]
+[{"langName":"简体中文","langCode":"zh-Hans","md5Hash":"...","summary":{"countTotal":100,"countTranslated":80,"ratioTranslated":80.0}}]
 ```
 
-输出字段取值与语言管理页保持一致：
+输出字段取值逻辑：
 
-| 字段 | 取值逻辑（依次回退） | 关闭开关 |
-|------|---------------------|---------|
-| `langName` | 语言别名 → 语言名称（如 `Chinese (Simplified)`）→ 语言代码 | `-N, --no-name-alias`（跳过语言别名） |
-| `langCode` | 代码别名 → 语言代码（同时决定输入文件名 `<langCode>.<格式>` 的查找） | `-n, --no-code-alias`（改用语言代码） |
+| 字段 | 关闭开关 | 取值逻辑（依次回退） |
+|------|:-------|---------------------|
+| `langCode` | `-n, --no-code-alias` | codeAlias → languageCode（跳过 codeAlias） |
+| `langName` | `-N, --no-name-alias` | nameAlias → languageName → languageCode（跳过 nameAlias） |
 
 > 语言名称取自基础语言数据（只读接口 `GET /languages`，已在 API Key 白名单内）；拉取失败时打印警告并跳过该级回退。
 

@@ -18,7 +18,7 @@ usage() {
                                   yaml        YAML 格式
                                   xml         XML 格式
                                   properties  Properties 格式
-  -l, --language <code>       目标语言代码（如 zh-Hans，不支持别名）
+  -l, --language <code>       目标语言代码（如 zh-Hans，支持代码别名）
   -f, --file <path>           数据文件路径
 
 可选:

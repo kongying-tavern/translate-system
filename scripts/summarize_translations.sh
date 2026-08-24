@@ -15,8 +15,8 @@ usage() {
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
   -l, --languages <list>      过滤语言，逗号分隔，支持语言代码或代码别名，不传则全部
   -g, --filter-tags <list>    按标签过滤，逗号分隔，只统计含指定标签的条目
-  -n, --no-code-alias         文件名和输出的 langCode 使用语言代码而非代码别名
-  -N, --no-name-alias         输出的 langName 不使用语言别名，回退语言名称
+  -n, --no-code-alias         输出的 langCode/文件名 使用语言代码而非代码别名（codeAlias）
+  -N, --no-name-alias         输出的 langName 跳过语言别名（nameAlias），直接使用语言名称
   -f, --input-format <type>   输入文件类型: json, yaml, xml, properties, csv（默认 json）
   -t, --output-format <type>  输出文件类型: json, yaml, xml（默认 json）
   -i, --input-dir <dir>       包含翻译文件的目录（必填）
@@ -109,7 +109,7 @@ COUNT_RESP=$(curl -s -X GET "$COUNT_URL" \
 TOTAL=$(jq -r '.data.total // 0' <<< "$COUNT_RESP")
 echo "总条目数: $TOTAL" >&2
 
-# ── 获取基础语言列表（构建 语言代码 → 语言名称 映射，供 langName 显示名称回退；失败时回退语言代码） ──
+# ── 获取基础语言列表（构建 语言代码 → 语言名称 映射，供 --no-name-alias 启用时回退） ──
 BASE_RESP=$(curl -s "$API_BASE/languages" \
   -H "x-api-key: $API_KEY" -H "x-api-secret: $API_SECRET" || true)
 BASE_NAME_MAP=$(jq -c '(.data // []) | reduce .[] as $l ({}; .[$l.languageCode] = "\($l.englishName) (\($l.nativeName // ""))")' \
@@ -151,13 +151,13 @@ OUTPUT_FILE=$(jq -r '.outputFile' <<< "$CONFIG_JSON")
 LANG_FILTER=$(jq -r '.langFilter // []' <<< "$CONFIG_JSON")
 
 # ── 解析语言列表 ──
-LANG_LIST=$(jq -r '.langData.data // .langData | .[] | "\(.languageCode)\t\(.codeAlias // "")\t\(.nameAlias // "")"' <<< "$CONFIG_JSON")
+LANG_LIST=$(jq -r '.langData.data // .langData | .[] | "\(.languageCode)|\(.codeAlias // "")|\(.nameAlias // "")"' <<< "$CONFIG_JSON")
 [[ -z "$LANG_LIST" ]] && { echo "没有可处理的语言" >&2; exit 1; }
 
 # 如果指定了 langFilter，用 jq 过滤（支持语言代码和代码别名匹配）
 if [[ "$LANG_FILTER" != "[]" ]]; then
   TARGETS=$(jq -r --argjson filter "$LANG_FILTER" \
-    '[.langData.data // .langData | .[] | select(. as $l | $filter | index($l.languageCode) or (if $l.codeAlias then index($l.codeAlias) else false end)) | "\(.languageCode)\t\(.codeAlias // "")\t\(.nameAlias // "")"] | .[]' \
+    '[.langData.data // .langData | .[] | select(. as $l | $filter | index($l.languageCode) or (if $l.codeAlias then index($l.codeAlias) else false end)) | "\(.languageCode)|\(.codeAlias // "")|\(.nameAlias // "")"] | .[]' \
     <<< "$CONFIG_JSON")
 else
   TARGETS="$LANG_LIST"
@@ -170,11 +170,12 @@ xml_esc() { sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g'; }
 RESULT_JSON="["
 FIRST=true
 
-while IFS=$'\t' read -r code codeAlias nameAlias; do
+while IFS='|' read -r code codeAlias nameAlias; do
   logicLangCode="$code"
   [[ "$NO_CODE_ALIAS" != "true" && -n "$codeAlias" ]] && logicLangCode="$codeAlias"
 
-  # 显示名称：与页面【显示名称】同逻辑 = 语言别名 || 语言名称（-N, --no-name-alias 跳过语言别名）
+  # langName：nameAlias → languageName → languageCode
+  # --no-name-alias 跳过 nameAlias，变为 languageName → languageCode
   DISPLAY_NAME=""
   if [[ "$NO_NAME_ALIAS" != "true" && -n "$nameAlias" ]]; then
     DISPLAY_NAME="$nameAlias"
@@ -197,9 +198,9 @@ while IFS=$'\t' read -r code codeAlias nameAlias; do
     if [[ "$TOTAL" -gt 0 ]]; then
       RATIO=$(awk "BEGIN{printf \"%.8f\", $TRANSLATED / $TOTAL * 100}")
     fi
-  else
-    file="${INPUT_DIR}/${logicLangCode}.${IN_EXT}"
-    if [[ ! -f "$file" ]]; then
+   else
+     file="${INPUT_DIR}/${logicLangCode}.${IN_EXT}"
+     if [[ ! -f "$file" ]]; then
       echo "文件不存在，跳过: $file" >&2
       continue
     fi
