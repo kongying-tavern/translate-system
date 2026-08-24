@@ -84,6 +84,11 @@ export interface AliasBody {
   codeAlias: string
 }
 
+export interface NameAliasBody {
+  /** 名称别名 */
+  nameAlias: string
+}
+
 export interface SortOrderBody {
   /** 语言排序值 */
   sortOrder: number
@@ -133,6 +138,8 @@ export interface ProjectLanguageRow {
   languageCode: string
   /** 代码别名 */
   codeAlias: string | null
+  /** 名称别名（显示名称优先用：名称别名 || 基础语言名称） */
+  nameAlias: string | null
   /** 排序值 */
   sortOrder: number
   /** 创建时间 */
@@ -277,6 +284,21 @@ export class ProjectsController extends Controller {
   public async updateAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: AliasBody): Promise<ApiOk<ProjectLanguageRow>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     return ok(await langService.updateLanguageCodeAlias(access.projectId, langCode, body.codeAlias) as ProjectLanguageRow)
+  }
+
+  /**
+   * 设置语言名称别名
+   * @param req 请求对象
+   * @param projectSlug 项目标识
+   * @param langCode 语言记录 ID
+   * @param body 请求体
+   * @summary 设置语言名称别名
+   */
+  @Put('{projectSlug}/languages/{langCode}/nameAlias')
+  @Security('auth')
+  public async updateNameAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: NameAliasBody): Promise<ApiOk<ProjectLanguageRow>> {
+    const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
+    return ok(await langService.updateLanguageNameAlias(access.projectId, langCode, body.nameAlias) as ProjectLanguageRow)
   }
 
   /**

@@ -62,6 +62,14 @@ export async function updateLanguageCodeAlias(projectId: string, id: string, cod
   return prisma.projectLanguage.update({ where: { id }, data: { codeAlias: codeAlias || null } })
 }
 
+/** 按行 id 更新名称别名；projectId 用于校验行归属，防跨项目改写 */
+export async function updateLanguageNameAlias(projectId: string, id: string, nameAlias: string) {
+  const row = await prisma.projectLanguage.findFirst({ where: { id, projectId } })
+  if (!row)
+    throw new AppError(ErrCode.NotFound, 'language not found')
+  return prisma.projectLanguage.update({ where: { id }, data: { nameAlias: nameAlias || null } })
+}
+
 /** 按行 id 更新排序；projectId 用于校验行归属，防跨项目改写 */
 export async function updateLanguageSortOrder(projectId: string, id: string, sortOrder: number) {
   const row = await prisma.projectLanguage.findFirst({ where: { id, projectId } })

@@ -24,12 +24,15 @@ const sourceLanguage = computed(() => projectStore.getProject(projectSlug.value)
 const showAddDialog = ref(false)
 const selectedLang = ref('')
 const codeAliasCache = reactive<Record<string, string>>({})
+const nameAliasCache = reactive<Record<string, string>>({})
 
 watch(projectLanguages, (langs) => {
   if (langs) {
     for (const l of langs) {
       if (!(l.id in codeAliasCache))
         codeAliasCache[l.id] = l.codeAlias || ''
+      if (!(l.id in nameAliasCache))
+        nameAliasCache[l.id] = l.nameAlias || ''
     }
   }
 }, { immediate: true, deep: true })
@@ -73,6 +76,21 @@ async function onCodeAliasSave(row: ProjectLanguage) {
   try {
     await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/alias`, { codeAlias })
     row.codeAlias = codeAlias || ''
+    ElMessage.success('已更新')
+  }
+  catch { ElMessage.error('更新失败') }
+}
+
+/** 名称别名保存：显示名称 = 名称别名 || 语言名称，空值回退语言名称 */
+async function onNameAliasSave(row: ProjectLanguage) {
+  if (importLocked.value)
+    return
+  const nameAlias = nameAliasCache[row.id]?.trim() ?? ''
+  if (nameAlias === (row.nameAlias || ''))
+    return
+  try {
+    await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/nameAlias`, { nameAlias })
+    row.nameAlias = nameAlias
     ElMessage.success('已更新')
   }
   catch { ElMessage.error('更新失败') }
@@ -144,6 +162,7 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
   {
     title: '排序',
     width: 80,
+    fixed: 'left',
     align: 'center',
     cell: (_row, _val, index) => (
       <div>
@@ -190,8 +209,27 @@ const langColumns: BaseTableColumnConfig<ProjectLanguage>[] = [
     cell: row => langStore.getBaseName(row.languageCode),
   },
   {
+    title: '语言别名',
+    minWidth: 160,
+    cell: row => (
+      <BaseInput
+        v-model={nameAliasCache[row.id]}
+        size="small"
+        placeholder="输入语言别名..."
+        readonly={!perm.canManageContent.value || importLocked.value}
+        onBlur={() => onNameAliasSave(row)}
+      />
+    ),
+  },
+  {
+    title: '显示名称',
+    minWidth: 180,
+    cell: row => row.nameAlias || langStore.getBaseName(row.languageCode),
+  },
+  {
     title: '操作',
     minWidth: 150,
+    fixed: 'right',
     cell: row => perm.canManageContent.value && !importLocked.value
       ? (
           <div class="op-cell">

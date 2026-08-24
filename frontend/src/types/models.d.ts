@@ -33,6 +33,8 @@ export interface ProjectLanguage {
   languageCode: string
   /** 代码别名（导出键名与 UI 显示优先用） */
   codeAlias: string
+  /** 名称别名（显示名称优先用：名称别名 || 语言名称） */
+  nameAlias?: string
   sortOrder: number
 }
 

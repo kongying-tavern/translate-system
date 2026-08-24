@@ -84,6 +84,7 @@ translation_keys              translation_values
 context 和 tags 为 Key 级别属性，跨语言共享
 原文 = 源语言语言值（源语言 value 的 translatedText），无独立存储
 project_languages (codeAlias 字段，列 code_alias，由 `20260824000000_rename_project_language_code_alias` RENAME 改名) — 导出和 UI 优先显示代码别名
+project_languages (nameAlias 字段，列 name_alias，`20260825000000_add_project_language_name_alias` 新增) — 语言名称别名（语言别名），语言管理页「显示名称」= 名称别名 || 基础语言名称
 ```
 
 **索引约定**（Postgres 不自动为 FK 列建索引）：`translation_keys` 有复合索引 `(project_id, sort_order, key)`（listGrouped/导出排序过滤，`20260822000000`）与 unique `(project_id, key)`；`project_members` 有 `user_id` 单列索引（fetchProjects「查我的项目」走 WHERE user_id，auth.init + 每 30s 权限轮询热路径，unique 以 project_id 为首列覆盖不了它；`20260823010000`）；`translation_values` 所有查询均以 `key_id` 打头（导入批量 upsert 的 ON CONFLICT / 元组 IN 同样命中），由 unique `(key_id, language_code)` 首列覆盖，勿重复单建 key_id 索引
@@ -247,7 +248,7 @@ GET|POST|PUT|DELETE /projects/:id/layouts/templates|configs — 布局模板/配
 GET    /projects/:id/languages         — 需项目访问
 POST|DELETE /projects/:id/languages    — 增删语言（Maintainer+，源语言不可删除）
 PUT    /projects/:id/sourceLanguage    — 设置源语言（Maintainer+，不在项目语言时自动添加并置顶）
-PUT    /projects/:id/languages/:code/alias|sortOrder — 别名/排序（Maintainer+）
+PUT    /projects/:id/languages/:code/alias|nameAlias|sortOrder — 别名/名称别名/排序（Maintainer+）
 GET    /projects/:id/members           — 需项目访问
 POST   /projects/:id/members           — 添加成员（Project-Admin）
 PUT    /projects/:id/members/:id/role  — 修改成员角色（Project-Admin）
@@ -451,7 +452,8 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
 ### 语言管理
 
 - 基础语言列表由**后端写死常量**提供（`backend/src/data/languages.ts` 的 `BASE_LANGUAGES`），经 `GET /languages`、`GET /languages/search` 接口（需 auth）下发，前端 `stores/language.ts` 的 `fetchBaseLanguages()` 加载（带 loaded 守卫）；后端 `addProjectLanguage` 严格校验 languageCode 必须存在于该列表，不存在的 code 拒绝添加
-- 项目语言支持 `codeAlias` 代码别名（原字段/列名 alias，物理列已由迁移更名 code_alias，请求体/响应/类型均已同步；REST 路径保持 `/languages/:id/alias` 不变）和 `sortOrder` 排序，导出时别名优先
+- 项目语言支持 `codeAlias` 代码别名（原字段/列名 alias，物理列已由迁移更名 code_alias，请求体/响应/类型均已同步；REST 路径保持 `/languages/:id/alias` 不变）、`nameAlias` 名称别名（语言别名，物理列 name_alias，接口 `PUT /languages/:id/nameAlias`，body `{ nameAlias }`；与代码别名互不影响——代码别名用于导出键名/导入映射，名称别名仅作显示）和 `sortOrder` 排序，导出时代码别名优先
+- 语言管理页表格列：排序(固定左) | 语言代码 | 代码别名(编辑) | 代码标识(codeAlias||languageCode) | 语言名称(基础语言 English (Native)) | 语言别名(编辑) | 显示名称(= 名称别名 || 语言名称) | 操作(固定右)；语言别名输入框与代码别名同款 blur 保存（trim 后空串存 null），受 Maintainer+ 权限与导入锁只读约束
 - 语言管理页支持拖拽排序（上下箭头），排序值通过 `PUT /languages/:code/sortOrder` 保存（`:code` 实为 project_languages 行 id，服务端按 id + projectId 校验归属）。新增语言 sortOrder 取 max+100 追加末尾；前端每次移动后按显示顺序**全量重编号 index×10 并仅保存变化的行**——历史数据曾默认 0 并列（并列时列表按 languageCode 兜底排序），只交换相邻两值会制造新并列导致刷新后顺序回退，全量重编号可自愈存量并列；存量并列另由 `20260823000000_normalize_language_sort_order` 迁移按当前显示序固化（显示顺序零变化，随部署自动应用，勿手动用 `db:push` 绕过）
 
 **项目源语言**：源语言必须是项目语言之一，不可删除（`removeProjectLanguage` 对源语言 code 抛错）。三个设置入口共享「自动补语言」语义（`ensureProjectLanguage`：**先校验 code 必须在 BASE_LANGUAGES**，不在项目语言中则自动添加并置顶 min-100 避免并列）：
