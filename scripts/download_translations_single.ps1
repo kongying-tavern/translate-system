@@ -26,8 +26,8 @@ param(
     [Parameter(HelpMessage = "按标签过滤，逗号分隔，只导出含指定标签的条目")]
     [string]$FilterTags = "",
 
-    [Parameter(HelpMessage = "不使用语言别名作为文件名，改用语言代码")]
-    [switch]$NoAlias,
+    [Parameter(HelpMessage = "文件名不使用代码别名，改用语言代码")]
+    [switch]$NoCodeAlias,
 
     [Parameter(HelpMessage = "导出前清理已有文件")]
     [switch]$Delete,
@@ -99,7 +99,7 @@ try {
     exit 1
 }
 
-# 解析目标语言（支持 code 和 alias 匹配）
+# 解析目标语言（支持语言代码和代码别名匹配）
 $langCodes = @()
 if ([string]::IsNullOrWhiteSpace($Languages)) {
     $langCodes = $allCodes
@@ -143,7 +143,7 @@ $succeeded = 0
 $failed = 0
 
 foreach ($code in $langCodes) {
-    if ($NoAlias) {
+    if ($NoCodeAlias) {
         $name = $code
     } else {
         $name = if ($aliasMap.ContainsKey($code)) { $aliasMap[$code] } else { $code }

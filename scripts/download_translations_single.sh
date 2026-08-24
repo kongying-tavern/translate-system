@@ -17,7 +17,7 @@ usage() {
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
   -l, --languages <list>      过滤语言，逗号分隔（如 zh-Hans,en-US），默认全部
   -g, --filter-tags <list>    按标签过滤，逗号分隔，只导出含指定标签的条目
-  -n, --no-alias              不使用语言别名作为文件名，改用语言代码
+  -n, --no-code-alias         文件名不使用代码别名，改用语言代码
   -d, --delete                写文件前若有则删除（file 模式）或导出前删整个目录（folder 模式）
   -m, --delete-mode <mode>    清理模式: file|folder (默认 file)
   -h, --help                  显示此帮助
@@ -48,7 +48,7 @@ while [[ $# -gt 0 ]]; do
     -o|--output)       OUTPUT_DIR="$2"; shift 2 ;;
     -l|--languages)    LANGUAGES="$2"; shift 2 ;;
     -g|--filter-tags)  FILTER_TAGS="$2"; shift 2 ;;
-    -n|--no-alias)     NO_ALIAS=true; shift ;;
+    -n|--no-code-alias) NO_CODE_ALIAS=true; shift ;;
     -d|--delete)       DELETE=true; shift ;;
     -m|--delete-mode)  DELETE_MODE="$2"; shift 2 ;;
     -h|--help)         usage ;;
@@ -110,7 +110,7 @@ while IFS='|' read -r code alias; do
 done <<< "$LANG_LIST"
 if [[ ${#ALL_CODES[@]} -eq 0 ]]; then echo -e "${RED}项目没有配置任何语言${NC}"; exit 1; fi
 
-# 解析目标语言（支持 code 和 alias 匹配）
+# 解析目标语言（支持语言代码和代码别名匹配）
 LANG_CODES=()
 if [[ -z "${LANGUAGES:-}" ]]; then
   LANG_CODES=("${ALL_CODES[@]}")
@@ -162,7 +162,7 @@ for CODE in "${LANG_CODES[@]}"; do
   CODE="${CODE// /}"
   [[ -z "$CODE" ]] && continue
 
-  if [[ "${NO_ALIAS:-false}" = "true" ]]; then
+  if [[ "${NO_CODE_ALIAS:-false}" = "true" ]]; then
     NAME="$CODE"
   else
     NAME="${ALIAS_MAP[$CODE]:-$CODE}"

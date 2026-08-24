@@ -329,7 +329,7 @@ curl -X POST http://localhost:21080/api/v1/apikey/projects/:projectId/exports/ge
   -d '{"templateSlug":"...","languageCodes":["zh-Hans"]}'
 ```
 
-- **白名单**：配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组，每条声明「方法 + 路径正则」；新增开放接口在此追加一条即生效，无需改守卫（`index.ts` 守卫与 `services/docs.ts` 抽取共用）。当前已开放翻译 Key 的**增删改**：`POST .../translations`（新增 Key）、`PUT .../translations/{keyId}`（改 Key 级属性，`(?!sortOrders)` 负向前瞻排除排序接口）、`DELETE .../translations/{translationId}`（删除 Key），均为 Maintainer+
+- **白名单**：配置在 `backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 数组，每条声明「方法 + 路径正则」；新增开放接口在此追加一条即生效，无需改守卫（`index.ts` 守卫与 `services/docs.ts` 抽取共用）。当前已开放翻译 Key 的**增删改**：`POST .../translations`（新增 Key）、`PUT .../translations/{keyId}`（改 Key 级属性，`(?!sortOrders)` 负向前瞻排除排序接口）、`DELETE .../translations/{translationId}`（删除 Key），均为 Maintainer+。另有静态只读的 `GET /languages`（基础语言表）已开放——供外部脚本（summarize_translations）获取基础语言名拼显示名称
 - **OpenAPI 文档**：白名单接口在 Swagger UI 顶部下拉「API Key 开放接口」（`GET /api-docs/apikey.json`，`buildApiKeyOpenApiSpec` 派生）；前端「开放接口说明」页（`/api-doc`）经 JWT 接口 `GET /api/v1/openapi-doc` 同逻辑派生展示（登录可见，不依赖 `/openapi/*` 代理）
 - **管理接口**：`GET|POST|PUT|DELETE /api/v1/me/keys`（`ApiKeysController` 为 `@Route('me')`，前端**不要**用 `/apikey/` 前缀调用）；代理上 tsoa 自动镜像的 `/apikey/me/keys` 被 `apiKeyAuth`（缺头 401）与白名单（403）双重拦截，外部 API Key 客户端无法管理
 

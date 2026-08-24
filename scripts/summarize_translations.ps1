@@ -14,14 +14,17 @@ param(
     [Parameter(Mandatory, HelpMessage = "项目 Slug (UUID 或 code)")]
     [string]$ProjectSlug,
 
-    [Parameter(HelpMessage = "过滤语言，逗号分隔，支持 code 或 alias，不传则全部")]
+    [Parameter(HelpMessage = "过滤语言，逗号分隔，支持语言代码或代码别名，不传则全部")]
     [string]$Languages = "",
 
     [Parameter(HelpMessage = "按标签过滤，逗号分隔，只统计含指定标签的条目")]
     [string]$FilterTags = "",
 
-    [Parameter(HelpMessage = "文件名和输出的 langCode 使用语言代码而非别名")]
-    [switch]$NoAlias,
+    [Parameter(HelpMessage = "文件名和输出的 langCode 使用语言代码而非代码别名")]
+    [switch]$NoCodeAlias,
+
+    [Parameter(HelpMessage = "输出的 langName 不使用语言别名，回退语言名称")]
+    [switch]$NoNameAlias,
 
     [Parameter(HelpMessage = "输入文件类型: json, yaml, xml, properties, csv（默认 json）")]
     [ValidateSet("json", "yaml", "xml", "properties", "csv")]
@@ -87,6 +90,18 @@ try {
 } catch {
     Write-Host "错误: 获取语言列表失败: $_" -ForegroundColor Red
     exit 1
+}
+
+Write-Host "正在获取基础语言列表..." -ForegroundColor Cyan
+$baseNameByCode = @{}
+try {
+    $baseResp = Invoke-RestMethod -Uri "$apiBase/languages" -Headers $headers -Method Get
+    foreach ($b in @($baseResp.data)) {
+        $native = if ($b.nativeName) { $b.nativeName } else { "" }
+        $baseNameByCode[[string]$b.languageCode] = "$($b.englishName) ($native)"
+    }
+} catch {
+    Write-Host "警告: 获取基础语言列表失败，langName 将回退语言代码: $_" -ForegroundColor Yellow
 }
 
 Write-Host "正在获取翻译总数..." -ForegroundColor Cyan
@@ -215,8 +230,15 @@ $parseInput = if ($parseMap.ContainsKey($inExt)) { $parseMap[$inExt] } else { ${
 $result = @()
 foreach ($l in $targetLangs) {
     $code = $l.languageCode
-    $alias = $codeToAlias[$code]
-    $logicLangCode = if ($NoAlias) { $code } else { if ($alias) { $alias } else { $code } }
+    $codeAlias = if ($l.codeAlias) { [string]$l.codeAlias } else { "" }
+    $nameAlias = if ($l.nameAlias) { [string]$l.nameAlias } else { "" }
+    $logicLangCode = if ($NoCodeAlias -or -not $codeAlias) { $code } else { $codeAlias }
+
+    # 显示名称：与页面【显示名称】同逻辑 = 语言别名 || 语言名称（-NoNameAlias 跳过语言别名）
+    $displayName = ""
+    if (-not $NoNameAlias -and $nameAlias) { $displayName = $nameAlias }
+    if (-not $displayName -and $baseNameByCode.ContainsKey($code)) { $displayName = $baseNameByCode[$code] }
+    if (-not $displayName) { $displayName = $code }
 
     if ($FilterTags) {
         # 标签过滤模式：使用 API 获取已翻译数，跳过本地文件
@@ -232,7 +254,7 @@ foreach ($l in $targetLangs) {
         $ratio = if ($total -gt 0) { [Math]::Round(($translated / $total * 100), 8) } else { 0 }
         $md5Hash = ""
         $result += [PSCustomObject]@{
-            langName = $code
+            langName = $displayName
             langCode = $logicLangCode
             md5Hash  = $md5Hash
             summary  = [PSCustomObject]@{
@@ -267,7 +289,7 @@ foreach ($l in $targetLangs) {
     $ratio = if ($total -gt 0) { [Math]::Round(($translated / $total * 100), 8) } else { 0 }
 
     $result += [PSCustomObject]@{
-        langName = $code
+        langName = $displayName
         langCode = $logicLangCode
         md5Hash  = $md5Hash
         summary  = [PSCustomObject]@{
