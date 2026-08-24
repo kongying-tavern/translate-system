@@ -248,7 +248,7 @@ GET|POST|PUT|DELETE /projects/:id/layouts/templates|configs — 布局模板/配
 GET    /projects/:id/languages         — 需项目访问
 POST|DELETE /projects/:id/languages    — 增删语言（Maintainer+，源语言不可删除）
 PUT    /projects/:id/sourceLanguage    — 设置源语言（Maintainer+，不在项目语言时自动添加并置顶）
-PUT    /projects/:id/languages/:code/alias|nameAlias|sortOrder — 别名/名称别名/排序（Maintainer+）
+PUT    /projects/:id/languages/:code/codeAlias|nameAlias|sortOrder — 代码别名/语言别名/排序（Maintainer+）
 GET    /projects/:id/members           — 需项目访问
 POST   /projects/:id/members           — 添加成员（Project-Admin）
 PUT    /projects/:id/members/:id/role  — 修改成员角色（Project-Admin）

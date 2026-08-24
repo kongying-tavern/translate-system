@@ -88,9 +88,9 @@ try {
     if ($langObj.code -ne 0) { throw $langObj.message }
     foreach ($item in $langObj.data) {
         $allCodes += $item.languageCode
-        if ($item.alias) {
-            $aliasMap[$item.languageCode] = $item.alias
-            $codeMap[$item.alias] = $item.languageCode
+        if ($item.codeAlias) {
+            $aliasMap[$item.languageCode] = $item.codeAlias
+            $codeMap[$item.codeAlias] = $item.languageCode
         }
     }
     if ($allCodes.Count -eq 0) { throw "项目没有配置任何语言" }

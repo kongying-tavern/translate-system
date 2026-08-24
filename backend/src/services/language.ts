@@ -62,7 +62,7 @@ export async function updateLanguageCodeAlias(projectId: string, id: string, cod
   return prisma.projectLanguage.update({ where: { id }, data: { codeAlias: codeAlias || null } })
 }
 
-/** 按行 id 更新名称别名；projectId 用于校验行归属，防跨项目改写 */
+/** 按行 id 更新语言别名；projectId 用于校验行归属，防跨项目改写 */
 export async function updateLanguageNameAlias(projectId: string, id: string, nameAlias: string) {
   const row = await prisma.projectLanguage.findFirst({ where: { id, projectId } })
   if (!row)
@@ -78,13 +78,14 @@ export async function updateLanguageSortOrder(projectId: string, id: string, sor
   return prisma.projectLanguage.update({ where: { id }, data: { sortOrder } })
 }
 
-export async function getLanguageDisplayMap(projectId: string): Promise<{ aliases: Record<string, string>, languageOrder: string[] }> {
+/** 导出键名映射：语言代码 → 代码别名（未配置回退语言代码）；仅服务导出键名，显示名称由前端用语言别名 + 基础语言名称拼装 */
+export async function getLanguageCodeAliasMap(projectId: string): Promise<{ codeAliases: Record<string, string>, languageOrder: string[] }> {
   const langs = await prisma.projectLanguage.findMany({ where: { projectId }, orderBy: [{ sortOrder: 'asc' }, { languageCode: 'asc' }] })
-  const aliases: Record<string, string> = {}
+  const codeAliases: Record<string, string> = {}
   const languageOrder: string[] = []
   for (const l of langs) {
-    aliases[l.languageCode] = l.codeAlias || l.languageCode
+    codeAliases[l.languageCode] = l.codeAlias || l.languageCode
     languageOrder.push(l.languageCode)
   }
-  return { aliases, languageOrder }
+  return { codeAliases, languageOrder }
 }

@@ -74,7 +74,7 @@ async function onCodeAliasSave(row: ProjectLanguage) {
   if (codeAlias === (row.codeAlias || ''))
     return
   try {
-    await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/alias`, { codeAlias })
+    await client.put(`/projects/${encPathParam(projectSlug.value)}/languages/${encPathParam(row.id)}/codeAlias`, { codeAlias })
     row.codeAlias = codeAlias || ''
     ElMessage.success('已更新')
   }

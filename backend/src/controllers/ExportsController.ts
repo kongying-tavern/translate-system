@@ -175,13 +175,13 @@ export class ExportsController extends Controller {
     const t = await exportService.getTemplate(body.templateSlug, access.projectId)
     const [translations, langInfo] = await Promise.all([
       transService.getForExport(access.projectId, body.languageCodes),
-      langService.getLanguageDisplayMap(access.projectId),
+      langService.getLanguageCodeAliasMap(access.projectId),
     ])
     const [content, format, encoding] = exportService.exportTranslations(
       translations,
       body.languageCodes,
       t.formatType,
-      langInfo.aliases,
+      langInfo.codeAliases,
       t.config as Record<string, unknown>,
       body.filterTags,
     )
@@ -202,13 +202,13 @@ export class ExportsController extends Controller {
     const t = await exportService.getTemplate(body.templateSlug, access.projectId)
     const [translations, langInfo] = await Promise.all([
       transService.getForExport(access.projectId, body.languageCodes),
-      langService.getLanguageDisplayMap(access.projectId),
+      langService.getLanguageCodeAliasMap(access.projectId),
     ])
     const [content, format, encoding] = exportService.exportTranslations(
       translations,
       body.languageCodes,
       t.formatType,
-      langInfo.aliases,
+      langInfo.codeAliases,
       t.config as Record<string, unknown>,
       body.filterTags,
     )

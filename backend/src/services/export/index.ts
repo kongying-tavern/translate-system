@@ -58,22 +58,22 @@ export async function deleteTemplate(id: string) {
   return prisma.exportTemplate.delete({ where: { id } })
 }
 
-function flattenKeys(keys: ExportKey[], languageCodes: string[], aliases?: Record<string, string>) {
+function flattenKeys(keys: ExportKey[], languageCodes: string[], codeAliases?: Record<string, string>) {
   const result: FlatTranslation[] = []
   for (const k of keys) {
     for (const lang of languageCodes) {
       const v = k.values.find(v => v.languageCode === lang)
-      result.push({ translationKey: k.key, languageCode: lang, translatedText: v?.translatedText || '', codeAlias: aliases?.[lang] })
+      result.push({ translationKey: k.key, languageCode: lang, translatedText: v?.translatedText || '', codeAlias: codeAliases?.[lang] })
     }
   }
   return result
 }
 
-export function exportTranslations(keys: ExportKey[], languageCodes: string[], formatType: string, aliases?: Record<string, string>, config?: Record<string, unknown>, filterTags?: string[]): [string, string] | [string, string, string] {
+export function exportTranslations(keys: ExportKey[], languageCodes: string[], formatType: string, codeAliases?: Record<string, string>, config?: Record<string, unknown>, filterTags?: string[]): [string, string] | [string, string, string] {
   if (filterTags?.length) {
     keys = keys.filter(k => filterTags.some(t => k.tags?.includes(t)))
   }
-  let translations = flattenKeys(keys, languageCodes, aliases)
+  let translations = flattenKeys(keys, languageCodes, codeAliases)
   if (config?.skipIdentical) {
     translations = translations.filter(t => t.translatedText !== t.translationKey)
   }

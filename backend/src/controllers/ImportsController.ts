@@ -129,8 +129,8 @@ interface KeyMetaUpdate {
 }
 
 /**
- * 项目语言「code/alias → 规范 code」映射：导入的语言归一化单源。
- * 约定——存储与比对一律用规范 code，alias 仅作输入兼容被识别归一（导出文件可能含别名，需能回灌），绝不按 alias 落库。
+ * 项目语言「语言代码/代码别名 → 规范语言代码」映射：导入的语言归一化单源。
+ * 约定——存储与比对一律用规范语言代码，代码别名仅作输入兼容被识别归一（导出文件可能含代码别名，需能回灌），绝不按代码别名落库。
  */
 function buildLangCanonical(projectLangs: Array<{ languageCode: string, codeAlias: string | null }>): Map<string, string> {
   const map = new Map<string, string>()
@@ -233,7 +233,7 @@ async function importKeys(projectId: string, raw: string, fmt: ImportFormat, ove
     prisma.projectLanguage.findMany({ where: { projectId }, select: { languageCode: true, codeAlias: true } }),
   ])
   const sourceLang = project?.sourceLanguage || ''
-  // 源语言列识别同样走 code/alias 归一（别名列如 zh → zh-Hans 也能回灌原文）
+  // 源语言列识别同样走 语言代码/代码别名 归一（代码别名列如 zh → zh-Hans 也能回灌原文）
   const langCanonical = buildLangCanonical(projectLangs)
   let createdFields = 0
   let skippedFields = 0
@@ -408,7 +408,7 @@ async function applyTranslations(projectId: string, raw: string, fmt: string, la
     prisma.project.findUnique({ where: { id: projectId }, select: { sourceLanguage: true } }),
   ])
   const sourceLang = project?.sourceLanguage ?? ''
-  // 比对与写入均用规范 code（alias 导入归一写真实语言，不落游离于项目语言之外的 value 行）
+  // 比对与写入均用规范语言代码（代码别名导入归一写真实语言，不落游离于项目语言之外的 value 行）
   const langCanonical = buildLangCanonical(projectLangs)
   const unknownLangs = new Set<string>()
   let createdFields = 0

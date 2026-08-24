@@ -79,13 +79,13 @@ export interface SourceLanguageBody {
   languageCode: string
 }
 
-export interface AliasBody {
+export interface CodeAliasBody {
   /** 代码别名 */
   codeAlias: string
 }
 
 export interface NameAliasBody {
-  /** 名称别名 */
+  /** 语言别名（显示名称优先用：语言别名 || 基础语言名称） */
   nameAlias: string
 }
 
@@ -272,27 +272,27 @@ export class ProjectsController extends Controller {
   }
 
   /**
-   * 设置语言别名
+   * 设置代码别名
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param langCode 语言代码
    * @param body 请求体
-   * @summary 设置语言别名
+   * @summary 设置代码别名
    */
-  @Put('{projectSlug}/languages/{langCode}/alias')
+  @Put('{projectSlug}/languages/{langCode}/codeAlias')
   @Security('auth')
-  public async updateAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: AliasBody): Promise<ApiOk<ProjectLanguageRow>> {
+  public async updateCodeAlias(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() langCode: string, @Body() body: CodeAliasBody): Promise<ApiOk<ProjectLanguageRow>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
     return ok(await langService.updateLanguageCodeAlias(access.projectId, langCode, body.codeAlias) as ProjectLanguageRow)
   }
 
   /**
-   * 设置语言名称别名
+   * 设置语言别名
    * @param req 请求对象
    * @param projectSlug 项目标识
    * @param langCode 语言记录 ID
    * @param body 请求体
-   * @summary 设置语言名称别名
+   * @summary 设置语言别名
    */
   @Put('{projectSlug}/languages/{langCode}/nameAlias')
   @Security('auth')

@@ -15,7 +15,7 @@ usage() {
 
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
-  -l, --languages <list>      过滤语言，逗号分隔（如 zh-Hans,en-US），默认全部
+  -l, --languages <list>      过滤语言，逗号分隔，支持语言代码或代码别名，默认全部
   -g, --filter-tags <list>    按标签过滤，逗号分隔，只导出含指定标签的条目
   -d, --delete                导出前删除已存在的输出文件
   -h, --help                  显示此帮助
@@ -89,16 +89,17 @@ if [[ "$(echo "$LANG_RESP" | json_field '.code')" != "0" ]]; then
   echo -e "${RED}获取语言列表失败: $(echo "$LANG_RESP" | json_field '.message')${NC}"; exit 1
 fi
 
-declare -A IS_CODE
+declare -A IS_CODE ALIAS_TO_CODE
 ALL_CODES=()
-LANG_LIST=$(jq -r '.data[] | "\(.languageCode)|\(.alias // "")"' <<< "$LANG_RESP")
-while IFS='|' read -r code alias; do
+LANG_LIST=$(jq -r '.data[] | "\(.languageCode)|\(.codeAlias // "")"' <<< "$LANG_RESP")
+while IFS='|' read -r code codeAlias; do
   ALL_CODES+=("$code")
   IS_CODE["$code"]=1
+  [[ -n "$codeAlias" ]] && ALIAS_TO_CODE["$codeAlias"]="$code"
 done <<< "$LANG_LIST"
 if [[ ${#ALL_CODES[@]} -eq 0 ]]; then echo -e "${RED}项目没有配置任何语言${NC}"; exit 1; fi
 
-# 解析目标语言（仅支持 code 匹配）
+# 解析目标语言（支持语言代码和代码别名匹配）
 LANG_CODES=()
 if [[ -z "${LANGUAGES:-}" ]]; then
   LANG_CODES=("${ALL_CODES[@]}")
@@ -109,6 +110,8 @@ else
     [[ -z "$entry" ]] && continue
     if [[ -n "${IS_CODE[$entry]:-}" ]]; then
       LANG_CODES+=("$entry")
+    elif [[ -n "${ALIAS_TO_CODE[$entry]:-}" ]]; then
+      LANG_CODES+=("${ALIAS_TO_CODE[$entry]}")
     else
       echo -e "${YELLOW}警告: 未匹配到语言: $entry${NC}"
     fi

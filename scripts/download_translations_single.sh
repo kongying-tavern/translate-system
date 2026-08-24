@@ -99,7 +99,7 @@ fi
 
 declare -A ALIAS_MAP CODE_MAP IS_CODE
 ALL_CODES=()
-LANG_LIST=$(jq -r '.data[] | "\(.languageCode)|\(.alias // "")"' <<< "$LANG_RESP")
+LANG_LIST=$(jq -r '.data[] | "\(.languageCode)|\(.codeAlias // "")"' <<< "$LANG_RESP")
 while IFS='|' read -r code alias; do
   ALL_CODES+=("$code")
   IS_CODE["$code"]=1

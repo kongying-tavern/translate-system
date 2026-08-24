@@ -20,7 +20,7 @@ param(
     [Parameter(Mandatory, HelpMessage = "输出文件路径")]
     [string]$OutputFile,
 
-    [Parameter(HelpMessage = "过滤语言代码，逗号分隔（如 zh-Hans,en-US），留空则导出所有语言")]
+    [Parameter(HelpMessage = "过滤语言，逗号分隔，支持语言代码或代码别名，留空则导出所有语言")]
     [string]$Languages = "",
 
     [Parameter(HelpMessage = "按标签过滤，逗号分隔，只导出含指定标签的条目")]
@@ -67,6 +67,7 @@ if ($Delete -and (Test-Path $OutputFile)) {
 Write-Host "正在获取项目语言列表..." -ForegroundColor Cyan
 $langUrl = "$Endpoint/api/v1/apikey/projects/$ProjectSlug/languages"
 $allCodes = @()
+$aliasToCode = @{}
 try {
     $wc = New-Object System.Net.WebClient
     $wc.Headers.Add("x-api-key", $ApiKey)
@@ -76,6 +77,7 @@ try {
     if ($langObj.code -ne 0) { throw $langObj.message }
     foreach ($item in $langObj.data) {
         $allCodes += $item.languageCode
+        if ($item.codeAlias) { $aliasToCode[[string]$item.codeAlias] = [string]$item.languageCode }
     }
     if ($allCodes.Count -eq 0) { throw "项目没有配置任何语言" }
 } catch {
@@ -83,7 +85,7 @@ try {
     exit 1
 }
 
-# 解析目标语言（仅支持 code 匹配）
+# 解析目标语言（支持语言代码和代码别名匹配）
 $langCodes = @()
 if ([string]::IsNullOrWhiteSpace($Languages)) {
     $langCodes = $allCodes
@@ -91,6 +93,8 @@ if ([string]::IsNullOrWhiteSpace($Languages)) {
     foreach ($entry in ($Languages -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })) {
         if ($allCodes -contains $entry) {
             $langCodes += $entry
+        } elseif ($aliasToCode.ContainsKey($entry)) {
+            $langCodes += $aliasToCode[$entry]
         } else {
             Write-Host "警告: 未匹配到语言: $entry" -ForegroundColor Yellow
         }

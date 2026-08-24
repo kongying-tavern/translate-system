@@ -166,7 +166,7 @@
 | `-ProjectSlug` | `-p, --project` | 项目 Slug（UUID 或 code） |
 | `-TemplateSlug` | `-t, --template` | 导出模板 Slug（UUID 或 code） |
 | `-OutputFile` | `-o, --output-file` | 输出文件路径 |
-| `-Languages` | `-l, --languages` | 过滤语言，逗号分隔，不传则导出全部 |
+| `-Languages` | `-l, --languages` | 过滤语言，逗号分隔，支持语言代码或代码别名，不传则导出全部 |
 | `-Delete` | `-d, --delete` | 导出前删除已存在的输出文件 |
 
 #### 前置条件
