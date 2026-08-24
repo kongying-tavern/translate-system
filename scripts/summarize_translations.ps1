@@ -104,7 +104,7 @@ Write-Host "总条目数: $total" -ForegroundColor Cyan
 $codeToAlias = @{}
 $aliasToCode = @{}
 foreach ($l in $langData) {
-    $alias = if ($l.alias) { $l.alias } else { $l.languageCode }
+    $alias = if ($l.codeAlias) { $l.codeAlias } else { $l.languageCode }
     $codeToAlias[$l.languageCode] = $alias
     if ($alias -ne $l.languageCode) { $aliasToCode[$alias] = $l.languageCode }
 }

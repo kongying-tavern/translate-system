@@ -141,13 +141,13 @@ OUTPUT_FILE=$(jq -r '.outputFile' <<< "$CONFIG_JSON")
 LANG_FILTER=$(jq -r '.langFilter // []' <<< "$CONFIG_JSON")
 
 # ── 解析语言列表 ──
-LANG_LIST=$(jq -r '.langData.data // .langData | .[] | "\(.languageCode)|\(.alias // "")"' <<< "$CONFIG_JSON")
+LANG_LIST=$(jq -r '.langData.data // .langData | .[] | "\(.languageCode)|\(.codeAlias // "")"' <<< "$CONFIG_JSON")
 [[ -z "$LANG_LIST" ]] && { echo "没有可处理的语言" >&2; exit 1; }
 
 # 如果指定了 langFilter，用 jq 过滤（支持 code 和 alias 匹配）
 if [[ "$LANG_FILTER" != "[]" ]]; then
   TARGETS=$(jq -r --argjson filter "$LANG_FILTER" \
-    '[.langData.data // .langData | .[] | select(. as $l | $filter | index($l.languageCode) or (if $l.alias then index($l.alias) else false end)) | "\(.languageCode)|\(.alias // "")"] | .[]' \
+    '[.langData.data // .langData | .[] | select(. as $l | $filter | index($l.languageCode) or (if $l.codeAlias then index($l.codeAlias) else false end)) | "\(.languageCode)|\(.codeAlias // "")"] | .[]' \
     <<< "$CONFIG_JSON")
 else
   TARGETS="$LANG_LIST"
