@@ -1,3 +1,6 @@
+# 项目名跟随 COMPOSE_PROJECT_NAME（.env），未设置时回退 translate-system；容器名同源
+name: ${COMPOSE_PROJECT_NAME:-translate-system}
+
 services:
   postgres:
     container_name: ${COMPOSE_PROJECT_NAME:-translate-system}-postgres

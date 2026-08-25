@@ -27,7 +27,7 @@ git add --renormalize .
 ## 常用命令
 
 ```bash
-# Docker（端口在 .env 中配置，默认 21080/21010/21432）
+# Docker（端口在 .env 中配置，默认 21080/21010/21432；项目名/容器名跟随 COMPOSE_PROJECT_NAME，compose 顶层 name: ${COMPOSE_PROJECT_NAME:-translate-system}）
 docker compose up -d             # 启动全部服务（生产部署）
 docker compose up -d --build     # 重新构建镜像并启动
 docker compose up -d postgres    # 仅启动数据库（本地开发用，AI 自动执行）
