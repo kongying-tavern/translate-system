@@ -218,7 +218,10 @@
 
 #### Shell 依赖
 
-`summarize_translations.sh` 需要安装 [jq](https://jqlang.github.io/jq/)。输入/输出含 YAML 需 [yq](https://github.com/mikefarah/yq)，含 XML 需 [xmlstarlet](http://xmlstar.sourceforge.net/)。
+`summarize_translations.sh` 需要安装 [jq](https://jqlang.github.io/jq/)。
+
+- 输入/输出含 YAML 时，还需安装 [yq](https://github.com/mikefarah/yq)
+- 含 XML 时，还需安装 [xmlstarlet](http://xmlstar.sourceforge.net/)
 
 ---
 

@@ -90,7 +90,9 @@
 | 导出模板 | 新增/删除/编辑模板 | — | Admin / Maintainer |
 | 导出模板 | 预览/生成（使用模板） | — | 任意成员 |
 
-前端统一通过 `hooks/useProjectPermission.ts` 获取权限 computed（`canManageContent`、`canManageProject`、`canSeeMemberManagement` 等），不要在页面里直接判断 `auth.role`。
+前端统一通过 `hooks/useProjectPermission.ts` 获取权限 computed
+- 常用项：`canManageContent`、`canManageProject`、`canSeeMemberManagement` 等
+- 不要在页面里直接判断 `auth.role`
 
 ### 3.3 数据权限（可见数据范围）
 
@@ -98,7 +100,8 @@
 
 **① 项目列表数据权限**（前端项目选择器 / 项目管理首页）：
 - 只能看到自己有 **成员（owner 或 project_members）** 身份的项目，即 `WHERE projects.userId = me OR id IN (我的 project_members.projectId)`；
-- 后端 `services/project.ts` `listProjects` 返回列表时**附加**当前用户在每项目中的 `projectRole`（super_admin / owner → `admin`，其余取成员记录），供前端权限判断；
+- 后端 `services/project.ts` `listProjects` 返回列表时会**附加**当前用户在每项目中的 `projectRole`（super_admin / owner → admin）
+- 该字段供前端权限判断使用
 - 前端 `stores/project.ts` 统一维护该列表（单数据源），`auth.projectRole` 由此派生，`useProjectPermission` 用它算菜单/功能权限；
 - 注意：即使 super_admin 后端可访问任意项目（URL 直达放行），**项目列表也仅显示自己有成员/owner 身份的项目**——数据可见性与接口可达性分离。
 
@@ -112,7 +115,10 @@
 - 每个用户的 API Key 列表、启停、删除均按 `where: { userId: req.userId }` 过滤，**只能管理自己的 Key**（owner-scoped），不可见他人 Key。
 
 **⑤ 用户管理操作数据权限**（`/auth/users*`，系统 admin+）：
-- 操作级限制在 `services/auth.ts` `canManage(operator, target)`：`admin` 可管理除 **super_admin** 之外的用户，不能把他人角色提升到高于自己、只能创建 `user` 角色；仅 `super_admin` 可管理 `super_admin`。列表本身全量可见，但**可操作范围**按此收敛。
+- 操作级限制在 `services/auth.ts` `canManage(operator, target)`：
+  - admin 可管理除 super_admin 外的所有用户
+  - 不能把他人角色提升到高于自己；只能创建 user 角色
+- 列表本身全量可见，但**可操作范围**按此收敛
 
 ---
 
@@ -156,9 +162,18 @@ handler
 
 ### 4.3 开放接口（API Key）权限
 
-外部自动化通过 `x-api-key` + `x-api-secret` 访问 `/api/v1/apikey/...` 前缀接口。可访问的接口由**白名单**决定：`backend/src/lib/apikey-whitelist.ts` 的 `APIKEY_WHITELIST` 是一个数组，**每条声明「HTTP 方法 + 路径正则」**，逐条列允许的开放接口。新增开放接口只需在数组中追加一条声明即可生效（`index.ts` 守卫自动读取），无需改动任何逻辑。开放接口文档由 `backend/src/services/docs.ts` 的 `buildApiKeyOpenApiSpec` 从 swagger.json 派生（`/api-docs/apikey.json`），Swagger UI「API Key 开放接口」与前端「开放接口说明」页（`/api-doc`，经 JWT 接口 `GET /api/v1/openapi-doc`）同逻辑派生展示，不按系统角色过滤。
+外部自动化通过 `x-api-key` + `x-api-secret` 访问 `/api/v1/apikey/...` 前缀接口。
 
-**开放接口的数据权限**：开放接口路径均为 `/projects/{id}/...`，调用时 `apiKeyAuth` 用 x-api-key 解析出 API Key 的 `userId`/`userRole`（`backend/src/middleware/apikey.ts`，回写 `req.userId`/`req.userRole`），随后项目接口的 `assertProjectAccess` 以**该所有者身份**判定项目访问权与项目角色门槛。因此：
+- 可访问范围由**白名单**决定：`backend/src/lib/apikey-whitelist.ts` 的 APIKEY_WHITELIST 数组
+- 每条声明「HTTP 方法 + 路径正则」，逐条列举允许的开放接口
+- 新增开放接口只需追加一条声明（index.ts 守卫与 services/docs.ts 抽取共用），无需改逻辑
+
+**开放接口的数据权限**
+
+- 开放接口路径均为 `/projects/{id}/...`，调用时 `apiKeyAuth` 解析出 Key 所有者的 `userId` / `userRole`
+- 后续 `assertProjectAccess` 以**该所有者身份**判定项目访问权与角色门槛，因此：
+  - API Key 只能操作所有者拥有成员/owner 身份的项目（super_admin 所有者的 Key 可访问全部项目）
+  - 非成员项目返回 403；API Key 不会获得超越所有者的能力
 - API Key 只能操作**其所有者拥有成员/owner 身份的项目**（super_admin 所有者的 Key 可访问全部项目），非成员项目返回 403；
 - API Key 不会获得超越所有者系统/项目角色的能力，只是把所有者的身份「复用到自动化调用」。
 
@@ -179,7 +194,8 @@ handler
 | `proj:member` | 该项目任意成员（翻译/导出模板） |
 
 - **项目成员兜底**：任何路径含 `:projectSlug` 的项目内页面，若当前用户非该项目成员/owner 且非 super_admin，一律拦截（即使漏设 `meta.perm`）。
-- `sys:*` 用 `SYS_ROLE_LEVEL` 比较；`proj:*` 用 URL 项目角色（`projectStore.getProject(slug)?.projectRole`）与 `PROJECT_ROLE_LEVEL` 比较；super_admin 项目级恒放行。
+- `sys:*` 用 `SYS_ROLE_LEVEL` 比较；`proj:*` 用 URL 项目角色与 `PROJECT_ROLE_LEVEL` 比较
+- 项目角色取自 `projectStore.getProject(slug)?.projectRole`
 - 无权限一律重定向首页 `/`。
 
 > 项目级判断基于 **URL 中的项目**（而非当前活动项目），防止通过 URL 访问其他项目。
@@ -215,7 +231,8 @@ handler
 
 ### 新增一个受限接口（后端）
 1. 选择 `@Security('auth' | 'admin')`；
-2. 项目级接口在 handler 内 `assertProjectAccess(req.userId!, req.userRole!, slug, minProjectRole?)`，按业务传 `ProjectRole.Maintainer` / `Admin` 或不传（任意成员）；
+2. 项目级接口在 handler 内调用 `assertProjectAccess(req.userId!, req.userRole!, slug, minProjectRole?)`
+   - 按业务传 `ProjectRole.Maintainer` / `Admin`，或不传（任意成员）
 3. 涉及系统 super_admin 的操作加 `assertSystemRole(role, SystemRole.SuperAdmin)`；
 4. 改完控制器必须 `cd backend && pnpm gen` 重新生成 `docs/routes.ts` + `swagger.json`；
 5. 若为 API Key 开放接口，同步补充 `APIKEY_WHITELIST`。
