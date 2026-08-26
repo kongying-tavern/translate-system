@@ -21,7 +21,7 @@
 | [import-export.md](.agents/import-export.md) | 导入解析校验、并发锁与进度 SSE、导出 8 种格式与模板 config | 动导入/导出功能前 |
 | [translation.md](.agents/translation.md) | 翻译管理页虚拟滚动、滚动降级、IME 守卫、排序机制、回归测试要点 | 动翻译页面前 |
 | [open-api.md](.agents/open-api.md) | API Key 鉴权、开放接口白名单、文档派生 | 动开放接口/API Key 前 |
-| [workflow.md](.agents/workflow.md) | 翻译功能改动流程、schema 迁移规则、常见问题排查 | 排障 / 规划改动顺序时 |
+| [workflow.md](.agents/workflow.md) | 翻译功能改动流程、Git 分支与合并规则、schema 迁移规则、常见问题排查 | 排障 / 规划改动顺序 / 开分支前 |
 | [documentation.md](.agents/documentation.md) | 文档受众分区、命名、结构模板与写作风格 | 新建/修改任何 .md 前 |
 
 ## 硬性规范速览
@@ -34,6 +34,7 @@
 6. 第三方 / 原生 UI 组件（Element Plus、React 桥接、自绘复合件等）必须经封装层使用——`@/components/ui` 的 Base 或 `@/components/common`，barrel 导入、禁深路径
 7. 权限判断统一走 useProjectPermission / assertProjectAccess，不要散落硬编码角色字符串
 8. 业务错误抛 AppError(ErrCode.*, 中文 message)；预期路径日志只打单行 warn 不打堆栈
+9. Git 工作流：`main` 主干；较大功能改动从 main 开功能分支处理（`<类型>/<主题>`，如 `feat/`、`fix/`、`chore/` 等前缀，仅为示例；也可开 `dev` 集成），合并回主线一律 `git merge --no-ff` 创建 merge commit
 
 ## 文档写作规范
 

@@ -18,6 +18,13 @@
 > 3. pnpm gen 重新生成路由文档
 > 4. 开放接口同步补 APIKEY_WHITELIST
 
+## Git 分支与合并
+
+- 主分支为 `main`
+- 从 `main` 开出集成分支 `dev` 与功能分支，命名 `<类型>/<主题>`——类型沿用提交前缀习惯：`feat/`、`fix/`、`chore/`、`refactor/`、`docs/` 等（仅为示例，按改动性质选择）
+- **较大的功能改动必须开新分支处理**，完成并自测后合并回主线；日常小修（单点 bugfix、文档笔误等）可直接在 `main` 提交
+- 合并一律使用 merge 且**必须创建 merge commit**：`git merge --no-ff <branch>`——保留功能边界、便于整体回滚；禁止 fast-forward 吞并分支拓扑、禁止 rebase 改写已推送的主线历史
+
 ## 常见问题
 
 1. **Vite 模块找不到** — `rm -rf node_modules/.vite && pnpm dev`
