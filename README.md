@@ -53,6 +53,7 @@ cd frontend && pnpm install && pnpm dev  # 3. 前端 localhost:3000
 | [docs/api-docs.md](docs/api-docs.md) | Swagger UI 与 OpenAPI JSON 的访问入口、代理路径、暴露开关 |
 | [docs/permission-guide.md](docs/permission-guide.md) | 权限体系完整说明（三维模型 / 前后端对照表 / 维护指引） |
 | [docs/scripts-guide.md](docs/scripts-guide.md) | 命令行脚本使用说明（API Key 批量导入等） |
+| [docs/positioning.md](docs/positioning.md) | 项目亮点分受众介绍（官网文案 / 汇报可用） |
 | [AGENTS.md](AGENTS.md) | AI 协作开发指南入口（`.agents/` 下有 12 个专题分册） |
 
 ## 角色权限速览
