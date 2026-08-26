@@ -148,9 +148,10 @@ export async function updateKeyByKeyId(projectId: string, keyId: string, data: {
   if (!existing || existing.projectId !== projectId)
     throw new AppError(ErrCode.NotFound, 'Key 不存在或不属于该项目')
 
-  const newKey = data.translationKey !== undefined ? data.translationKey.trim() : undefined
+  // Key 原样保存（不 trim），仅校验非空白；前后端约定一致
+  const newKey = data.translationKey
   if (newKey !== undefined && newKey !== existing.key) {
-    if (!newKey)
+    if (!newKey.trim())
       throw new AppError(ErrCode.InvalidParams, 'Key 不能为空')
     const dup = await prisma.translationKey.findUnique({ where: { projectId_key: { projectId, key: newKey } } })
     if (dup)

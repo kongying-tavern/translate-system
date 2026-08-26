@@ -517,7 +517,8 @@ async function handleCreate() {
   saving.value = true
   try {
     await transStore.create(projectSlug.value, {
-      translationKey: form.translationKey.trim(),
+      // Key 原样保存（不 trim），仅上方做非空白校验
+      translationKey: form.translationKey,
       tags: form.tags,
     })
     ElMessage.success('创建成功')
@@ -563,8 +564,9 @@ async function onTagsChange(row: GroupedRow) {
 async function onKeySave(row: GroupedRow) {
   if (importLocked.value)
     return
-  const newKey = (editCache[`key|${row.keyId}`] ?? row.translationKey).trim()
-  if (!newKey) {
+  // Key 原样保存（不 trim），仅校验非空白
+  const newKey = editCache[`key|${row.keyId}`] ?? row.translationKey
+  if (!newKey.trim()) {
     ElMessage.warning('Key 不能为空')
     return
   }
@@ -689,8 +691,9 @@ async function saveExpand() {
   try {
     switch (expandDialog.field) {
       case 'key': {
-        const newKey = text.trim()
-        if (!newKey) {
+        // Key 原样保存（不 trim），仅校验非空白
+        const newKey = text
+        if (!newKey.trim()) {
           ElMessage.warning('Key 不能为空')
           return
         }
