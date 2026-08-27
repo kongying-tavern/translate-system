@@ -36,7 +36,8 @@ function parseString(s: RawString, index: number): ImportEntry {
   return {
     key: name,
     sourceText: s['@_sourceText'] || name,
-    translatedText: String(s['#text'] ?? '').trim(),
+    // 译文原样保存（不 trim）
+    translatedText: String(s['#text'] ?? ''),
     tags: s['@_tags'] ? s['@_tags'].split(';').map(t => t.trim()) : [],
     context: s['@_context'] ?? '',
   }

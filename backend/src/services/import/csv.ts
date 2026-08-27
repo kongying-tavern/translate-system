@@ -139,9 +139,10 @@ function* csvParseGen(data: string): Generator<ImportEntry> {
   const hasLang = langCols.length > 0
 
   for (const vals of rows) {
-    const get = (idx: number): string => (vals[idx] ?? '').trim()
+    // Key / 译文等值原样保存（不 trim），仅校验非空白
+    const get = (idx: number): string => vals[idx] ?? ''
     const key = get(keyCol.idx)
-    if (!key)
+    if (!key.trim())
       continue
 
     const base = {

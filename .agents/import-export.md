@@ -13,6 +13,7 @@
 - JSON/YAML 顶层必须是键值映射（数组/标量拒绝）；嵌套结构用 looksLikeLang 启发式判定（外层键都像语言代码才按「语言→Key→译文」解析）
 - CSV 表头严格匹配（大小写一致、无别名）：仅识别 key / sourceText / tags / context；导出表头 `key,<语言...>` 与之对应
 - XML：缺 resources 根节点、string 缺 name、language 缺 code 均报错定位；译文按原样字符串解析（不转数值），纯数字/前导零不丢失
+- **值原样保存**：Key、原文、译文导入时均不 trim——仅校验非空白（空白 Key 拒绝），前后空格按输入原样落库
 
 ### 原文（sourceText）约定
 
