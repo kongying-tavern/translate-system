@@ -158,13 +158,13 @@ const scrolling = ref(false)
 let scrollTimer: ReturnType<typeof setTimeout> | undefined
 
 /** 滚动期间使用的静态文本单元格：仅渲染样式对齐的纯 div，不挂任何可交互组件 */
-function StaticTextCell({ text, rows }: { text: string, rows: number }) {
+function StaticTextCell({ text, rows, className }: { text: string, rows: number, className?: string }) {
   const lines = text.split('\n')
   const padding = 2
   const lineHeight = 20
   const minHeight = rows * lineHeight + padding * 2
   return (
-    <div class="base-textarea cell-static-text" style={{ minHeight: `${minHeight}px` }}>
+    <div class={`base-textarea cell-static-text${className ? ` ${className}` : ''}`} style={{ minHeight: `${minHeight}px` }}>
       {lines.map(line => <span class="cell-static-line">{line || '\u00A0'}</span>)}
     </div>
   )
@@ -793,7 +793,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     width: FIXED_WIDTHS.rowIndex,
     align: 'center',
     fixed: TableV2FixedDir.LEFT,
-    cellRenderer: ({ rowData, rowIndex }) => <span style={{ whiteSpace: 'nowrap', userSelect: 'none' }}>{String(hasFilter.value ? rowData.rowIndex : rowIndex + 1)}</span>,
+    cellRenderer: ({ rowData, rowIndex }) => <span class="cell-mono" style={{ whiteSpace: 'nowrap', userSelect: 'none' }}>{String(hasFilter.value ? rowData.rowIndex : rowIndex + 1)}</span>,
   })
 
   cols.push({
@@ -804,9 +804,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     cellRenderer: ({ rowData }) => {
       if (perm.canEditKeyColumn.value && !importLocked.value) {
         if (scrolling.value)
-          return <StaticTextCell text={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey} rows={rowHeightMult.value} />
+          return <StaticTextCell className="cell-mono" text={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey} rows={rowHeightMult.value} />
         return (
-          <div class="expand-cell">
+          <div class="expand-cell cell-mono">
             <BaseInput
               class="inline-input"
               modelValue={editCache[`key|${rowData.keyId}`] ?? rowData.translationKey}
@@ -830,7 +830,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           </div>
         )
       }
-      return <span class="cell-text" title={rowData.translationKey}>{rowData.translationKey}</span>
+      return <span class="cell-text cell-mono" title={rowData.translationKey}>{rowData.translationKey}</span>
     },
   })
 
@@ -842,9 +842,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     cellRenderer: ({ rowData }) => {
       if (perm.canEditSourceColumn.value && !importLocked.value) {
         if (scrolling.value)
-          return <StaticTextCell text={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText} rows={rowHeightMult.value} />
+          return <StaticTextCell className="cell-mono" text={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText} rows={rowHeightMult.value} />
         return (
-          <div class="expand-cell">
+          <div class="expand-cell cell-mono">
             <BaseInput
               class="inline-input"
               modelValue={editCache[`source|${rowData.keyId}`] ?? rowData.sourceText}
@@ -868,7 +868,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           </div>
         )
       }
-      return <span class="cell-text" title={rowData.sourceText}>{rowData.sourceText}</span>
+      return <span class="cell-text cell-mono" title={rowData.sourceText}>{rowData.sourceText}</span>
     },
   })
 
@@ -901,11 +901,11 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       const text = rowData.translations[lang]?.translatedText ?? ''
       const ck = `translation|${rowData.keyId}|${lang}`
       if (scrolling.value)
-        return <StaticTextCell text={editCache[ck] ?? text} rows={rowHeightMult.value} />
+        return <StaticTextCell className="cell-mono" text={editCache[ck] ?? text} rows={rowHeightMult.value} />
       if (importLocked.value)
-        return <span class="cell-text" title={text}>{text}</span>
+        return <span class="cell-text cell-mono" title={text}>{text}</span>
       return (
-        <div class="expand-cell">
+        <div class="expand-cell cell-mono">
           <BaseInput
             class="inline-input"
             modelValue={editCache[ck] ?? text}
@@ -983,9 +983,9 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     cellRenderer: ({ rowData }) => {
       if (perm.canEditContextColumn.value && !importLocked.value) {
         if (scrolling.value)
-          return <StaticTextCell text={editCache[`context|${rowData.keyId}`] ?? rowData.context} rows={rowHeightMult.value} />
+          return <StaticTextCell className="cell-mono" text={editCache[`context|${rowData.keyId}`] ?? rowData.context} rows={rowHeightMult.value} />
         return (
-          <div class="expand-cell">
+          <div class="expand-cell cell-mono">
             <BaseInput
               class="inline-input"
               modelValue={editCache[`context|${rowData.keyId}`] ?? rowData.context}
@@ -1010,7 +1010,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           </div>
         )
       }
-      return <span class="cell-text" title={rowData.context}>{rowData.context || '-'}</span>
+      return <span class="cell-text cell-mono" title={rowData.context}>{rowData.context || '-'}</span>
     },
   })
 
@@ -1153,7 +1153,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       </template>
     </BaseDialog>
     <BaseDialog v-model="expandDialog.visible" :title="expandTitle" width="720px">
-      <div v-if="expandDialog.row" class="expand-meta">
+      <div v-if="expandDialog.row" class="expand-meta cell-mono">
         <span class="expand-meta-label">Key</span>
         <span class="expand-meta-value pre-wrap">{{ expandDialog.row.translationKey }}</span>
         <template v-if="expandDialog.langCode">
@@ -1161,7 +1161,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
           <span class="expand-meta-value">{{ expandDialog.langCode }}</span>
         </template>
       </div>
-      <div v-if="expandDialog.field === 'translation'" class="expand-trans">
+      <div v-if="expandDialog.field === 'translation'" class="expand-trans cell-mono">
         <div class="expand-orig">
           <div class="expand-subtitle">
             原文
@@ -1178,7 +1178,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
         </div>
       </div>
       <BaseTagInput v-else-if="expandDialog.field === 'tags'" v-model="expandTags" :options="allTags" size="default" />
-      <BaseInput v-else v-model="expandText" type="textarea" :autosize="{ minRows: 10, maxRows: 24 }" placeholder="在此输入内容..." />
+      <BaseInput v-else v-model="expandText" type="textarea" :autosize="{ minRows: 10, maxRows: 24 }" placeholder="在此输入内容..." class="cell-mono" />
       <template #footer>
         <BaseButton @click="expandDialog.visible = false">
           取消
@@ -1230,6 +1230,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 
 <style lang="scss" scoped>
 .trans-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.cell-mono { font-family: monospace; }
 .total-count { color: #909399; font-size: 14px; font-weight: normal; }
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
@@ -1263,8 +1264,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .trans-table :deep(.drag-source) { background-color: #ecf5ff !important; }
 .drag-ghost { position: fixed; z-index: 3000; max-width: 280px; padding: 6px 10px; background: #fff; border: 1px solid #409eff; border-radius: 6px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); pointer-events: none; }
 .drag-line { position: fixed; height: 2px; background: #409eff; z-index: 3001; pointer-events: none; }
-.drag-ghost-key { font-size: 13px; font-weight: 600; color: #303133; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.drag-ghost-source { margin-top: 2px; font-size: 12px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.drag-ghost-key { font-size: 13px; font-weight: 600; color: #303133; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
+.drag-ghost-source { margin-top: 2px; font-size: 12px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
 .trans-table :deep(.inline-input) { flex: 1; min-width: 0; }
 .trans-table.row-top :deep(.inline-input) { height: 100%; }
 .trans-table.row-top :deep(.inline-input .el-textarea) { height: 100%; }
