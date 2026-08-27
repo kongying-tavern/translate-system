@@ -11,6 +11,7 @@ export interface GroupedRow {
   context: string
   tags: string[]
   keyId: string
+  isLocked: boolean
   translations: Record<string, { id: string, translatedText: string, isReviewed?: boolean, reviewerComment?: string }>
 }
 
@@ -39,7 +40,7 @@ export function createTranslation(projectId: string, data: CreateTranslationData
 export function saveTranslation(projectId: string, keyId: string, langCode: string, translatedText: string) {
   return client.put(`/projects/${encPathParam(projectId)}/translations/${encPathParam(keyId)}/${encPathParam(langCode)}`, { translatedText })
 }
-export function updateKey(projectId: string, keyId: string, data: { translationKey?: string, sourceText?: string, tags?: string[], context?: string }) {
+export function updateKey(projectId: string, keyId: string, data: { translationKey?: string, sourceText?: string, tags?: string[], context?: string, isLocked?: boolean }) {
   return client.put(`/projects/${encPathParam(projectId)}/translations/${encPathParam(keyId)}`, data)
 }
 export function deleteTranslation(projectId: string, id: string) {

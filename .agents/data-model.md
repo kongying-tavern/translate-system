@@ -12,7 +12,9 @@ translation_keys              translation_values
 | key              |       | language_code    |
 | context          |       | translated_text  |
 | tags (TEXT[])    |       | is_reviewed      |
-| created_at       |       +------------------+
+| is_locked (BOOL) |       +------------------+
+| created_at       |
+| updated_at       |
 +------------------+
 ```
 

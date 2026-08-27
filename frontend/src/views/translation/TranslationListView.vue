@@ -500,6 +500,18 @@ async function handleDelete(row: GroupedRow) {
   }
 }
 
+async function handleToggleLock(row: GroupedRow) {
+  if (importLocked.value)
+    return
+  try {
+    await transStore.toggleLock(projectSlug.value, row.keyId, !row.isLocked)
+    ElMessage.success(row.isLocked ? '已锁定' : '已解锁')
+  }
+  catch {
+    ElMessage.error('操作失败')
+  }
+}
+
 function openCreate() {
   if (importLocked.value)
     return
@@ -743,7 +755,7 @@ function rowClassName(params: Parameters<RowClassNameGetter<GroupedRow>>[0]): st
 const translationColumns = computed<Column<GroupedRow>[]>(() => {
   void scrolling.value
   void importLocked.value
-  const FIXED_WIDTHS = { drag: 64, rowIndex: 60, actions: 80 }
+  const FIXED_WIDTHS = { drag: 64, rowIndex: 60, actions: 140 }
   const SCROLLBAR = 10
   const FLEX_MINS: Record<string, number> = { translationKey: 150, sourceText: 150, lang: 110, translation: 170, tags: 130, context: 130 }
   const FLEX_WEIGHTS: Record<string, number> = { translationKey: 2.5, sourceText: 2.5, lang: 1.5, translation: 3, tags: 2, context: 2 }
@@ -902,7 +914,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       const ck = `translation|${rowData.keyId}|${lang}`
       if (scrolling.value)
         return <StaticTextCell className="cell-mono" text={editCache[ck] ?? text} rows={rowHeightMult.value} />
-      if (importLocked.value)
+      // 导入锁 / 条目锁定（非 Maintainer+）→ 只读
+      if (importLocked.value || (rowData.isLocked && !perm.canManageContent.value))
         return <span class="cell-text cell-mono" title={text}>{text}</span>
       return (
         <div class="expand-cell cell-mono">
@@ -1014,7 +1027,7 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
     },
   })
 
-  if (perm.canManageKeys.value && !importLocked.value) {
+  if (perm.canManageContent.value) {
     cols.push({
       key: 'actions',
       title: '操作',
@@ -1022,8 +1035,15 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       fixed: TableV2FixedDir.RIGHT,
       cellRenderer: ({ rowData }) => {
         if (scrolling.value)
-          return <span class="cell-delete-static">删除</span>
-        return <BaseLink type="danger" size="small" underline={false} onClick={() => handleDelete(rowData)}>删除</BaseLink>
+          return <span />
+        return (
+          <div class="expand-cell" style={{ gap: '8px' }}>
+            <BaseLink type={rowData.isLocked ? 'success' : 'warning'} size="small" underline={false} onClick={() => handleToggleLock(rowData)}>{rowData.isLocked ? '解锁' : '锁定'}</BaseLink>
+            {!importLocked.value && (
+              <BaseLink type="danger" size="small" underline={false} onClick={() => handleDelete(rowData)}>删除</BaseLink>
+            )}
+          </div>
+        )
       },
     })
   }

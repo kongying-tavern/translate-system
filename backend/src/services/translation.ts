@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import { PROJECT_ROLE_LEVEL, ProjectRole } from '../constants/roles'
 import { ErrCode } from '../lib/errors'
 import { prisma } from '../lib/prisma'
 import { AppError } from '../utils/AppError'
@@ -101,6 +102,7 @@ export async function listGrouped(projectId: string, query: {
     context: item.key.context || '',
     tags: item.key.tags,
     keyId: item.key.id,
+    isLocked: item.key.isLocked,
     translations: Object.fromEntries(item.key.values.map(v => [v.languageCode, {
       id: v.id,
       translatedText: v.translatedText,
@@ -137,16 +139,24 @@ export async function createTranslation(projectId: string, data: {
   return key
 }
 
-/** 更新 key 级属性（keyId 定位）：Key 名 / 原文 / 标签 / 备注 */
+/** 更新 key 级属性（keyId 定位）：Key 名 / 原文 / 标签 / 备注 / 锁定 */
 export async function updateKeyByKeyId(projectId: string, keyId: string, data: {
   translationKey?: string
   sourceText?: string
   tags?: string[]
   context?: string
-}) {
+  isLocked?: boolean
+}, projectRole?: string) {
   const existing = await prisma.translationKey.findUnique({ where: { id: keyId } })
   if (!existing || existing.projectId !== projectId)
     throw new AppError(ErrCode.NotFound, 'Key 不存在或不属于该项目')
+
+  // 锁定条目：非 Maintainer+ 仅允许切换锁定状态，其余属性拒绝修改
+  if (existing.isLocked && projectRole !== undefined && (PROJECT_ROLE_LEVEL[projectRole] ?? 0) < (PROJECT_ROLE_LEVEL[ProjectRole.Maintainer] ?? 0)) {
+    const hasOtherFields = data.translationKey !== undefined || data.sourceText !== undefined || data.tags !== undefined || data.context !== undefined
+    if (hasOtherFields)
+      throw new AppError(ErrCode.InvalidParams, '该条目已锁定，请联系项目管理员解锁后再编辑')
+  }
 
   // Key 原样保存（不 trim），仅校验非空白；前后端约定一致
   const newKey = data.translationKey
@@ -165,6 +175,8 @@ export async function updateKeyByKeyId(projectId: string, keyId: string, data: {
     updateData.tags = data.tags
   if (data.context !== undefined)
     updateData.context = data.context
+  if (data.isLocked !== undefined)
+    updateData.isLocked = data.isLocked
   if (Object.keys(updateData).length)
     await prisma.translationKey.update({ where: { id: keyId }, data: updateData })
 
@@ -182,11 +194,15 @@ export async function updateKeyByKeyId(projectId: string, keyId: string, data: {
   return { keyId, count: 1 }
 }
 
-/** 保存指定语言译文（keyId 定位）。目标语言必须是项目语言，且不能是源语言（原文走 key 级接口） */
-export async function saveValueForLang(projectId: string, keyId: string, languageCode: string, translatedText: string) {
+/** 保存指定语言译文（keyId 定位）。目标语言必须是项目语言，且不能是源语言（原文走 key 级接口）。锁定条目仅 Maintainer+ 可编辑 */
+export async function saveValueForLang(projectId: string, keyId: string, languageCode: string, translatedText: string, projectRole?: string) {
   const key = await prisma.translationKey.findUnique({ where: { id: keyId } })
   if (!key || key.projectId !== projectId)
     throw new AppError(ErrCode.NotFound, 'Key 不存在或不属于该项目')
+
+  // 锁定条目仅 Maintainer+ 可编辑译文；super_admin/owner 经 assertProjectAccess 返回 projectRole='admin' 自动放行
+  if (key.isLocked && projectRole !== undefined && (PROJECT_ROLE_LEVEL[projectRole] ?? 0) < (PROJECT_ROLE_LEVEL[ProjectRole.Maintainer] ?? 0))
+    throw new AppError(ErrCode.InvalidParams, '该条目已锁定，无法编辑译文，请联系项目管理员解锁')
 
   const sourceLang = await getSourceLanguage(projectId)
   if (languageCode === sourceLang)

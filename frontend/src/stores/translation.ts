@@ -26,5 +26,12 @@ export const useTranslationStore = defineStore('translation', () => {
     await translationApi.deleteTranslation(projectId, id)
   }
 
-  return { rows, total, loading, fetchTranslations, create, remove }
+  async function toggleLock(projectId: string, keyId: string, isLocked: boolean) {
+    await translationApi.updateKey(projectId, keyId, { isLocked })
+    const row = rows.value.find(r => r.keyId === keyId)
+    if (row)
+      row.isLocked = isLocked
+  }
+
+  return { rows, total, loading, fetchTranslations, create, remove, toggleLock }
 })

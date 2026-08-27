@@ -35,6 +35,8 @@ export interface GroupedRow {
   tags: string[]
   /** 键ID */
   keyId: string
+  /** 是否锁定（锁定后仅 Maintainer+ 可编辑译文） */
+  isLocked: boolean
   /** 各语言译文（键为语言代码） */
   translations: Record<string, TranslationValue>
 }
@@ -80,6 +82,8 @@ export interface UpdateKeyBody {
   tags?: string[]
   /** 备注上下文（可空） */
   context?: string
+  /** 是否锁定（可空，锁定后仅 Maintainer+ 可编辑译文） */
+  isLocked?: boolean
 }
 
 export interface SaveForLangBody {
@@ -248,7 +252,7 @@ export class TranslationsController extends Controller {
   @Security('auth')
   public async updateKey(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() keyId: string, @Body() body: UpdateKeyBody): Promise<ApiOk<unknown>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug, ProjectRole.Maintainer)
-    return ok(await transService.updateKeyByKeyId(access.projectId, keyId, body))
+    return ok(await transService.updateKeyByKeyId(access.projectId, keyId, body, access.projectRole))
   }
 
   /**
@@ -263,8 +267,8 @@ export class TranslationsController extends Controller {
   @Put('{projectSlug}/translations/{keyId}/{langCode}')
   @Security('auth')
   public async saveForLang(@Request() req: AuthRequest, @Path('projectSlug') projectSlug: string, @Path() keyId: string, @Path() langCode: string, @Body() body: SaveForLangBody): Promise<ApiOk<unknown>> {
-    // 译文列任意成员可编辑；service 层校验目标语言为项目语言且非源语言
+    // 译文列任意成员可编辑；锁定条目仅 Maintainer+ 可编辑；service 层校验目标语言为项目语言且非源语言
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
-    return ok(await transService.saveValueForLang(access.projectId, keyId, langCode, body.translatedText))
+    return ok(await transService.saveValueForLang(access.projectId, keyId, langCode, body.translatedText, access.projectRole))
   }
 }
