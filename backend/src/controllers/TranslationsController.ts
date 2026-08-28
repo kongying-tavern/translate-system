@@ -122,6 +122,7 @@ export class TranslationsController extends Controller {
    * @param search 搜索关键词
    * @param tags 标签列表
    * @param untransOnly 仅未翻译
+   * @param lockedOnly 仅已锁定
    * @summary 分组翻译列表
    */
   @Get('{projectSlug}/translations')
@@ -135,6 +136,7 @@ export class TranslationsController extends Controller {
     @Query() search?: string,
     @Query() tags?: string,
     @Query() untransOnly?: string,
+    @Query() lockedOnly?: string,
   ): Promise<ApiOk<ApiPage<GroupedRow>>> {
     const access = await assertProjectAccess(req.userId!, req.userRole!, projectSlug)
     const p = Math.max(1, parseInt(page || '1'))
@@ -146,6 +148,7 @@ export class TranslationsController extends Controller {
       search,
       tags: tags ? tags.split(',') : undefined,
       untransOnly: untransOnly === 'true',
+      lockedOnly: lockedOnly === 'true',
       page: p,
       pageSize: size,
     })

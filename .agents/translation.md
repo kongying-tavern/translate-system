@@ -32,7 +32,7 @@
   - 译文列取值兜底为行当前值，避免把空串当新值覆盖
   - Safari 已知问题：compositionend 晚于 blur 时该次编辑延迟到下次交互再存，数据不丢仅延迟
 - 仅未翻译：后端过滤该语言 translatedText 为空或不存在；#行号（支持 #3 与 #3-8 区间）与 /正则/ 搜索在前端对全量 rows 过滤（#行号 时后端不传 search，按全局 rowIndex 匹配）
-- 筛选条件（标签/搜索/仅未翻译）同时启用以 AND 组合；多标签之间 OR
+- 筛选条件（标签/搜索/仅未翻译/仅已锁定）同时启用以 AND 组合；多标签之间 OR
 - **行排序机制**：
   - sortOrder 默认从 0 开始；listGrouped 按 sortOrder asc, key asc 排序；rowIndex 为过滤前全局序号（#行号搜索依赖其稳定）
   - 新增 key 分配 maxSo + 100 步长，为折半插入留空位

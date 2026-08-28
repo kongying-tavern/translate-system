@@ -117,6 +117,7 @@ const filters = reactive({ search: '' })
 const filterTags = ref<string[]>([])
 const allTags = ref<string[]>([])
 const untransOnly = ref(false)
+const lockedOnly = ref(false)
 const globalLang = ref('')
 const rowLangs = ref<string[]>([])
 const showCreateDialog = ref(false)
@@ -142,7 +143,7 @@ const insertDialog = reactive<{
 const jumpDialog = reactive<{ visible: boolean, targetNo: string }>({ visible: false, targetNo: '' })
 
 const appliedSearch = ref('')
-const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value)
+const hasFilter = computed(() => !!appliedSearch.value || filterTags.value.length > 0 || untransOnly.value || lockedOnly.value)
 const dragOrderable = ref(true)
 const dragKeyId = ref('')
 const dragTargetIndex = ref(-1)
@@ -274,6 +275,7 @@ async function load() {
       pageSize: -1,
       languageCode: untransOnly.value ? lang : undefined,
       untransOnly: untransOnly.value,
+      lockedOnly: lockedOnly.value,
       tags: filterTags.value.length ? filterTags.value.join(',') : undefined,
       search: isRowSearch ? undefined : appliedSearch.value,
     })
@@ -1127,6 +1129,11 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       <BaseFormItem>
         <BaseCheckbox v-model="untransOnly" @change="load">
           仅未翻译
+        </BaseCheckbox>
+      </BaseFormItem>
+      <BaseFormItem>
+        <BaseCheckbox v-model="lockedOnly" @change="load">
+          仅已锁定
         </BaseCheckbox>
       </BaseFormItem>
       <BaseFormItem>

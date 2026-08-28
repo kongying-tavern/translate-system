@@ -29,6 +29,7 @@ export interface TranslationQuery {
   search?: string
   tags?: string
   untransOnly?: boolean
+  lockedOnly?: boolean
 }
 
 export function getTranslations(projectId: string, params: TranslationQuery) {
