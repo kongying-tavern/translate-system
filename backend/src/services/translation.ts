@@ -58,11 +58,13 @@ export async function listGrouped(projectId: string, query: {
   // 多个筛选条件同时生效：标签 / 搜索 / 仅未翻译 / 仅已锁定 全部以 AND 组合
   let visible = allItems
   if (query.search || query.tags?.length || query.languageCode || query.untransOnly || query.lockedOnly) {
-    if (query.lockedOnly)
-      visible = visible.filter(item => item.key.isLocked)
     visible = allItems.filter((item) => {
       const k = item.key
       const sourceText = sourceByKey.get(k.id) || ''
+
+      // 仅已锁定：必须为锁定条目
+      if (query.lockedOnly && !k.isLocked)
+        return false
 
       // 仅未翻译：指定语言下没有非空译文
       if (query.untransOnly && query.languageCode) {
