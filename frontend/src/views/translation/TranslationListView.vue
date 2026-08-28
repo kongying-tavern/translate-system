@@ -158,16 +158,29 @@ const scrolling = ref(false)
 let scrollTimer: ReturnType<typeof setTimeout> | undefined
 
 /** 滚动期间使用的静态文本单元格：仅渲染样式对齐的纯 div，不挂任何可交互组件 */
-function StaticTextCell({ text, rows, className }: { text: string, rows: number, className?: string }) {
+function StaticTextCell({ text, rows, className, refCb }: { text: string, rows: number, className?: string, refCb?: (el: unknown) => void }) {
   const lines = text.split('\n')
   const padding = 2
   const lineHeight = 20
   const minHeight = rows * lineHeight + padding * 2
   return (
-    <div class={`base-textarea cell-static-text${className ? ` ${className}` : ''}`} style={{ minHeight: `${minHeight}px` }}>
+    <div ref={refCb} class={`base-textarea cell-static-text${className ? ` ${className}` : ''}`} style={{ minHeight: `${minHeight}px`, maxHeight: `${minHeight}px` }}>
       {lines.map(line => <span class="cell-static-line">{line || '\u00A0'}</span>)}
     </div>
   )
+}
+
+// 检测锁定容器滚动条：测真实滚动条宽度写入 --lock-sb（水印贴边 vs 避开滚动条）
+function syncLockScrollbar(el: unknown) {
+  if (!el || !(el instanceof HTMLElement))
+    return
+  requestAnimationFrame(() => {
+    const ta = el.querySelector('textarea') as HTMLTextAreaElement | null
+    const sc = el.querySelector('.cell-static-text') as HTMLElement | null
+    const src = ta ?? sc ?? el
+    const sbW = Math.max(0, src.offsetWidth - src.clientWidth - (src.clientLeft || 0))
+    el.style.setProperty('--lock-sb', `${sbW + 6}px`)
+  })
 }
 
 function onWheelCapture(e: WheelEvent) {
@@ -912,26 +925,37 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
       const lang = rowLangs.value[rowIndex]
       const text = rowData.translations[lang]?.translatedText ?? ''
       const ck = `translation|${rowData.keyId}|${lang}`
+      const lockedCls = rowData.isLocked ? ' cell-locked' : ''
       if (scrolling.value)
-        return <StaticTextCell className="cell-mono" text={editCache[ck] ?? text} rows={rowHeightMult.value} />
-      // 导入锁 / 条目锁定（非 Maintainer+）→ 只读
-      if (importLocked.value || (rowData.isLocked && !perm.canManageContent.value))
-        return <span class="cell-text cell-mono" title={text}>{text}</span>
+        return <StaticTextCell className={`cell-mono${lockedCls}`} text={editCache[ck] ?? text} rows={rowHeightMult.value} />
+      // 条目锁定（非 Maintainer+）→ 参照滚动状态的静态文本框（允许滚动/选中）
+      if (rowData.isLocked && !perm.canManageContent.value) {
+        return (
+          <div class={`cell-ro-wrap${lockedCls}`} ref={syncLockScrollbar}>
+            <StaticTextCell className="cell-ro cell-mono" text={text} rows={rowHeightMult.value} />
+          </div>
+        )
+      }
+      // 导入锁 → 只读
+      if (importLocked.value)
+        return <span class={`cell-text cell-mono${lockedCls}`} title={text}>{text}</span>
       return (
-        <div class="expand-cell cell-mono">
-          <BaseInput
-            class="inline-input"
-            modelValue={editCache[ck] ?? text}
-            onUpdate:modelValue={(v: string) => editCache[ck] = v}
-            onCompositionstart={onCompositionStart}
-            onCompositionend={onCompositionEnd}
-            onBlur={() => handleBlurSave(() => onTranslationSave(rowData, lang))}
-            type="textarea"
-            rows={rowHeightMult.value}
-            size="small"
-            placeholder="输入译文..."
-            disabled={!hasTargetLang.value}
-          />
+        <div class={`expand-cell cell-mono${lockedCls}`}>
+          <div class="lock-input-wrap" ref={syncLockScrollbar}>
+            <BaseInput
+              class="inline-input"
+              modelValue={editCache[ck] ?? text}
+              onUpdate:modelValue={(v: string) => editCache[ck] = v}
+              onCompositionstart={onCompositionStart}
+              onCompositionend={onCompositionEnd}
+              onBlur={() => handleBlurSave(() => onTranslationSave(rowData, lang))}
+              type="textarea"
+              rows={rowHeightMult.value}
+              size="small"
+              placeholder="输入译文..."
+              disabled={!hasTargetLang.value}
+            />
+          </div>
           {lang && hasTargetLang.value && (
             <span
               class={['expand-btn', { 'is-disabled': scrolling.value }]}
@@ -1251,6 +1275,25 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 <style lang="scss" scoped>
 .trans-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .cell-mono { font-family: monospace; }
+.trans-table :deep(.cell-static-text.cell-locked),
+.trans-table :deep(.cell-text.cell-locked) {
+  background-color: var(--el-color-warning-light-9);
+}
+.trans-table :deep(.cell-static-text.cell-locked:not(.cell-ro)) {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201024%201024%22%3E%3Cpath%20fill%3D%22%23E6A23C%22%20fill-opacity%3D%220.45%22%20d%3D%22M832%20464h-68V240c0-70.7-57.3-128-128-128H388c-70.7%200-128%2057.3-128%20128v224h-68c-17.7%200-32%2014.3-32%2032v384c0%2017.7%2014.3%2032%2032%2032h640c17.7%200%2032-14.3%2032-32V496c0-17.7-14.3-32-32-32zM332%20240c0-30.9%2025.1-56%2056-56h248c30.9%200%2056%2025.1%2056%2056v224H332V240z%22%2F%3E%3C%2Fsvg%3E");
+  background-repeat: no-repeat;
+  background-position: right 3px bottom 3px;
+  background-size: 14px 14px;
+}
+.trans-table :deep(.cell-ro-wrap) { position: relative; flex: 1; min-width: 0; }
+.trans-table :deep(.cell-ro-wrap.cell-locked) { background-color: var(--el-color-warning-light-9); }
+.trans-table :deep(.cell-ro-wrap.cell-locked::after) { content: ''; position: absolute; right: var(--lock-sb, 6px); bottom: 4px; width: 14px; height: 14px; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201024%201024%22%3E%3Cpath%20fill%3D%22%23E6A23C%22%20fill-opacity%3D%220.45%22%20d%3D%22M832%20464h-68V240c0-70.7-57.3-128-128-128H388c-70.7%200-128%2057.3-128%20128v224h-68c-17.7%200-32%2014.3-32%2032v384c0%2017.7%2014.3%2032%2032%2032h640c17.7%200%2032-14.3%2032-32V496c0-17.7-14.3-32-32-32zM332%20240c0-30.9%2025.1-56%2056-56h248c30.9%200%2056%2025.1%2056%2056v224H332V240z%22%2F%3E%3C%2Fsvg%3E"); background-repeat: no-repeat; background-size: 14px 14px; pointer-events: none; }
+.trans-table :deep(.cell-ro-wrap .cell-static-text) { flex: 1; min-width: 0; }
+.trans-table :deep(.expand-cell.cell-locked .lock-input-wrap::after) { content: ''; position: absolute; right: var(--lock-sb, 6px); bottom: 4px; width: 14px; height: 14px; background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201024%201024%22%3E%3Cpath%20fill%3D%22%23E6A23C%22%20fill-opacity%3D%220.45%22%20d%3D%22M832%20464h-68V240c0-70.7-57.3-128-128-128H388c-70.7%200-128%2057.3-128%20128v224h-68c-17.7%200-32%2014.3-32%2032v384c0%2017.7%2014.3%2032%2032%2032h640c17.7%200%2032-14.3%2032-32V496c0-17.7-14.3-32-32-32zM332%20240c0-30.9%2025.1-56%2056-56h248c30.9%200%2056%2025.1%2056%2056v224H332V240z%22%2F%3E%3C%2Fsvg%3E"); background-repeat: no-repeat; background-size: 14px 14px; pointer-events: none; }
+.trans-table :deep(.expand-cell.cell-locked .inline-input .el-textarea__inner),
+.trans-table :deep(.expand-cell.cell-locked .inline-input .el-input__wrapper) {
+  background-color: var(--el-color-warning-light-9);
+}
 .total-count { color: #909399; font-size: 14px; font-weight: normal; }
 .filter-bar { background: #fff; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
 .filter-bar .el-form-item { margin-bottom: 0; }
@@ -1272,6 +1315,8 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .trans-table :deep(.cell-static-text) { flex: 1; min-width: 0; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; padding: 2px 6px; border-radius: 8px; background-color: var(--el-fill-color-blank); box-shadow: 0 0 0 1px var(--el-border-color) inset; overflow: hidden; }
 .trans-table.row-top :deep(.cell-static-text) { justify-content: flex-start; }
 .trans-table :deep(.cell-static-line) { display: block; font-size: 13px; line-height: 20px; color: var(--el-text-color-regular); word-break: break-word; user-select: none; }
+.trans-table :deep(.cell-ro) { overflow-y: auto; }
+.trans-table :deep(.cell-ro .cell-static-line) { user-select: text; }
 .trans-table :deep(.cell-static-lang) { flex: 1; min-width: 0; display: flex; align-items: center; min-height: 24px; padding: 0 8px; font-size: 12px; color: var(--el-text-color-regular); background-color: var(--el-fill-color-blank); border-radius: 8px; box-shadow: 0 0 0 1px var(--el-border-color) inset; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; user-select: none; }
 .trans-table :deep(.cell-no-lang) { color: var(--el-text-color-placeholder); box-shadow: none; background-color: transparent; }
 .trans-table :deep(.cell-delete-static) { font-size: 13px; color: #c0c4cc; user-select: none; }
@@ -1286,10 +1331,12 @@ const translationColumns = computed<Column<GroupedRow>[]>(() => {
 .drag-line { position: fixed; height: 2px; background: #409eff; z-index: 3001; pointer-events: none; }
 .drag-ghost-key { font-size: 13px; font-weight: 600; color: #303133; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
 .drag-ghost-source { margin-top: 2px; font-size: 12px; color: #909399; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: monospace; }
-.trans-table :deep(.inline-input) { flex: 1; min-width: 0; }
-.trans-table.row-top :deep(.inline-input) { height: 100%; }
-.trans-table.row-top :deep(.inline-input .el-textarea) { height: 100%; }
-.trans-table.row-top :deep(.inline-input .el-textarea__inner) { height: 100%; }
+.trans-table :deep(.lock-input-wrap) { flex: 1; min-width: 0; display: flex; align-items: flex-end; position: relative; }
+.trans-table.row-top :deep(.lock-input-wrap) { align-items: flex-start; height: 100%; }
+.trans-table.row-top :deep(.lock-input-wrap .inline-input) { height: 100%; }
+.trans-table.row-top :deep(.lock-input-wrap .inline-input .el-textarea) { height: 100%; }
+.trans-table.row-top :deep(.lock-input-wrap .inline-input .el-textarea__inner) { height: 100%; }
+.trans-table :deep(.lock-input-wrap .inline-input) { flex: 1; min-width: 0; }
 .trans-table :deep(.inline-input .el-textarea__inner) { padding: 2px 6px; font-size: 13px; line-height: 20px; overflow-y: auto; }
 .trans-page :deep(textarea) { resize: none; }
 .expand-meta { display: grid; grid-template-columns: 48px 1fr; row-gap: 2px; column-gap: 12px; padding: 6px 10px; margin-bottom: 8px; background: #f5f7fa; border-radius: 6px; }
