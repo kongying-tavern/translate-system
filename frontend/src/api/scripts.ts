@@ -1,4 +1,4 @@
-import client from './client'
+import { apiGet } from './client'
 
 export interface ScriptParam {
   shortName: string
@@ -39,22 +39,18 @@ export interface ScriptDownload {
   platform: 'ps1' | 'sh'
 }
 
-export async function listScripts(): Promise<ScriptInfo[]> {
-  const res = await client.get('/scripts')
-  return res.data.data as ScriptInfo[]
+export async function listScripts() {
+  return await apiGet<ScriptInfo[]>('/scripts')
 }
 
-export async function getScript(id: string): Promise<ScriptInfo> {
-  const res = await client.get(`/scripts/${id}`)
-  return res.data.data as ScriptInfo
+export async function getScript(id: string) {
+  return await apiGet<ScriptInfo>(`/scripts/${id}`)
 }
 
-export async function downloadScript(id: string, platform: 'ps1' | 'sh'): Promise<ScriptDownload> {
-  const res = await client.get(`/scripts/${id}/download`, { params: { platform } })
-  return res.data.data as ScriptDownload
+export async function downloadScript(id: string, platform: 'ps1' | 'sh') {
+  return await apiGet<ScriptDownload>(`/scripts/${id}/download`, { params: { platform } })
 }
 
-export async function managerDownload(platform: 'win' | 'mac' | 'linux'): Promise<{ available: boolean }> {
-  const res = await client.get('/scripts/manager/download', { params: { platform } })
-  return res.data.data as { available: boolean }
+export async function managerDownload(platform: 'win' | 'mac' | 'linux') {
+  return await apiGet<{ available: boolean }>('/scripts/manager/download', { params: { platform } })
 }

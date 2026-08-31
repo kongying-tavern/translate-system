@@ -3,6 +3,13 @@ import router from '@/router'
 import { clearTokens, getAccessToken, getRefreshToken } from '@/utils/token'
 import { refreshTokens } from './tokenRefresh'
 
+/** 后端统一响应结构 */
+export interface ApiResponse<T> {
+  code: number
+  message: string
+  data: T
+}
+
 const client = axios.create({
   baseURL: '/api/v1',
   timeout: 15000,
@@ -47,3 +54,9 @@ client.interceptors.response.use(
 )
 
 export default client
+
+/** 带类型的 GET 请求，自动解包 ApiResponse<T> */
+export async function apiGet<T>(url: string, config?: Parameters<typeof client.get>[1]): Promise<T> {
+  const res = await client.get<ApiResponse<T>>(url, config)
+  return res.data.data
+}
