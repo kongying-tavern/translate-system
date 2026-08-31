@@ -71,20 +71,20 @@ export interface ScriptInfo {
 interface ScriptSource {
   id: string
   name: string
+  description: string
   subcommands: SubcommandMeta[]
-  readmeFile: string
   ps1File: string
   shFile: string
 }
 
 const SOURCES: ScriptSource[] = [
-  { ...deployMeta, readmeFile: 'deploy/README.md', ps1File: 'deploy/SCRIPT.ps1', shFile: 'deploy/SCRIPT.sh' },
-  { ...folderLockMeta, readmeFile: 'folder_lock/README.md', ps1File: 'folder_lock/SCRIPT.ps1', shFile: 'folder_lock/SCRIPT.sh' },
-  { ...importEntriesMeta, readmeFile: 'import_entries/README.md', ps1File: 'import_entries/SCRIPT.ps1', shFile: 'import_entries/SCRIPT.sh' },
-  { ...downloadSingleMeta, readmeFile: 'download_translations_single/README.md', ps1File: 'download_translations_single/SCRIPT.ps1', shFile: 'download_translations_single/SCRIPT.sh' },
-  { ...downloadMultiMeta, readmeFile: 'download_translations_multi/README.md', ps1File: 'download_translations_multi/SCRIPT.ps1', shFile: 'download_translations_multi/SCRIPT.sh' },
-  { ...importTranslationsMeta, readmeFile: 'import_translations/README.md', ps1File: 'import_translations/SCRIPT.ps1', shFile: 'import_translations/SCRIPT.sh' },
-  { ...summarizeMeta, readmeFile: 'summarize_translations/README.md', ps1File: 'summarize_translations/SCRIPT.ps1', shFile: 'summarize_translations/SCRIPT.sh' },
+  { ...deployMeta, ps1File: 'deploy/SCRIPT.ps1', shFile: 'deploy/SCRIPT.sh' },
+  { ...folderLockMeta, ps1File: 'folder_lock/SCRIPT.ps1', shFile: 'folder_lock/SCRIPT.sh' },
+  { ...importEntriesMeta, ps1File: 'import_entries/SCRIPT.ps1', shFile: 'import_entries/SCRIPT.sh' },
+  { ...downloadSingleMeta, ps1File: 'download_translations_single/SCRIPT.ps1', shFile: 'download_translations_single/SCRIPT.sh' },
+  { ...downloadMultiMeta, ps1File: 'download_translations_multi/SCRIPT.ps1', shFile: 'download_translations_multi/SCRIPT.sh' },
+  { ...importTranslationsMeta, ps1File: 'import_translations/SCRIPT.ps1', shFile: 'import_translations/SCRIPT.sh' },
+  { ...summarizeMeta, ps1File: 'summarize_translations/SCRIPT.ps1', shFile: 'summarize_translations/SCRIPT.sh' },
 ]
 
 function fileStat(rel: string): ScriptPlatformFile {
@@ -92,13 +92,6 @@ function fileStat(rel: string): ScriptPlatformFile {
   const content = fs.readFileSync(abs)
   const sha256 = createHash('sha256').update(content).digest('hex')
   return { fileName: path.basename(rel), sha256, size: content.length }
-}
-
-function description(rel: string): string {
-  const abs = path.join(SCRIPTS_ROOT, rel)
-  // README 首行标题后的首段描述
-  const text = fs.readFileSync(abs, 'utf-8')
-  return text.split(/\r?\n/).map(l => l.trim()).filter(l => l && !l.startsWith('#')).join(' ') || text.trim()
 }
 
 function toScriptParam(p: ScriptParamMeta): ScriptParam {
@@ -130,7 +123,7 @@ export function listScripts(): ScriptInfo[] {
   return SOURCES.map(s => ({
     id: s.id,
     name: s.name,
-    description: description(s.readmeFile),
+    description: s.description,
     platforms: { ps1: fileStat(s.ps1File), sh: fileStat(s.shFile) },
     subcommands: s.subcommands.map(toSubcommand),
   }))

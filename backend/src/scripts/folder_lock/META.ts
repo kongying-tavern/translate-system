@@ -3,6 +3,7 @@ import type { ScriptMeta } from '../scripts-types'
 export const meta: ScriptMeta = {
   id: 'folder_lock',
   name: '目录伪锁定',
+  description: '伪锁定方案：在临时目录中处理文件，完成后同步到目标目录，避免目标目录出现中间状态文件。',
   subcommands: [
     {
       name: '',

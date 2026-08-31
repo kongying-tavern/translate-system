@@ -3,6 +3,7 @@ import type { ScriptMeta } from '../scripts-types'
 export const meta: ScriptMeta = {
   id: 'import_entries',
   name: '导入条目',
+  description: '将条目定义（translation_key）批量导入项目。支持 JSON / CSV / YAML / XML 格式，后端自动检测。',
   subcommands: [
     {
       name: '',

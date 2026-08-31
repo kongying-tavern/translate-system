@@ -3,6 +3,7 @@ import type { ScriptMeta } from '../scripts-types'
 export const meta: ScriptMeta = {
   id: 'import_translations',
   name: '导入翻译',
+  description: '将翻译内容（translation_value）批量导入指定语言。支持 JSON / CSV / YAML / XML / Properties 格式，需明确指定格式类型。',
   subcommands: [
     {
       name: '',

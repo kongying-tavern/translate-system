@@ -3,6 +3,7 @@ import type { ScriptMeta } from '../scripts-types'
 export const meta: ScriptMeta = {
   id: 'deploy',
   name: '部署',
+  description: 'SSH 部署脚本：连接服务器 → 拉取指定分支 → `docker compose up -d --build`。',
   subcommands: [
     {
       name: '',

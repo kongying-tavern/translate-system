@@ -38,6 +38,8 @@ export interface ScriptMeta {
   id: string
   /** 显示名，如 '导入翻译' */
   name: string
+  /** 脚本简介（一行描述） */
+  description: string
   /** 根级子命令（至少一项）；无子命令脚本为 [{ name: '', params:[...] }] */
   subcommands: SubcommandMeta[]
 }

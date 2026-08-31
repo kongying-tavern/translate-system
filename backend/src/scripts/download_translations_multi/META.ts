@@ -3,6 +3,7 @@ import type { ScriptMeta } from '../scripts-types'
 export const meta: ScriptMeta = {
   id: 'download_translations_multi',
   name: '下载翻译（合并文件）',
+  description: '一次性导出全部语言到一个文件。',
   subcommands: [
     {
       name: '',

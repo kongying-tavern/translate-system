@@ -3,6 +3,7 @@ import type { ScriptMeta } from '../scripts-types'
 export const meta: ScriptMeta = {
   id: 'download_translations_single',
   name: '下载翻译（单语言文件）',
+  description: '从服务器导出翻译文件，每语言一个单独文件。',
   subcommands: [
     {
       name: '',
