@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Avatar, Collection, Document, Download, Monitor, Upload, User } from '@element-plus/icons-vue'
+import { Avatar, Collection, Document, Download, Monitor, Tools, Upload, User } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { BaseIcon } from '@/components/ui'
@@ -48,6 +48,9 @@ const appName = import.meta.env.VITE_APP_NAME || '翻译管理平台'
     </el-menu>
     <div class="sidebar-bottom">
       <el-menu :default-active="route.path" router background-color="#1d1e2c" text-color="#bfcbd9" active-text-color="#409eff">
+        <el-menu-item index="/scripts">
+          <BaseIcon><Tools /></BaseIcon><span>脚本管理</span>
+        </el-menu-item>
         <el-menu-item index="/api-doc">
           <BaseIcon><Document /></BaseIcon><span>开放接口说明</span>
         </el-menu-item>

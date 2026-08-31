@@ -56,6 +56,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'Dashboard', component: () => import('@/views/dashboard/DashboardView.vue'), meta: { title: '项目管理', isStatic: true } },
         { path: 'users', name: 'Users', component: () => import('@/views/auth/UserManageView.vue'), meta: { title: '用户管理', perm: 'sys:admin' } },
+        { path: 'scripts', name: 'Scripts', component: () => import('@/views/scripts/ScriptsView.vue'), meta: { title: '脚本管理' } },
         { path: 'api-doc', name: 'ApiDoc', component: () => import('@/views/auth/ApiDocView.vue'), meta: { title: '开放接口说明' } },
         { path: 'projects/new', name: 'ProjectCreate', component: () => import('@/views/project/ProjectCreateView.vue'), meta: { title: '新建项目', perm: 'sys:super_admin' } },
         { path: 'projects/:projectSlug/edit', name: 'ProjectEdit', component: () => import('@/views/project/ProjectCreateView.vue'), meta: { title: '编辑项目', perm: 'sys:super_admin' } },
