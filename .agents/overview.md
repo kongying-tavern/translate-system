@@ -43,8 +43,7 @@ cd frontend && pnpm install      # 将 patch 应用到 node_modules
 rm -rf node_modules/.vite        # patch 生效后必须清 Vite 缓存
 # 注意：patch 目录存在时再次 pnpm patch 会报 ERR_PNPM_EDIT_DIR_NOT_EMPTY，直接编辑现有目录再 patch-commit 即可
 
-# 批量导入翻译（详见 docs/scripts-guide.md）
-cd backend && pnpm tsx src/scripts/import_translations/SCRIPT.sh -e <endpoint> -k <apikey> -s <secret> -p <project> -t json -l <lang> -f <file>
+
 
 # Lint + 类型检查（提交前必须执行）
 cd backend && pnpm lint            # ESLint + tsc

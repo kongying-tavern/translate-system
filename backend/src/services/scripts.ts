@@ -1,4 +1,4 @@
-import type { ScriptParamMeta } from '../scripts/scripts-types'
+import type { ScriptParamMeta, SubcommandMeta } from '../scripts/scripts-types'
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -21,7 +21,7 @@ export interface ScriptParam {
   /** sh kebab-case 长名 */
   shName: string
   /** 取值类型 */
-  type: 'string' | 'switch' | 'int' | 'enum'
+  type: 'string' | 'switch' | 'int' | 'enum' | 'subcommand'
   /** 是否必填 */
   required: boolean
   /** 默认值 */
@@ -30,6 +30,17 @@ export interface ScriptParam {
   enumValues?: string[]
   /** 帮助文本 */
   help: string
+}
+
+export interface SubcommandInfo {
+  /** 子命令名；无子命令（全局层）为 '' */
+  name: string
+  /** 子命令描述；name 为 '' 时可留空 */
+  desc: string
+  /** 该子命令的参数 */
+  params: ScriptParam[]
+  /** 递归的下一级子命令（可选） */
+  subcommands?: SubcommandInfo[]
 }
 
 export interface ScriptPlatformFile {
@@ -53,14 +64,14 @@ export interface ScriptInfo {
     ps1: ScriptPlatformFile
     sh: ScriptPlatformFile
   }
-  /** 参数定义（来自 META.ts，文档用途） */
-  params: ScriptParam[]
+  /** 子命令定义（来自 META.ts，文档用途；无子命令脚本为 [{ name:'', params:[...] }]） */
+  subcommands: SubcommandInfo[]
 }
 
 interface ScriptSource {
   id: string
   name: string
-  params: ScriptParamMeta[]
+  subcommands: SubcommandMeta[]
   readmeFile: string
   ps1File: string
   shFile: string
@@ -106,13 +117,22 @@ function toScriptParam(p: ScriptParamMeta): ScriptParam {
   return out
 }
 
+function toSubcommand(sc: SubcommandMeta): SubcommandInfo {
+  return {
+    name: sc.name,
+    desc: sc.desc,
+    params: sc.params.map(toScriptParam),
+    subcommands: (sc.subcommands ?? []).map(toSubcommand),
+  }
+}
+
 export function listScripts(): ScriptInfo[] {
   return SOURCES.map(s => ({
     id: s.id,
     name: s.name,
     description: description(s.readmeFile),
     platforms: { ps1: fileStat(s.ps1File), sh: fileStat(s.shFile) },
-    params: s.params.map(toScriptParam),
+    subcommands: s.subcommands.map(toSubcommand),
   }))
 }
 
