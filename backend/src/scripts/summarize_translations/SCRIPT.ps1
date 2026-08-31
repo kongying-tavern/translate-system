@@ -1,42 +1,55 @@
 param(
+    [Alias("e")]
     [Parameter(Mandatory, HelpMessage = "服务器地址，如 http://localhost:20080")]
     [string]$Endpoint,
 
+    [Alias("k")]
     [Parameter(HelpMessage = "API Key (ak_xxx)，与 -AuthConfig 二选一")]
     [string]$ApiKey,
 
+    [Alias("s")]
     [Parameter(HelpMessage = "API Secret，与 -AuthConfig 二选一")]
     [string]$ApiSecret,
 
+    [Alias("a")]
     [Parameter(HelpMessage = "鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）")]
     [string]$AuthConfig,
 
+    [Alias("p")]
     [Parameter(Mandatory, HelpMessage = "项目 Slug (UUID 或 code)")]
     [string]$ProjectSlug,
 
+    [Alias("l")]
     [Parameter(HelpMessage = "过滤语言，逗号分隔，支持语言代码或代码别名，不传则全部")]
     [string]$Languages = "",
 
+    [Alias("g")]
     [Parameter(HelpMessage = "按标签过滤，逗号分隔，只统计含指定标签的条目")]
     [string]$FilterTags = "",
 
+    [Alias("c")]
     [Parameter(HelpMessage = "输出的 langCode/文件名 使用语言代码而非代码别名（codeAlias）")]
     [switch]$NoCodeAlias,
 
+    [Alias("n")]
     [Parameter(HelpMessage = "输出的 langName 跳过语言别名（nameAlias），直接使用语言名称")]
     [switch]$NoNameAlias,
 
+    [Alias("f")]
     [Parameter(HelpMessage = "输入文件类型: json, yaml, xml, properties, csv（默认 json）")]
     [ValidateSet("json", "yaml", "xml", "properties", "csv")]
     [string]$InputFormat = "json",
 
+    [Alias("t")]
     [Parameter(HelpMessage = "输出文件类型: json, yaml, xml（默认 json）")]
     [ValidateSet("json", "yaml", "xml")]
     [string]$OutputFormat = "json",
 
+    [Alias("i")]
     [Parameter(Mandatory, HelpMessage = "包含翻译文件的目录")]
     [string]$InputDir,
 
+    [Alias("o")]
     [Parameter(HelpMessage = "输出文件路径，默认 <InputDir>/summary.json")]
     [string]$OutputFile = ""
 )

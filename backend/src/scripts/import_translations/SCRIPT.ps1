@@ -1,31 +1,41 @@
 param(
+    [Alias("e")]
     [Parameter(Mandatory, HelpMessage = "服务器地址，如 http://localhost:20080")]
     [string]$Endpoint,
 
+    [Alias("k")]
     [Parameter(HelpMessage = "API Key (ak_xxx)，与 -AuthConfig 二选一")]
     [string]$ApiKey,
 
+    [Alias("s")]
     [Parameter(HelpMessage = "API Secret，与 -AuthConfig 二选一")]
     [string]$ApiSecret,
 
+    [Alias("a")]
     [Parameter(HelpMessage = "鉴权信息文件路径（JSON 格式，包含 apiKey 和 apiSecret）")]
     [string]$AuthConfig,
 
+    [Alias("p")]
     [Parameter(Mandatory, HelpMessage = "项目 Slug (UUID 或 code)")]
     [string]$ProjectSlug,
 
+    [Alias("t")]
     [Parameter(Mandatory, HelpMessage = "格式类型，支持: json (JSON), csv (CSV), yaml (YAML), xml (XML), properties (Properties)")]
     [string]$FormatType,
 
+    [Alias("l")]
     [Parameter(Mandatory, HelpMessage = "目标语言代码（如 zh-Hans，支持代码别名）")]
     [string]$Language,
 
+    [Alias("f")]
     [Parameter(Mandatory, HelpMessage = "数据文件路径")]
     [string]$File,
 
+    [Alias("o")]
     [Parameter(HelpMessage = "覆盖已有译文（默认不覆盖）")]
     [switch]$Overwrite,
 
+    [Alias("n")]
     [Parameter(HelpMessage = "不自动补全新条目（默认自动创建）")]
     [switch]$NoAutoCreate
 )

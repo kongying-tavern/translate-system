@@ -1,25 +1,30 @@
 param(
+    [Alias("s")]
     [Parameter(Mandatory, HelpMessage = "服务器地址")]
-    [string]$Host,
+    [string]$ServerHost,
 
+    [Alias("P")]
     [Parameter(HelpMessage = "SSH 端口")]
     [int]$Port = 22,
 
+    [Alias("u")]
     [Parameter(Mandatory, HelpMessage = "SSH 用户名")]
     [string]$User,
 
+    [Alias("d")]
     [Parameter(Mandatory, HelpMessage = "目标部署目录（服务器上的项目路径）")]
     [string]$Dir,
 
+    [Alias("b")]
     [Parameter(Mandatory, HelpMessage = "发布分支")]
     [string]$Branch
 )
 
 $ErrorActionPreference = "Stop"
-$dest = "${User}@${Host}"
+$dest = "${User}@${ServerHost}"
 
 Write-Host "===== 部署开始 =====" -ForegroundColor Cyan
-Write-Host "服务器: ${Host}:${Port}"
+Write-Host "服务器: ${ServerHost}:${Port}"
 Write-Host "用户:   ${User}"
 Write-Host "目录:   ${Dir}"
 Write-Host "分支:   ${Branch}"

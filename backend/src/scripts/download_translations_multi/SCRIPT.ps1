@@ -1,31 +1,41 @@
 param(
+    [Alias("e")]
     [Parameter(Mandatory, HelpMessage = "服务器地址，如 http://localhost:20080")]
     [string]$Endpoint,
 
+    [Alias("k")]
     [Parameter(HelpMessage = "API Key (ak_xxx)，与 -AuthConfig 二选一")]
     [string]$ApiKey,
 
+    [Alias("s")]
     [Parameter(HelpMessage = "API Secret，与 -AuthConfig 二选一")]
     [string]$ApiSecret,
 
+    [Alias("a")]
     [Parameter(HelpMessage = "鉴权信息文件路径（JSON 格式，包含 apiKey 和 apiSecret）")]
     [string]$AuthConfig,
 
+    [Alias("p")]
     [Parameter(Mandatory, HelpMessage = "项目 Slug (UUID 或 code)")]
     [string]$ProjectSlug,
 
+    [Alias("t")]
     [Parameter(Mandatory, HelpMessage = "导出模板 Slug (UUID 或 code)，在 Web 端创建后使用")]
     [string]$TemplateSlug,
 
+    [Alias("o")]
     [Parameter(Mandatory, HelpMessage = "输出文件路径")]
     [string]$OutputFile,
 
+    [Alias("l")]
     [Parameter(HelpMessage = "过滤语言，逗号分隔，支持语言代码或代码别名，留空则导出所有语言")]
     [string]$Languages = "",
 
+    [Alias("g")]
     [Parameter(HelpMessage = "按标签过滤，逗号分隔，只导出含指定标签的条目")]
     [string]$FilterTags = "",
 
+    [Alias("d")]
     [Parameter(HelpMessage = "导出前删除已存在的输出文件")]
     [switch]$Delete
 )

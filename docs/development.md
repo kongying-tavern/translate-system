@@ -61,15 +61,9 @@ cd frontend && pnpm install && pnpm dev   # -> http://localhost:3000
 
 首位注册的用户自动成为超级管理员（super_admin）。
 
-## 导入翻译文件脚本
+## 导入翻译
 
-```bash
-cd backend
-pnpm tsx src/scripts/import-json.ts <项目ID> <JSON文件路径> <语言代码>
-# 例如: pnpm tsx src/scripts/import-json.ts <uuid> ../zh-Hans.json zh-Hans
-```
-
-更多批量导入方式（API Key 自动化脚本等）见 [命令行脚本使用说明](scripts-guide.md)。
+批量导入翻译内容使用 `import_translations` 命令行脚本（API Key 自动化），详见 [命令行脚本使用说明](scripts-guide.md)。
 
 ## 相关文档
 

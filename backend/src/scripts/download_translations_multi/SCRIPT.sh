@@ -9,9 +9,9 @@ usage() {
   -e, --endpoint <url>        服务器地址，如 http://localhost:20080
   -k, --api-key <key>         API Key (ak_xxx)
   -s, --api-secret <secret>   API Secret
-  -p, --project <slug>        项目 Slug (UUID 或 code)
-  -t, --template <slug>       导出模板 Slug (UUID 或 code)
-  -o, --output <file>         输出文件路径
+  -p, --project-slug <slug>    项目 Slug (UUID 或 code)
+  -t, --template-slug <slug>   导出模板 Slug (UUID 或 code)
+  -o, --output-file <file>     输出文件路径
 
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
@@ -40,9 +40,9 @@ while [[ $# -gt 0 ]]; do
     -k|--api-key)      API_KEY="$2"; shift 2 ;;
     -s|--api-secret)   API_SECRET="$2"; shift 2 ;;
     -a|--auth-config)  AUTH_CONFIG="$2"; shift 2 ;;
-    -p|--project)      PROJECT_SLUG="$2"; shift 2 ;;
-    -t|--template)     TEMPLATE_SLUG="$2"; shift 2 ;;
-    -o|--output)       OUTPUT_FILE="$2"; shift 2 ;;
+    -p|--project-slug)  PROJECT_SLUG="$2"; shift 2 ;;
+    -t|--template-slug) TEMPLATE_SLUG="$2"; shift 2 ;;
+    -o|--output-file)   OUTPUT_FILE="$2"; shift 2 ;;
     -l|--languages)    LANGUAGES="$2"; shift 2 ;;
     -g|--filter-tags)  FILTER_TAGS="$2"; shift 2 ;;
     -d|--delete)       DELETE=true; shift ;;

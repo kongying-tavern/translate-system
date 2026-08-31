@@ -30,14 +30,14 @@ usage() {
   3. unlock      → 同步到目标目录
 
 示例:
-  STAGING=\$(./folder_lock.sh --target ./translations lock --delete)
+  STAGING=\$(./SCRIPT.sh --target ./translations lock --delete)
   ./scripts/download_translations_single.sh \\
     -e http://localhost:20080 -k ak_xxx -s xxx \\
     -p my-project -t my-template -o "\$STAGING"
   ./scripts/summarize_translations.sh \\
     -e http://localhost:20080 -k ak_xxx -s xxx \\
     -p my-project -i "\$STAGING" -o "\$STAGING/summary.json"
-  ./folder_lock.sh --target ./translations unlock --delete
+  ./SCRIPT.sh --target ./translations unlock --delete
 EOF
   exit 0
 }

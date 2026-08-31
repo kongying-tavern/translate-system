@@ -56,6 +56,17 @@ cd frontend && pnpm install && pnpm dev  # 3. 前端 localhost:3000
 | [docs/positioning.md](docs/positioning.md) | 项目亮点分受众介绍（官网文案 / 汇报可用） |
 | [AGENTS.md](AGENTS.md) | AI 协作开发指南入口（`.agents/` 下有 12 个专题分册） |
 
+## 脚本参数规范
+
+`backend/src/scripts/` 下每个脚本一个子目录，成对固定提供 `SCRIPT.ps1` 与 `SCRIPT.sh` 两种实现，两者的参数必须对齐：
+
+1. **参数一一对应** — 同一逻辑参数的 ps1 与 sh 长短名完全对应，例：`-ProjectSlug` ↔ `--project-slug`（详见各脚本说明）。
+2. **仅格式不同** — 两边用的是同一个参数单词，只是格式按各自平台习惯：ps1 用 PascalCase（`-ApiKey`），sh 用 kebab-case（`--api-key`）。除格式外，必填、默认值、枚举与语义都一致。
+3. **短参数避免大小写撞车** — ps1 参数名大小写不敏感，`-n` 与 `-N` 会被当成同一个参数。因此短参数不要保留仅靠大小写区分的两个字母（例如 no-code-alias 用 `-c`、no-name-alias 用 `-n`），避免 `-n` / `-N` 并存。
+4. **短参数避让 `-h` / `-v`** — `-h` 约定保留给帮助（help）、`-v` 保留给版本（version），业务短参数不用这两个字母。需要帮助时 ps1 用 `-?`、sh 用 `-h, --help`（如 Deploy 的服务器地址用 `-s`,不用 `-h`）。
+
+完整说明与各脚本参数对照见 [docs/scripts-guide.md](docs/scripts-guide.md)。
+
 ## 角色权限速览
 
 - **系统角色**：超管（全部权限，首位注册者自动获得）/ 管理员（用户管理与日常协作）/ 普通用户（默认，仅编辑译文）

@@ -9,18 +9,18 @@ usage() {
   -e, --endpoint <url>        服务器地址，如 http://localhost:20080
   -k, --api-key <key>         API Key (ak_xxx)
   -s, --api-secret <secret>   API Secret
-  -p, --project <slug>        项目 Slug (UUID 或 code)
+  -p, --project-slug <slug>    项目 Slug (UUID 或 code)
 
 可选:
   -a, --auth-config <file>    鉴权信息文件路径（JSON，包含 apiKey 和 apiSecret）
   -l, --languages <list>      过滤语言，逗号分隔，支持语言代码或代码别名，不传则全部
   -g, --filter-tags <list>    按标签过滤，逗号分隔，只统计含指定标签的条目
-  -n, --no-code-alias         输出的 langCode/文件名 使用语言代码而非代码别名（codeAlias）
-  -N, --no-name-alias         输出的 langName 跳过语言别名（nameAlias），直接使用语言名称
+  -c, --no-code-alias         输出的 langCode/文件名 使用语言代码而非代码别名（codeAlias）
+  -n, --no-name-alias         输出的 langName 跳过语言别名（nameAlias），直接使用语言名称
   -f, --input-format <type>   输入文件类型: json, yaml, xml, properties, csv（默认 json）
   -t, --output-format <type>  输出文件类型: json, yaml, xml（默认 json）
   -i, --input-dir <dir>       包含翻译文件的目录（必填）
-  -o, --output <file>         输出文件路径（默认 <input-dir>/summary.json）
+  -o, --output-file <file>     输出文件路径（默认 <input-dir>/summary.json）
   -h, --help                  显示此帮助
 EOF
   exit 0
@@ -46,15 +46,15 @@ while [[ $# -gt 0 ]]; do
     -k|--api-key)       API_KEY="$2"; shift 2 ;;
     -s|--api-secret)    API_SECRET="$2"; shift 2 ;;
     -a|--auth-config)   AUTH_CONFIG="$2"; shift 2 ;;
-    -p|--project)       PROJECT_SLUG="$2"; shift 2 ;;
+    -p|--project-slug) PROJECT_SLUG="$2"; shift 2 ;;
     -i|--input-dir)     INPUT_DIR="$2"; shift 2 ;;
     -l|--languages)     LANGUAGES="$2"; shift 2 ;;
     -g|--filter-tags)   FILTER_TAGS="$2"; shift 2 ;;
-    -n|--no-code-alias) NO_CODE_ALIAS="true"; shift ;;
-    -N|--no-name-alias) NO_NAME_ALIAS="true"; shift ;;
+    -c|--no-code-alias) NO_CODE_ALIAS="true"; shift ;;
+    -n|--no-name-alias) NO_NAME_ALIAS="true"; shift ;;
     -f|--input-format)  INPUT_FORMAT="$2"; shift 2 ;;
     -t|--output-format) OUTPUT_FORMAT="$2"; shift 2 ;;
-    -o|--output)        OUTPUT="$2"; shift 2 ;;
+    -o|--output-file)   OUTPUT="$2"; shift 2 ;;
     -h|--help)          usage ;;
     *) echo "未知参数: $1"; usage ;;
   esac

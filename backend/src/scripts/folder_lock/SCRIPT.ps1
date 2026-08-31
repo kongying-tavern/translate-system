@@ -1,11 +1,13 @@
 param(
-    [Parameter(Mandatory, HelpMessage = "目标目录")]
-    [string]$Target,
-
     [Parameter(Position = 0, HelpMessage = "命令: lock / unlock / status")]
     [ValidateSet("lock", "unlock", "status")]
     [string]$Command,
 
+    [Alias("t")]
+    [Parameter(Mandatory, HelpMessage = "目标目录")]
+    [string]$Target,
+
+    [Alias("d")]
     [Parameter(HelpMessage = "lock: 清空目标目录后重建；unlock: 移动文件并从临时目录中删除原文件")]
     [switch]$Delete
 )
