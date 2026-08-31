@@ -73,6 +73,7 @@ onMounted(async () => {
                   </h4>
                   <ScriptSubcommandBlock :subcommands="s.subcommands" platform="ps1" />
                 </div>
+                <ScriptFingerprint :sha256="s.platforms.ps1.sha256" />
               </template>
               <template #tab-sh>
                 <div class="usage-section">
@@ -81,10 +82,9 @@ onMounted(async () => {
                   </h4>
                   <ScriptSubcommandBlock :subcommands="s.subcommands" platform="sh" />
                 </div>
+                <ScriptFingerprint :sha256="s.platforms.sh.sha256" />
               </template>
-            </BaseTabs>
-
-            <ScriptFingerprint :sha256="platform === 'ps1' ? s.platforms.ps1.sha256 : s.platforms.sh.sha256" />
+            </basetabs>
           </div>
         </div>
       </el-tab-pane>
