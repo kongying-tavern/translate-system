@@ -2,6 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+backend/src/scripts/*/*.hash
 .DS_Store
 .thumbs/
 .history/

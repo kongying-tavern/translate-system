@@ -28,11 +28,11 @@ controllers/ → services/ → Prisma Client
 **OpenAPI 文档产物（backend/src/docs/）**
 
 - `swagger.ts` —— 手写包装层（补 tags 分组/安全方案/描述），必须提交
-- `routes.ts` + `swagger.json` —— tsoa 生成产物，pnpm gen 自动生成，勿手改；已 gitignore（docs/* + !swagger.ts），由 predev 与 Dockerfile 自动生成
+- `routes.ts` + `swagger.json` —— tsoa 生成产物，pnpm gen:openapi 自动生成，勿手改；已 gitignore（docs/* + !swagger.ts），由 predev 与 Dockerfile 自动生成
 
 ## tsoa 用法与陷阱
 
-控制器注解：`@Route` / `@Get|Post|Put|Delete` / `@Path` / `@Query` / `@Body` / `@Security`。改完控制器必须 `cd backend && pnpm gen`。
+控制器注解：`@Route` / `@Get|Post|Put|Delete` / `@Path` / `@Query` / `@Body` / `@Security`。改完控制器必须 `cd backend && pnpm gen:openapi`。
 
 | # | 陷阱 | 正确做法 |
 |---|------|----------|

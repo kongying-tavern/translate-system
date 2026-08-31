@@ -4,7 +4,7 @@
 
 ## 改动翻译相关功能
 
-1. 先改 `services/translation.ts` → 再改 `controllers/TranslationsController.ts` → `cd backend && pnpm gen` → 最后改前端
+1. 先改 `services/translation.ts` → 再改 `controllers/TranslationsController.ts` → `cd backend && pnpm gen:openapi` → 最后改前端
 2. 改 `prisma/schema.prisma` → `pnpm db:migrate` 生成迁移文件 → 更新 service
    - 必须创建迁移文件；用 `db:push` 绕过会导致 Docker 部署时 `migrate deploy` 遗漏变更
    - 注意：db:push 后的 DB 没有 _prisma_migrations 记录，直接用 migrate deploy 会因列已存在报错，需先用 `migrate resolve --applied` 手动标记已存在的迁移
@@ -15,7 +15,7 @@
 > 新增受限接口（后端）：
 > 1. 选 @Security
 > 2. 项目级接口 handler 内 assertProjectAccess(..., minProjectRole?)
-> 3. pnpm gen 重新生成路由文档
+> 3. pnpm gen:openapi 重新生成路由文档
 > 4. 开放接口同步补 APIKEY_WHITELIST
 
 ## Git 分支与合并

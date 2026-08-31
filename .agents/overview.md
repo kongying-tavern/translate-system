@@ -24,8 +24,8 @@ docker compose down              # 停止所有服务
 docker compose logs -f           # 查看日志
 
 # 后端 (localhost:8080)
-cd backend && pnpm dev           # tsx watch 热重载（predev 会自动先跑 pnpm gen）
-pnpm gen                         # 重新生成 tsoa docs/routes.ts + swagger.json（改控制器后必须执行）
+cd backend && pnpm dev           # tsx watch 热重载（predev 会自动先跑 pnpm gen:openapi）
+pnpm gen:openapi                 # 重新生成 tsoa docs/routes.ts + swagger.json（改控制器后必须执行）
 pnpm db:generate                 # 重新生成 Prisma Client
 pnpm db:push                     # 推送 schema 到 DB（仅本地快速原型用，不产生迁移文件）
 pnpm db:migrate                  # 交互式：创建新迁移文件 + 应用到 DB（用于改 schema 后）

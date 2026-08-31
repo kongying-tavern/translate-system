@@ -87,11 +87,15 @@ const SOURCES: ScriptSource[] = [
   { ...summarizeMeta, ps1File: 'summarize_translations/SCRIPT.ps1', shFile: 'summarize_translations/SCRIPT.sh' },
 ]
 
+function hashFile(rel: string): string {
+  const hashPath = path.join(SCRIPTS_ROOT, `${rel}.hash`)
+  return fs.readFileSync(hashPath, 'utf-8').trim()
+}
+
 function fileStat(rel: string): ScriptPlatformFile {
   const abs = path.join(SCRIPTS_ROOT, rel)
   const content = fs.readFileSync(abs)
-  const sha256 = createHash('sha256').update(content).digest('hex')
-  return { fileName: path.basename(rel), sha256, size: content.length }
+  return { fileName: path.basename(rel), sha256: hashFile(rel), size: content.length }
 }
 
 function toScriptParam(p: ScriptParamMeta): ScriptParam {
