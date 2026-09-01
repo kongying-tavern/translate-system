@@ -63,10 +63,10 @@ cd frontend && pnpm install && pnpm dev   # -> http://localhost:3000
 
 ## 导入翻译
 
-批量导入翻译内容使用 `import_translations` 命令行脚本（API Key 自动化），详见 [命令行脚本使用说明](scripts-guide.md)。
+批量导入翻译内容使用 `import_translations` 命令行脚本（API Key 自动化），详见 [脚本系统](scripts.md)。
 
 ## 相关文档
 
 - [部署指南](deployment.md)
 - [权限体系](permission-guide.md)
-- [命令行脚本](scripts-guide.md)
+- [脚本系统](scripts.md)

@@ -2,7 +2,7 @@ node_modules/
 dist/
 .env
 *.log
-backend/src/scripts/*/*.hash
+backend/src/scripts/*/*.sha256
 .DS_Store
 .thumbs/
 .history/

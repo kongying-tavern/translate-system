@@ -54,5 +54,5 @@
 
 - [本地开发指南](development.md)
 - [部署指南](deployment.md)
-- [命令行脚本](scripts-guide.md) —— 上文「自带脚本」的完整用法
+- [脚本系统](scripts.md) —— 上文「自带脚本」的架构与用法
 - [权限体系](permission-guide.md)

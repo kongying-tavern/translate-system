@@ -88,7 +88,7 @@ const SOURCES: ScriptSource[] = [
 ]
 
 function hashFile(rel: string): string {
-  const hashPath = path.join(SCRIPTS_ROOT, `${rel}.hash`)
+  const hashPath = path.join(SCRIPTS_ROOT, `${rel}.sha256`)
   return fs.readFileSync(hashPath, 'utf-8').trim()
 }
 

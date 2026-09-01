@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 /**
- * 为所有脚本文件预算 SHA256，写入 *.hash 文件。
+ * 为所有脚本文件预算 SHA256，写入 *.sha256 文件。
  * 时机：pnpm gen:scripts（开发启动前 / 部署构建时）
  */
 import { createHash } from 'node:crypto'
@@ -22,9 +22,9 @@ for (const dir of scriptDirs) {
       continue
     const content = fs.readFileSync(abs)
     const sha256 = createHash('sha256').update(content).digest('hex')
-    fs.writeFileSync(`${abs}.hash`, `${sha256}\n`, 'utf-8')
+    fs.writeFileSync(`${abs}.sha256`, `${sha256}\n`, 'utf-8')
     count++
   }
 }
 
-console.log(`[scripts] 已生成 ${count} 个 .hash 文件`)
+console.log(`[scripts] 已生成 ${count} 个 .sha256 文件`)

@@ -22,6 +22,7 @@
 | [translation.md](.agents/translation.md) | 翻译管理页虚拟滚动、滚动降级、IME 守卫、排序机制、回归测试要点 | 动翻译页面前 |
 | [open-api.md](.agents/open-api.md) | API Key 鉴权、开放接口白名单、文档派生 | 动开放接口/API Key 前 |
 | [workflow.md](.agents/workflow.md) | 翻译功能改动流程、Git 分支与合并规则、schema 迁移规则、常见问题排查 | 排障 / 规划改动顺序 / 开分支前 |
+| [scripts.md](.agents/scripts.md) | 脚本系统数据模型、API 契约、组件架构与预构建 | 改脚本相关后端/前端前 |
 | [documentation.md](.agents/documentation.md) | 文档受众分区、命名、结构模板与写作风格 | 新建/修改任何 .md 前 |
 
 ## 硬性规范速览
