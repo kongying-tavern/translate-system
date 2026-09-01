@@ -1,7 +1,7 @@
 // META.ts 的共享类型。每个脚本包下的 META.ts 导出 meta: ScriptMeta，补全 README/ps1/sh 之外缺失的字段。
 // 本文件与 META.ts 是手写维护的源（非生成产物），params 仅用于文档/展示，实际执行以 ps1/sh 自身参数为准。
 
-export type ParamType = 'string' | 'switch' | 'int' | 'enum' | 'subcommand'
+export type ParamType = 'string' | 'switch' | 'int' | 'enum'
 
 export interface ScriptParamMeta {
   /** 单字母短名（ps1/sh 一致），如 'e' */

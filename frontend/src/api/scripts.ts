@@ -4,7 +4,7 @@ export interface ScriptParam {
   shortName: string
   ps1Name: string
   shName: string
-  type: 'string' | 'switch' | 'int' | 'enum' | 'subcommand'
+  type: 'string' | 'switch' | 'int' | 'enum'
   required: boolean
   default?: string | number | boolean | null
   enumValues?: string[]

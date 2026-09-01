@@ -25,7 +25,7 @@ interface ScriptParamMeta {
   shortName: string       // 单字母短名（ps1/sh 一致）
   ps1Name: string         // ps1 PascalCase 长名
   shName: string          // sh kebab-case 长名
-  type: 'string' | 'switch' | 'int' | 'enum' | 'subcommand'
+  type: 'string' | 'switch' | 'int' | 'enum'
   required: boolean
   default?: string | number | boolean | null
   enumValues?: string[]
