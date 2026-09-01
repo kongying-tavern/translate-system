@@ -15,7 +15,7 @@ interface ScriptMeta {
 }
 
 interface SubcommandMeta {
-  name: string            // 子命令名；无子命令脚本为 ''
+  name: string            // 子命令名；'' 表示根级参数（无名子命令）
   desc: string            // 子命令描述
   params: ScriptParamMeta[]
   subcommands?: SubcommandMeta[]  // 递归嵌套（可选）
@@ -33,9 +33,9 @@ interface ScriptParamMeta {
 }
 ```
 
-**无子命令的脚本**（如 `deploy`）：`subcommands` 为 `[{ name: '', desc: '', params: [...] }]`。
+所有脚本的 `subcommands` 结构完全一致：第一项 `name: ''` 是没有名字和描述的子命令（承载根级参数），后续项是命名子命令。子命令可无限嵌套。
 
-**有子命令的脚本**（如 `folder_lock`）：顶层 `name: ''` 放全局参数，嵌套 `subcommands` 放各子命令。
+例如 `deploy` 只有一项根级参数：`[{ name: '', params: [...] }]`；`folder_lock` 有根级参数 + 命名子命令：`[{ name: '', params: [...] }, { name: 'lock', subcommands: [...] }, { name: 'unlock', ... }]`。
 
 ## API 契约
 

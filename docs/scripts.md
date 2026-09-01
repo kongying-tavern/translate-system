@@ -38,7 +38,7 @@ backend/src/scripts/
 
 ## META.ts 编写
 
-每个脚本目录下的 `META.ts` 导出一个 `meta` 对象。无子命令的脚本：
+每个脚本目录下的 `META.ts` 导出一个 `meta` 对象。
 
 ```typescript
 export const meta: ScriptMeta = {
@@ -46,7 +46,7 @@ export const meta: ScriptMeta = {
   name: '部署',
   description: 'SSH 部署脚本：连接服务器 → 拉取分支 → docker compose up。',
   subcommands: [{
-    name: '',       // 无子命令时为空字符串
+    name: '',       // 根级参数（无名子命令）
     desc: '',
     params: [
       { shortName: 's', ps1Name: 'ServerHost', shName: 'server-host', type: 'string', required: true, help: '服务器地址' },
@@ -56,7 +56,7 @@ export const meta: ScriptMeta = {
 }
 ```
 
-有子命令的脚本（如 `folder_lock`），顶层 `name: ''` 放全局参数，嵌套 `subcommands` 放各子命令。
+所有脚本的 `subcommands` 结构完全一致：第一项 `name: ''` 是没有名字和描述的子命令（承载根级参数），后续项是命名子命令。子命令可无限嵌套。
 
 字段说明见 `backend/src/scripts/scripts-types.ts` 中的 `ScriptMeta` / `SubcommandMeta` / `ScriptParamMeta`。
 
